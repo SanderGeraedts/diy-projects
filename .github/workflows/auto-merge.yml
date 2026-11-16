@@ -1,6 +1,7 @@
-# D-0009: a green PR that touches no guarded path merges itself; a PR that touches one
-# waits for Sander. The decision is made from the changed paths only, by
-# .github/scripts/guarded-paths.mjs, read from main (never from the PR's own branch).
+# D-0012: a green PR that touches no guarded path merges itself; a PR that touches one
+# waits for Sander, unless its only guarded changes raise new open questions. Decided from
+# the changed files and diffs only, by .github/scripts/guarded-paths.mjs, read from main
+# (never from the PR's own branch).
 #
 # GitHub runs workflow_run workflows from the default branch, so a PR can't change how its
 # own merge is decided.
@@ -52,11 +53,12 @@ jobs:
         env:
           PR: ${{ steps.pr.outputs.number }}
         run: |
-          # Include the old name of renamed files, so moving code out of a guarded folder counts.
+          # One JSON line per file, with its status, old name (so moving code out of a guarded
+          # folder counts) and diff (for D-0012's question-only exception).
           gh api --paginate "repos/$REPO/pulls/$PR/files" \
-            --jq '.[] | .filename, (.previous_filename // empty)' > changed.txt
-          node .github/scripts/guarded-paths.mjs < changed.txt > guarded.txt
-          echo "Changed files: $(wc -l < changed.txt)"
+            --jq '.[] | {filename, status, previous_filename, patch} | tojson' > changed.ndjson
+          node .github/scripts/guarded-paths.mjs < changed.ndjson > guarded.txt
+          echo "Changed files: $(wc -l < changed.ndjson)"
           if [ -s guarded.txt ]; then
             echo "Guarded paths touched:"; cat guarded.txt
             echo "guarded=true" >> "$GITHUB_OUTPUT"
@@ -70,14 +72,14 @@ jobs:
           PR: ${{ steps.pr.outputs.number }}
         run: |
           gh label create needs-review --repo "$REPO" --color D93F0B \
-            --description "Touches a guarded path (D-0009); Sander reviews and merges" 2>/dev/null || true
+            --description "Touches a guarded path (D-0012); Sander reviews and merges" 2>/dev/null || true
           if gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx needs-review; then
             echo "Already labelled."
             exit 0
           fi
           gh pr edit "$PR" --repo "$REPO" --add-label needs-review
           {
-            echo "CI is green, but this PR touches guarded paths, so it waits for Sander's review (D-0009):"
+            echo "CI is green, but this PR touches guarded paths, so it waits for Sander's review (D-0012):"
             echo
             sed 's/^/- `/; s/$/`/' guarded.txt
           } > comment.md
