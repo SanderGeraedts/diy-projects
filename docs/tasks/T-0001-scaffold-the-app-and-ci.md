@@ -8,7 +8,7 @@ depends_on: []
 decisions: [D-0006, D-0007, D-0009, D-0010]
 raised_on: 2026-11-16
 done_on: ""
-result: []
+result: [https://github.com/SanderGeraedts/diy-projects/pull/1]
 ---
 
 # Goal
@@ -39,3 +39,4 @@ touches `.github/`, so it is guarded.
 
 - 2026-11-16 claude-code/opus-5.5: scaffolded the app, seed data, CI, auto-merge workflow, CODEOWNERS, netlify.toml and docs/deploy/netlify.md. Locally: typecheck clean, 31 unit tests pass, build passes, 5 e2e tests pass (seeded projects, timeline, manifest + service worker, offline reload, no ts.net in the bundle).
 - 2026-11-16 claude-code/opus-5.5: GitHub Free has no branch protection on private repos, so the gate is a workflow that merges non-guarded green PRs and labels guarded ones; enforcing review of guarded PRs raised as Q-001.
+- 2026-11-16 claude-code/opus-5.5: opened PR #1; CI `checks` passed in 54s. Waiting for Sander: Netlify site and preview check, review and merge, then the two test PRs for the gate.
