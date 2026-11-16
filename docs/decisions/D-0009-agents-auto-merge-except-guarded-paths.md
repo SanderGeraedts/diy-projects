@@ -2,11 +2,11 @@
 id: D-0009
 title: "Agents may auto-merge a green PR, except one that touches a guarded path"
 description: "An agent's PR merges itself when CI is green, unless it touches the NAS backend, the sync engine or local database, the service worker or auth, or the decisions, CI and agent rules; those always need Sander's review, enforced by CI from the changed paths."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0012]
 resolves: []
 tags: [process, safety]
 ---

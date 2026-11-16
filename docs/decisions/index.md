@@ -9,8 +9,8 @@ Read this list first, then only the records your work touches. How the registry 
 
 - [D-0001 Decisions and open questions live as files in this repository](D-0001-decisions-live-in-a-registry-in-the-repo.md): Every lasting choice is a D-NNNN file and every unanswered one a Q-NNN file under docs/decisions/, listed in its index, so agents work from recorded decisions instead of chat history.
 - [D-0008 Tasks are T-NNNN files in docs/tasks, each with a check that proves it done](D-0008-tasks-are-files-in-the-repo.md): Work for agents is one file per task under docs/tasks, listed in its index, with a Done-when check and the decisions it must follow; there is no claim mechanism while Sander is the only contributor.
-- [D-0009 Agents may auto-merge a green PR, except one that touches a guarded path](D-0009-agents-auto-merge-except-guarded-paths.md): An agent's PR merges itself when CI is green, unless it touches the NAS backend, the sync engine or local database, the service worker or auth, or the decisions, CI and agent rules; those always need Sander's review, enforced by CI from the changed paths.
 - [D-0010 The repo is SanderGeraedts/diy-projects, private until v1 works, then public under MIT](D-0010-private-personal-repo-mit-later.md): The code lives on Sander's personal GitHub account as diy-projects, private while it's rough; once v1 works and the deploy docs are generic it goes public under the MIT licence.
+- [D-0012 Agents may auto-merge a green PR, except one that touches a guarded path; raising a new question is allowed](D-0012-agents-auto-merge-except-guarded-paths-new-questions-allowed.md): An agent's PR merges itself when CI is green, unless it touches the NAS backend, the sync engine or local database, the service worker or auth, or the decisions, CI and agent rules; those need Sander's review, enforced by CI from the changed files. One exception: a PR whose only guarded change is adding new open questions (Q-NNN files and their index lines) merges itself too.
 
 ### Architecture
 
@@ -34,4 +34,4 @@ None yet.
 
 ## Replaced
 
-None yet.
+- [D-0009 Agents may auto-merge a green PR, except one that touches a guarded path](D-0009-agents-auto-merge-except-guarded-paths.md): Replaced by D-0012, which adds the exception for PRs that only raise new open questions.

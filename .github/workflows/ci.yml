@@ -1,4 +1,4 @@
-# D-0009: every PR runs the checks; the auto-merge workflow acts on the result.
+# D-0012: every PR runs the checks; the auto-merge workflow acts on the result.
 name: CI
 
 on:
