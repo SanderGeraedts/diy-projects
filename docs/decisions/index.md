@@ -26,7 +26,7 @@ Read this list first, then only the records your work touches. How the registry 
 
 ## Open questions
 
-None yet.
+- [Q-001 How should the guarded-path review be enforced while the repo is private on a free plan?](Q-001-how-to-enforce-review-of-guarded-prs-on-a-private-free-repo.md): GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard.
 
 ## Resolved questions
 

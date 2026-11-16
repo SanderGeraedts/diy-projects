@@ -1,0 +1,94 @@
+# D-0009: a green PR that touches no guarded path merges itself; a PR that touches one
+# waits for Sander. The decision is made from the changed paths only, by
+# .github/scripts/guarded-paths.mjs, read from main (never from the PR's own branch).
+#
+# GitHub runs workflow_run workflows from the default branch, so a PR can't change how its
+# own merge is decided.
+name: Auto-merge
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  gate:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Find the PR for this run
+        id: pr
+        run: |
+          pr=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
+            --jq '[.[] | select(.state == "open" and .head.sha == env.HEAD_SHA)][0] // empty')
+          if [ -z "$pr" ]; then
+            echo "No open PR has $HEAD_SHA as its head; nothing to do."
+            exit 0
+          fi
+          echo "number=$(jq -r .number <<<"$pr")" >> "$GITHUB_OUTPUT"
+          echo "draft=$(jq -r .draft <<<"$pr")" >> "$GITHUB_OUTPUT"
+          echo "branch=$(jq -r .head.ref <<<"$pr")" >> "$GITHUB_OUTPUT"
+
+      - name: Check the changed paths
+        id: paths
+        if: steps.pr.outputs.number != '' && steps.pr.outputs.draft != 'true'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          # Include the old name of renamed files, so moving code out of a guarded folder counts.
+          gh api --paginate "repos/$REPO/pulls/$PR/files" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > changed.txt
+          node .github/scripts/guarded-paths.mjs < changed.txt > guarded.txt
+          echo "Changed files: $(wc -l < changed.txt)"
+          if [ -s guarded.txt ]; then
+            echo "Guarded paths touched:"; cat guarded.txt
+            echo "guarded=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "guarded=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ask for Sander's review
+        if: steps.paths.outputs.guarded == 'true'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          gh label create needs-review --repo "$REPO" --color D93F0B \
+            --description "Touches a guarded path (D-0009); Sander reviews and merges" 2>/dev/null || true
+          if gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx needs-review; then
+            echo "Already labelled."
+            exit 0
+          fi
+          gh pr edit "$PR" --repo "$REPO" --add-label needs-review
+          {
+            echo "CI is green, but this PR touches guarded paths, so it waits for Sander's review (D-0009):"
+            echo
+            sed 's/^/- `/; s/$/`/' guarded.txt
+          } > comment.md
+          gh pr comment "$PR" --repo "$REPO" --body-file comment.md
+
+      - name: Merge
+        if: steps.paths.outputs.guarded == 'false'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          BRANCH: ${{ steps.pr.outputs.branch }}
+        run: |
+          # --match-head-commit: refuse if the PR moved on after this CI run.
+          gh pr merge "$PR" --repo "$REPO" --squash --match-head-commit "$HEAD_SHA"
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" || true
