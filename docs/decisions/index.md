@@ -23,6 +23,7 @@ Read this list first, then only the records your work touches. How the registry 
 
 - [D-0003 Photos are added from the gallery, grouped by date taken, kept offline at 2560 px, with originals only on the NAS](D-0003-photos-come-from-the-gallery-with-a-phone-sized-copy-offline.md): Photos taken in the Pixel camera app are added later through a multi-select picker and grouped into entries by EXIF date taken; the phone keeps every photo as a 2560 px WebP/AVIF copy and the untouched original lives only on the NAS.
 - [D-0004 v1 is projects with status and tags, dated photo entries, and offline search](D-0004-v1-is-projects-entries-tags-and-search.md): A project has a title, description, status, tags and cover photo and a timeline of entries (date, photos, note); search over titles, notes and tags runs on the device; materials, costs, checklists, sharing and multiple users are out of v1.
+- [D-0011 The app's look follows sanderg.nl: Poppins, a pink/orange accent, the system theme, Dutch, built with Tailwind](D-0011-design-system-follows-sanderg-nl.md): A small design system modelled on sanderg.nl (palette, Poppins, accent bars, 25px corners), adapted for an offline phone app: self-hosted font, system light/dark only, four status hues, Dutch interface, Tailwind v4 tokens, and a /design page with screenshot tests.
 
 ## Open questions
 

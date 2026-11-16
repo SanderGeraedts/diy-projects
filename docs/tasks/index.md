@@ -5,7 +5,7 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 
 ## Open
 
-None.
+- [T-0002 Apply the sanderg.nl-based design system](T-0002-apply-the-design-system.md): Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests.
 
 ## Doing
 
