@@ -2,7 +2,7 @@
 id: T-0001
 title: "Scaffold the app, CI and the auto-merge gate"
 description: "An installable, empty React + Vite PWA with seeded demo data, deployed to Netlify with previews, and CI that runs checks and enforces the guarded-path auto-merge rule."
-status: Open
+status: Doing
 guarded: true
 depends_on: []
 decisions: [D-0006, D-0007, D-0009, D-0010]
@@ -36,3 +36,6 @@ touches `.github/`, so it is guarded.
 - Use the personal GitHub account (D-0010).
 
 # Log
+
+- 2026-11-16 claude-code/opus-5.5: scaffolded the app, seed data, CI, auto-merge workflow, CODEOWNERS, netlify.toml and docs/deploy/netlify.md. Locally: typecheck clean, 31 unit tests pass, build passes, 5 e2e tests pass (seeded projects, timeline, manifest + service worker, offline reload, no ts.net in the bundle).
+- 2026-11-16 claude-code/opus-5.5: GitHub Free has no branch protection on private repos, so the gate is a workflow that merges non-guarded green PRs and labels guarded ones; enforcing review of guarded PRs raised as Q-001.
