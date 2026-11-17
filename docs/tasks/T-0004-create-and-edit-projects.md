@@ -5,7 +5,7 @@ description: "A form to add a project and edit its title, description, status an
 status: Doing
 guarded: false
 depends_on: [T-0002, T-0003]
-decisions: [D-0002, D-0004, D-0011]
+decisions: [D-0002, D-0004, D-0020]
 raised_on: 2026-11-17
 done_on: ""
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/22"]
@@ -22,7 +22,7 @@ project has a title, description, status (`idea`, `in progress`, `paused`, `done
 - Title is required; tags are free text, trimmed, lower-cased and de-duplicated, with
   suggestions from tags already in use.
 - Everything goes through T-0003's write API; the screens don't write to Dexie directly.
-- Dutch interface and D-0011's components.
+- Dutch interface and D-0020's components.
 
 # Done when
 

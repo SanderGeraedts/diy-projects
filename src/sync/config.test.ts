@@ -5,12 +5,15 @@ describe('resolveSyncConfig', () => {
   it.each(['deploy-preview', 'branch-deploy', 'local'])('keeps sync off in %s builds', (context) => {
     expect(resolveSyncConfig(context, 'https://example.invalid')).toEqual({
       enabled: false,
-      reason: `sync is off in ${context} builds`,
+      reason: `synchronisatie staat uit in ${context}-builds`,
     })
   })
 
   it('keeps sync off in production without an address', () => {
-    expect(resolveSyncConfig('production', '')).toMatchObject({ enabled: false })
+    expect(resolveSyncConfig('production', '')).toEqual({
+      enabled: false,
+      reason: 'geen PocketBase-adres ingesteld',
+    })
   })
 
   it('turns sync on in production with an address', () => {

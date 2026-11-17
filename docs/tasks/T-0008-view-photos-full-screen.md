@@ -5,7 +5,7 @@ description: "A full-screen photo viewer with swipe between an entry's photos an
 status: Open
 guarded: false
 depends_on: [T-0002]
-decisions: [D-0003, D-0011]
+decisions: [D-0003, D-0020]
 raised_on: 2026-11-17
 done_on: ""
 result: []
