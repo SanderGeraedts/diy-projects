@@ -17,11 +17,11 @@ PocketBase on the NAS is the master (D-0002) and holds the only original of a sy
 (D-0003). D-0016 decided on no separate backup in v1: the NAS has two disks of redundancy,
 and the photos are also in Immich on the same NAS.
 
-Writing down the lessons from Hanna's Reading List
+Writing down the lessons from a sister app on the same NAS
 (`docs/deploy/pocketbase-on-the-nas.md`) showed a gap: the backend workflow proves a
 migration on an *empty* database, not on real data, and Watchtower applies it on the NAS
 about ten minutes after a merge. A migration that misbehaves on real data can't be undone
-without a copy taken just before it. Reading List takes one before every schema change.
+without a copy taken just before it. The sister app takes one before every schema change.
 Decided on 2026-11-17.
 
 # Decision

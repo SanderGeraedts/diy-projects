@@ -14,8 +14,8 @@ tags: [stack]
 # Context
 
 The app is static: it talks to PocketBase directly (D-0005), so it needs no server rendering
-or server functions. Hanna's Reading List uses React and TanStack Start; Sander knows that
-ecosystem.
+or server functions. A sister app on the same NAS uses React and TanStack Start; Sander knows
+that ecosystem.
 
 # Decision
 
@@ -27,7 +27,7 @@ ecosystem.
 
 # Rationale
 
-Same ecosystem as Reading List, without TanStack Start's server rendering, which adds
+Same ecosystem as the sister app, without TanStack Start's server rendering, which adds
 nothing here and makes offline caching harder. A static build is the simplest thing to cache
 offline and to host.
 

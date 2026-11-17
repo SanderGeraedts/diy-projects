@@ -23,7 +23,7 @@ only says the setup reuses one Sander knows how to restore.
 1. **Back up the PocketBase data folder with the NAS's own backup tool, off-site, nightly.
    (Recommended)** The whole `pb_data` volume (database and stored files) goes to an
    off-site target with versioning (for example Hyper Backup to cloud storage or a second
-   location), the way Reading List is backed up if it is. A restore to a throwaway
+   location), the way the sister app on the same NAS is backed up if it is. A restore to a throwaway
    container is tested once and documented in `deploy/nas/`.
 2. **PocketBase's built-in scheduled backups to S3-compatible storage.** Configured in
    PocketBase itself, but each backup is a full zip of `pb_data`, originals included, which

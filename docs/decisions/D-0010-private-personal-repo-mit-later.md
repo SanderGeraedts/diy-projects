@@ -13,7 +13,7 @@ tags: [repository]
 
 # Context
 
-It's a personal project, so it belongs on Sander's personal GitHub account, not the Fugro
+It's a personal project, so it belongs on Sander's personal GitHub account, not the work
 one. Others might find it useful, so it may become open source, but early commits will carry
 setup details and rough edges.
 

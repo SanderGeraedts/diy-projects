@@ -21,7 +21,8 @@ dependencies, how the app is run or backed up, UX promises, and changes to how w
 
 ## Rules
 
-- **Decisions are never edited once Accepted.** To change one, write a new decision that
+- **Decisions are never edited once Accepted,** except to redact personal details without
+  changing what was decided (D-0021). To change one, write a new decision that
   stands alone, list the old one in `replaces`, set the old one to `Replaced` with
   `replaced_by`, and move its index line to *Replaced*.
 - **Agents don't answer open questions.** They raise one (`Q-NNN`), with options and a

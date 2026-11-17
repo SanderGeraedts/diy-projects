@@ -44,7 +44,7 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
 
 - Read `docs/deploy/pocketbase-on-the-nas.md` first: the image, workflow, migration and hook
   patterns that already work on the NAS, and the incident they came from. Don't depend on
-  the Reading List repository.
+  the sister app's repository.
 - Set `--origins=https://projects.sanderg.nl` on `serve` (the browser calls PocketBase
   directly, D-0005) and check in the workflow that another origin gets no CORS header.
 - Turn on PocketBase's rate limits; the sign-in path is on the internet.
@@ -67,7 +67,7 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
   and publish but the smoke test is a TODO (superuser, two users, write and update a
   record, history row, stranger sees empty list, history unreadable); `docker build
   deploy/nas`; quote the run in the PR.
-- 2026-11-17 claude-code/opus-5.5: Pinned PocketBase to 0.40.6 (the version Reading List runs with the same migration APIs: authToken.duration, rateLimits). Both 0.30.0 and 0.40.6 exist on GHCR (manifest 200). Still not built or run.
+- 2026-11-17 claude-code/opus-5.5: Pinned PocketBase to 0.40.6 (the version the sister app runs with the same migration APIs: authToken.duration, rateLimits). Both 0.30.0 and 0.40.6 exist on GHCR (manifest 200). Still not built or run.
 - 2026-11-17 claude-code/opus-5.5: Checked the migration against 0.40.6 (muchobien image's
   entrypoint passes `serve ...` straight to pocketbase); made `status` a `select` with
   D-0004's values. Finished `backend.yml` (NAS command line plus `--origins`, health wait
