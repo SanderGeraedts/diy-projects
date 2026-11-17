@@ -1,7 +1,7 @@
-# D-0012: guarded paths. A PR touching any of these needs Sander's review and is never
+# D-0017: guarded paths. A PR touching any of these needs Sander's review and is never
 # merged by an agent or by the auto-merge workflow. Keep this list identical to
 # .github/scripts/guarded-paths.mjs (a test checks it). New open questions are the one
-# exception (D-0012); it lives only in that script, since CODEOWNERS can't express it.
+# exception (D-0017); it lives only in that script, since CODEOWNERS can't express it.
 /deploy/nas/       @SanderGeraedts
 /src/sync/         @SanderGeraedts
 /src/db/           @SanderGeraedts
@@ -11,3 +11,5 @@
 /AGENTS.md         @SanderGeraedts
 /CLAUDE.md         @SanderGeraedts
 /.github/          @SanderGeraedts
+/.claude/         @SanderGeraedts
+/.githooks/        @SanderGeraedts

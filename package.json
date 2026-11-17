@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "preinstall": "node -e \"if(!/^pnpm\\//.test(process.env.npm_config_user_agent||'')){console.error('Use pnpm (D-0019): pnpm install');process.exit(1)}\""
+    "preinstall": "node -e \"if(!/^pnpm\\//.test(process.env.npm_config_user_agent||'')){console.error('Use pnpm (D-0019): pnpm install');process.exit(1)}\"",
+    "prepare": "node -e \"const fs=require('fs');if(fs.existsSync('.git')){try{require('child_process').execSync('git config core.hooksPath .githooks',{stdio:'inherit'})}catch{console.warn('prepare: could not set core.hooksPath (D-0017)')}}\""
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.46",
