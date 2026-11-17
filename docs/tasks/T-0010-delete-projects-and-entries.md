@@ -24,7 +24,7 @@ D-0014's v1 delete:
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass.
 - Tests in `src/db/` show: deleting an entry tombstones exactly it and its photos; deleting
   a project tombstones it, its entries and their photos; every tombstone has an outbox row;
   a failure halfway leaves nothing tombstoned.

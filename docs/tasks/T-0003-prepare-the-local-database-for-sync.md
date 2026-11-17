@@ -36,14 +36,14 @@ Deleting projects and entries (D-0014's cascading soft delete) is T-0010; don't 
 
 # Done when
 
-- `npm test` passes, including new tests in `src/db/` that show:
+- `pnpm test` passes, including new tests in `src/db/` that show:
   - opening a v1 database with data upgrades it to v2 without losing any record;
   - every write API call adds exactly one outbox row, in the same transaction (a write that
     throws leaves neither the record nor the row);
   - `deletePhoto` sets `deletedAt` and queues a delete; the photo's blobs stay until sync
     removes them;
   - a photo's original stays until it is marked uploaded.
-- `npm run typecheck`, `npm run build` and `npm run test:e2e` pass; the seeded demo data
+- `pnpm run typecheck`, `pnpm run build` and `pnpm run test:e2e` pass; the seeded demo data
   still loads.
 - Sander reviews the PR (guarded).
 

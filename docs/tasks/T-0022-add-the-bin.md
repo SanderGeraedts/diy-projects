@@ -25,7 +25,7 @@ D-0014's bin, after v1:
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass.
 - CI sync tests against the throwaway PocketBase cover: restore on one device shows up on
   another; a permanent delete removes the files on the NAS; an upload of a purged photo
   from a second device is refused and doesn't re-create it.

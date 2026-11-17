@@ -27,12 +27,12 @@ The image work behind photo import (T-0007), on its own and testable:
 
 # Done when
 
-- `npm test` passes with tests for `dateTaken` on fixture images with and without EXIF
+- `pnpm test` passes with tests for `dateTaken` on fixture images with and without EXIF
   (generated test images, no real photos: D-0006, D-0010).
 - An e2e test (Chromium) processes a generated 6000×4000 JPEG fixture and checks the copy is
   WebP with a long edge of 2560 px and the right orientation, and the original's bytes are
   unchanged.
-- `npm run typecheck` and `npm run build` pass.
+- `pnpm run typecheck` and `pnpm run build` pass.
 
 # Notes
 

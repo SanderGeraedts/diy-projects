@@ -29,7 +29,7 @@ D-0015's three files per photo:
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass.
 - CI sync tests against the throwaway PocketBase (T-0016's job) cover: an upload interrupted
   halfway resumes and the stored original is byte-identical (checksum); the device's
   original is dropped only after all three files are confirmed; a second simulated device

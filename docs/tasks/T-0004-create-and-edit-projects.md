@@ -26,8 +26,8 @@ project has a title, description, status (`idea`, `in progress`, `paused`, `done
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with new tests that create a project, edit its status and
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with new tests that create a project, edit its status and
   tags, reload, and still see the changes; and the same with the network offline.
 - Sander confirms on the deploy preview, on his Pixel.
 

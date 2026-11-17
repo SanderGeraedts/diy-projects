@@ -24,6 +24,8 @@ recorded decisions and tasks.
 - **Never merge a PR, push to `main`, or skip git hooks** (D-0017). The auto-merge workflow
   and Sander merge.
 - **Never point anything but production at the real NAS** (D-0006).
+- **Use pnpm** (D-0019): `pnpm install`, `pnpm run <script>`, `pnpm exec`; never `npm` or
+  `npx`, and never commit a `package-lock.json`.
 - **Prove your work.** Run the task's check and report its actual output.
 - **Personal repository** (D-0010): commit as `sandergeraedts@live.nl`, and push or use `gh`
   only as `SanderGeraedts`.

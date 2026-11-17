@@ -3,7 +3,7 @@
 # vite.config.ts ignores it in every other context anyway.
 
 [build]
-  command = "npm run build"
+  command = "pnpm run build"
   publish = "dist"
 
 [build.environment]

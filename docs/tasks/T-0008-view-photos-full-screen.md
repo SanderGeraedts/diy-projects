@@ -24,8 +24,8 @@ Tapping a photo opens it full screen from the local 2560 px copy, offline (D-000
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with tests on the demo data: open a photo, swipe to the next,
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with tests on the demo data: open a photo, swipe to the next,
   go back with the browser's back button, and open a photo offline.
 - Sander confirms on his Fold, open and folded.
 

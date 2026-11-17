@@ -24,8 +24,8 @@ The overview lists all projects, filterable by status and tag (D-0004):
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with tests on the demo data: filter by a status, by a tag, by
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with tests on the demo data: filter by a status, by a tag, by
   both, reload with filters kept, and clear them.
 - Sander confirms on the deploy preview.
 

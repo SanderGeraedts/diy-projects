@@ -28,8 +28,8 @@ count must be visible (D-0002):
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with tests (sync stubbed) for: everything synced, pending
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with tests (sync stubbed) for: everything synced, pending
   changes with a count, an error, offline, sign-in expired, and storage not persisted.
 - Sander confirms on his phone in production.
 

@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "preinstall": "node -e \"if(!/^pnpm\\//.test(process.env.npm_config_user_agent||'')){console.error('Use pnpm (D-0019): pnpm install');process.exit(1)}\""
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.46",
@@ -37,5 +38,6 @@
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.1.0",
     "workbox-window": "^7.4.1"
-  }
+  },
+  "packageManager": "pnpm@12.18.0"
 }
