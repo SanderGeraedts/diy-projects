@@ -24,7 +24,7 @@ Check, across **all of history and every branch** (`git log --all`), not only `m
 - **Infrastructure:** tailnet names (`*.ts.net` other than placeholders), NAS paths and
   hostnames, IP addresses, Netlify site ids, GHCR image names that reveal more than intended.
 - **Personal details:** email addresses (including commit authors), names of other people
-  (for example in the Reading List lessons), work references (the Fugro account, work
+  (for example in the sister-app lessons), work references (the work account, work
   repositories), anything the decisions record about Sander's home or devices that he may
   not want public.
 - **Real photos and media:** every image file ever committed (icons, fixtures, screenshot

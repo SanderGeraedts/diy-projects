@@ -13,8 +13,8 @@ tags: [environments, testing]
 
 # Context
 
-On 9 November 2026 a local test shelf overwrote Hanna's real shelf in Hanna's Reading List
-(#96), because a non-production build talked to the production server. Every PR here gets a
+On 9 November 2026 local test data overwrote real data in a sister app on the same NAS,
+because a non-production build talked to the production server. Every PR here gets a
 Netlify preview, which is a complete copy of the app.
 
 # Decision

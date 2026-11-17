@@ -1,7 +1,7 @@
 ---
 id: D-0005
 title: "The front end is on Netlify at projects.sanderg.nl; the browser talks directly to PocketBase on the NAS through Tailscale Funnel"
-description: "The static PWA is hosted on Netlify at projects.sanderg.nl with deploy previews; data and photos go straight from the browser to PocketBase on the NAS via a Funnel ts.net address with a path allowlist; the backend deploys through GitHub Actions and Watchtower as in Hanna's Reading List."
+description: "The static PWA is hosted on Netlify at projects.sanderg.nl with deploy previews; data and photos go straight from the browser to PocketBase on the NAS via a Funnel ts.net address with a path allowlist; the backend deploys through GitHub Actions and Watchtower as in a sister app on the same NAS."
 status: Accepted
 date: 2026-11-16
 decided_by: sander
@@ -13,7 +13,7 @@ tags: [architecture, hosting]
 
 # Context
 
-Sync must work on the go. Hanna's Reading List already runs PocketBase on the NAS behind
+Sync must work on the go. A sister app on the same NAS already runs PocketBase behind
 Tailscale Funnel (no router ports open, home IP private), with the app on Netlify calling it
 only from server functions. Two things don't carry over: Netlify functions take about 6 MB
 per request and the free tier caps bandwidth, too little for photo originals; and Funnel
@@ -27,7 +27,7 @@ serves only `*.ts.net` names, not a custom domain. Sander wants Netlify's deploy
 - **Back end:** PocketBase in a container on the NAS, sharing a network with a Tailscale
   container. Funnel exposes it at `https://<name>.<tailnet>.ts.net`.
 - **The browser talks to PocketBase directly** for records and photos. No Netlify functions.
-- **Locked down like Reading List:** Funnel's `serve.json` allows only the API paths the app
+- **Locked down like the sister app:** Funnel's `serve.json` allows only the API paths the app
   needs on port 443; the admin screen is on 8443, tailnet only. Sign-up is closed, every
   record is owner-only, and PocketBase accepts cross-origin requests from
   `projects.sanderg.nl` only.
@@ -53,5 +53,5 @@ NAS without size limits, and reuses a setup Sander already runs and knows how to
 - Add a path to Funnel's allowlist only when a task names it, and never put the admin
   screen on Funnel.
 - Never deploy to the NAS from a machine; the NAS pulls images.
-- Make schema changes the running app tolerates (add first, use later), as Reading List does.
+- Make schema changes the running app tolerates (add first, use later), as the sister app does.
 - Don't put the tailnet name in committed code; it comes from build configuration.

@@ -15,7 +15,7 @@ tags: [process]
 
 The project is built AI-first: agents write most of the code, across many sessions that
 don't share memory. Anything decided only in a conversation is lost to the next session,
-and an agent will happily re-decide it differently. The VirGeo harness (Ian Walters) keeps
+and an agent will happily re-decide it differently. A harness at work keeps
 its decisions in a separate board repository, because that work spans several code
 repositories. This project is a single repository.
 

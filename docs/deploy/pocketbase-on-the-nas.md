@@ -1,9 +1,9 @@
 # PocketBase on the NAS: what we know works
 
-Lessons from running PocketBase on the NAS for Hanna's Reading List (since November 2026),
+Lessons from running PocketBase on the NAS for a sister app (since November 2026),
 written down so this project doesn't depend on that repository. D-0005 sets the shape
 (Funnel, GitHub Actions, Watchtower); this file is the *how*, for T-0013 (the image) and
-T-0014 (running it). Where this app differs from Reading List, it says so.
+T-0014 (running it). Where this app differs from the sister app, it says so.
 
 Nothing here may contain the tailnet name, the NAS's paths or any secret (D-0005, D-0010):
 use the placeholders below.
@@ -42,7 +42,7 @@ serve --http=127.0.0.1:8090 --dir=/pb_data --migrationsDir=/pb_migrations
 `--automigrate=false`: edits made in the admin screen are **not** turned into migrations.
 The schema comes only from this repo.
 
-**Different here:** Reading List's browser never talks to PocketBase (only its Netlify
+**Different here:** the sister app's browser never talks to PocketBase (only its Netlify
 functions do). In this app the browser talks to PocketBase directly (D-0005), so also set
 `--origins=https://projects.sanderg.nl` (PocketBase's CORS allowlist, `*` by default), and
 check it in CI.
@@ -188,7 +188,7 @@ Hooks (`deploy/nas/pb_hooks/*.pb.js`):
 - `e.record.original()` gives the record as it was before the update; that's how a history
   hook copies the previous version.
 - **A history copy must never block the save:** wrap it in `try/catch` and log. Throttling
-  copies (Reading List: at most one per 10 minutes per record, always one when data is
+  copies (the sister app: at most one per 10 minutes per record, always one when data is
   dropped, newest 100 kept) keeps the collection small.
 - Settings that differ per NAS (secrets, allowlists) come from container environment
   variables via `$os.getenv(...)`, never from the repo.
@@ -212,27 +212,27 @@ Hooks (`deploy/nas/pb_hooks/*.pb.js`):
 
 ## 7. What the 9 November 2026 incident taught
 
-On 9 November a local test copy in a developer's browser overwrote Hanna's real shelf on the
-server: a device with unsent changes replaced the server's copy wholesale. Her data was
+On 9 November a local test copy in a developer's browser overwrote real data on the
+server: a device with unsent changes replaced the server's copy wholesale. The data was
 recovered by hand. What carries over:
 
-- **Nothing but production may reach the production backend** (now D-0006). The recovery
-  itself had to pull production secrets onto a laptop (`netlify env:get`), exactly what the
-  rule forbids; a restore should be possible from the admin screen alone. Here: restore
+- **Nothing but production may reach the production backend** (now D-0006). A restore
+  should be possible from the admin screen alone, without production secrets on a
+  developer machine. Here: restore
   from `history` in the admin screen, no scripts against production.
-- **A save must never be able to silently drop data on the server.** Reading List fixed it
+- **A save must never be able to silently drop data on the server.** The sister app fixed it
   by merging on the server and only removing what a device removed on purpose. Here that's
   built in: per-record last-write-wins (D-0002), explicit tombstones for deletes (D-0014),
   and the outbox sends changes, never a whole copy. Keep it that way: no "replace
   everything" endpoint, ever.
 - **Keep the previous version of every overwritten record on the server**, admin-only, and
   test that hook in CI (D-0002, T-0013).
-- **Local data must never flow into an account by accident.** Reading List only moves a
+- **Local data must never flow into an account by accident.** The sister app only moves a
   device's pre-account data into an account that has none. Here: seeded demo data never
   enters the outbox (T-0003), and previews never get a backend address (D-0006).
 - **Before merging a schema change, take a backup** ("Backup now" in the admin screen): the
   CI check proves a migration on an *empty* database, not on real data. Adopted here as
   D-0018.
-- **Node 26 ships its own `localStorage`**, which hid happy-dom's in Reading List's tests and
+- **Node 26 ships its own `localStorage`**, which hid happy-dom's in the sister app's tests and
   made them fail locally while CI (an older Node) passed. This repo runs Node 26 locally and
   24 in CI: if storage tests behave differently between the two, look there first.
