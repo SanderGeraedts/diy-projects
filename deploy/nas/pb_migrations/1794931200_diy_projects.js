@@ -48,7 +48,14 @@ migrate(
         owner,
         { name: "title", type: "text", required: true, max: 500 },
         { name: "description", type: "text", max: 20000 },
-        { name: "status", type: "text", required: true, max: 64 },
+        // D-0004's statuses, the same as PROJECT_STATUSES in src/db/db.ts.
+        {
+          name: "status",
+          type: "select",
+          required: true,
+          maxSelect: 1,
+          values: ["idea", "in progress", "paused", "done"],
+        },
         { name: "tags", type: "json", maxSize: 20000 },
         { name: "coverPhotoId", type: "text", max: 64 },
         ...common,
