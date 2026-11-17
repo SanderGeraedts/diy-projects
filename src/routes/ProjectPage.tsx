@@ -6,6 +6,7 @@ import { PhotoImage } from '../components/PhotoImage'
 import { StatusBadge } from '../components/StatusBadge'
 import { AccentHeading, Tags } from '../components/ui'
 import { db } from '../db/db'
+import { EditProjectLink } from './ProjectLinks'
 
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
 
@@ -38,7 +39,10 @@ export function ProjectPage() {
         ← Alle projecten
       </Link>
       <header>
-        <AccentHeading>{project.title}</AccentHeading>
+        <div className="flex items-start justify-between gap-3">
+          <AccentHeading>{project.title}</AccentHeading>
+          <EditProjectLink projectId={project.id} />
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-grey italic">
           <StatusBadge status={project.status} />
           <Tags tags={project.tags} />
