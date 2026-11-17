@@ -13,27 +13,27 @@ Scanned on 2026-11-17, before T-0021. This report only looks; nothing else was c
   PRs (open and closed).
 - **Targeted searches** over the full patch history (`git log --all -p --cc`) and the PRs:
   `*.ts.net`, `/mnt/`, IPv4 addresses, `tskey-`, passwords/tokens/keys, `.env` files, email
-  addresses (content and commit metadata), names, Fugro/work references, Netlify site ids
+  addresses (content and commit metadata), names, the employer/work references, Netlify site ids
   and UUIDs, `sanderg.nl`, `SanderGeraedts`, GHCR names, and every image blob ever committed.
 - **Counts:** 2 **blocker**, 6 **decide**, 13 **fine**.
 
-## Blockers
+## Blockers (fixed by T-0021)
 
 | # | Where | What | Fix |
 |---|---|---|---|
 | B1 | `.github/workflows/backend.yml:50` and `deploy/nas/smoke-test.sh:8` (main, since 63c1f3b); `.github/workflows/ci.yml` (`--origins`, 973d875, on branches t-0015/t-0016/t-0018); `deploy/nas/compose.yml:44` and `deploy/nas/README.md` (f220c17, branch t-0014-nas, PR #24); `docs/deploy/netlify.md`, `docs/deploy/pocketbase-on-the-nas.md:47` | The domain `projects.sanderg.nl` is hard-coded. D-0010 wants the domain as configuration before going public. | Edit (T-0021): take the origin from configuration (`APP_ORIGIN` in `.env`/compose, a variable in the workflows; the CI ones can use any test origin) and write `<your-domain>` in the deploy docs. No history rewrite: the domain is public already. Decision records keep the name (they record what was decided). |
 | B2 | repository root | No `LICENSE`. D-0010 says MIT. | Add MIT `LICENSE` (already in T-0021), with a line that `public/fonts/` is under the OFL (see F10). |
 
-## Decide (Sander's call)
+## Decide (Sander's call, decided 2026-11-17)
 
 | # | Where | What | Proposed fix |
 |---|---|---|---|
-| D1 | D-0005, D-0006, D-0007, D-0018 (5479dd4, f8885a2), `docs/deploy/pocketbase-on-the-nas.md:3,215,220` (2961546), T-0013 history (e1b6f2e, 9d6e923), PR #8 body | Another person's name, **Hanna**, and her app (Reading List) on the same NAS, including the 9 November incident where a test copy overwrote her real data and a note that production secrets were pulled onto a laptop. | Edit: "a sister app on the same NAS" or keep "Reading List" without the name, and drop the laptop/secrets sentence. History: leave (low harm) or rewrite if Hanna prefers not to be named. Editing PR #8's body is enough there. |
-| D2 | `docs/decisions/D-0001-decisions-live-in-a-registry-in-the-repo.md:18` (9f9a570, main) | A colleague's name and a work project: "The VirGeo harness (Ian Walters)". | Edit to "a harness at work" or drop the name; ask Ian if it stays. History rewrite only if it must disappear completely. |
-| D3 | `docs/decisions/D-0010-private-personal-repo-mit-later.md` (5479dd4), T-0025 task text | Employer named ("not the Fugro one") and "switch back to the work account". | Fine to keep (no detail beyond the name), or edit to "the work account". |
-| D4 | Author/committer of every commit; `AGENTS.md`, D-0010, older `CLAUDE.md` text | Personal email `sandergeraedts@live.nl` as author (and committer, except GitHub's merge commits) of every commit, plus 7 mentions in files. | Keep (it is the intended identity, D-0010), or switch future commits to the GitHub noreply address and rewrite history with `git filter-repo --mailmap` before going public (rewrites every SHA; open PRs need rebasing). |
-| D5 | D-0016, D-0018, Q-005 (e5d93aa, f8885a2), `deploy/nas/README.md`, `docs/deploy/pocketbase-on-the-nas.md` | Home setup in some detail: TrueNAS SCALE/HexOS NAS, two-disk redundancy, Immich holding the photos, no off-site backup, PocketBase exposed through Tailscale Funnel. | Keep (generic, and useful to self-hosters), or trim D-0016/D-0018 wording about "no backup"; no history rewrite needed. |
-| D6 | Remote branches merged into main but not deleted: `d-0011-design-system`, `d-0012-questions-auto-merge`, `d-0020-full-width-accent-bars`, `pnpm`, `t-0001-scaffold`, `t-0003-local-db-for-sync`, `t-0023-local-guard`, `tasks-v1` | Stale branches; their content is already in main (no extra findings). | Delete them before going public (tidiness only). |
+| D1 | D-0005, D-0006, D-0007, D-0018, Q-005, `docs/deploy/pocketbase-on-the-nas.md`, T-0013, PR #8 body and comment | Another person's name and her app on the same NAS, with details of an incident on it, and a sentence about production secrets pulled onto a laptop. | **Sander: obfuscate.** Done in PR #36 (D-0021): "a sister app on the same NAS", neutral incident wording, the secrets sentence dropped; PR #8's text edited. History left as is. |
+| D2 | `docs/decisions/D-0001-decisions-live-in-a-registry-in-the-repo.md` | A colleague's name and a work project. | **Sander: obfuscate.** Done in PR #36: "a harness at work". History left as is. |
+| D3 | `docs/decisions/D-0010-private-personal-repo-mit-later.md`, T-0025 task text | The employer's name. | **Sander: obfuscate.** Done in PR #36: "the work account". History left as is. |
+| D4 | Author/committer of every commit; `AGENTS.md`, D-0010, older `CLAUDE.md` text | Personal email `sandergeraedts@live.nl` as author (and committer, except GitHub's merge commits) of every commit, plus 7 mentions in files. | **Sander: keep.** It is the intended identity (D-0010); no history rewrite. |
+| D5 | D-0016, D-0018, Q-005 (e5d93aa, f8885a2), `deploy/nas/README.md`, `docs/deploy/pocketbase-on-the-nas.md` | Home setup in some detail: TrueNAS SCALE/HexOS NAS, two-disk redundancy, Immich holding the photos, no off-site backup, PocketBase exposed through Tailscale Funnel. | **Sander: keep.** Generic and useful to self-hosters. |
+| D6 | Remote branches merged into main but not deleted: `d-0011-design-system`, `d-0012-questions-auto-merge`, `d-0020-full-width-accent-bars`, `pnpm`, `t-0001-scaffold`, `t-0003-local-db-for-sync`, `t-0023-local-guard`, `tasks-v1` | Stale branches; their content is already in main (no extra findings). | **Sander: delete.** Done on 2026-11-17: all 8 deleted (each had 0 commits missing from main and no open PR). |
 
 ## Fine
 

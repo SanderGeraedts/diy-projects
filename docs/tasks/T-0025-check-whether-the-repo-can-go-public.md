@@ -2,12 +2,12 @@
 id: T-0025
 title: "Check whether the repository can go public"
 description: "Audit the whole git history, every branch and the open PRs for secrets, personal and infrastructure details, real photos and licence problems, and write a findings report with a proposed fix for each, so Sander can decide what blocks going public."
-status: Doing
+status: Done
 guarded: false
 depends_on: []
 decisions: [D-0005, D-0006, D-0010, D-0016, D-0018]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-17"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/34"]
 ---
 
@@ -24,7 +24,7 @@ Check, across **all of history and every branch** (`git log --all`), not only `m
 - **Infrastructure:** tailnet names (`*.ts.net` other than placeholders), NAS paths and
   hostnames, IP addresses, Netlify site ids, GHCR image names that reveal more than intended.
 - **Personal details:** email addresses (including commit authors), names of other people
-  (for example in the Reading List lessons), work references (the Fugro account, work
+  (for example in the the sister app lessons), work references (the the employer account, work
   repositories), anything the decisions record about Sander's home or devices that he may
   not want public.
 - **Real photos and media:** every image file ever committed (icons, fixtures, screenshot
@@ -57,3 +57,4 @@ Check, across **all of history and every branch** (`git log --all`), not only `m
 # Log
 
 - 2026-11-17 claude-code/opus-5.5: Scanned all 101 commits, 23 remote branches and 33 PRs. `gitleaks detect --source . --log-opts="--all"` (8.30.1): 82 commits, no leaks; plus targeted searches and a chunk check of all 10 image blobs. Report in `docs/public-readiness.md`: 2 blockers (hard-coded domain, no LICENSE), 6 decide, 13 fine. Waiting for Sander to mark the decide items.
+- 2026-11-17 claude-code/opus-5.5: Done. Sander decided: D1–D3 obfuscate (PR #36, D-0021), D4–D5 keep, D6 delete (8 stale branches deleted). Blockers B1 (domain as configuration) and B2 (MIT LICENSE with the OFL note) moved to T-0021.
