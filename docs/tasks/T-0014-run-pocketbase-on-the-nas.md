@@ -2,7 +2,7 @@
 id: T-0014
 title: "Run PocketBase on the NAS behind Tailscale Funnel"
 description: "Compose files, the Funnel serve.json allowlist and the step-by-step setup in deploy/nas/, so Sander can run the image on the NAS, reachable only through Funnel, updated by Watchtower."
-status: Open
+status: Doing
 guarded: true
 depends_on: [T-0013]
 decisions: [D-0005, D-0006, D-0010, D-0017]
@@ -44,3 +44,15 @@ Everything Sander needs to bring the backend up on the NAS (D-0005), following
 - Nothing outside production may point at it (D-0006).
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Added `deploy/nas/compose.yml` (tailscale v1.104.7,
+  pocketbase `:stable` in Tailscale's network with CI's command line incl. `--origins`,
+  health check, Watchtower fork `nickfedor/watchtower:1.24.0` limited by label to
+  pocketbase), `serve.json` (443 on Funnel: health, users, projects, entries, photos,
+  files; 8443 tailnet only), `.env.example` and `README.md` with Sander's steps. Data and
+  `serve.json` sit in dataset folders (`${DIY_DIR}`, placeholder default) as in
+  `docs/deploy/pocketbase-on-the-nas.md`, not a named volume as the Goal says. No Docker
+  locally, so `docker compose config` did not run; a Node script parsed the YAML and JSON
+  and checked the command matches CI, the label is on pocketbase only, and 443 has no
+  admin, superuser or history path. Remaining: Sander follows the README on the NAS and
+  runs the outside-network checks.
