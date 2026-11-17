@@ -1,0 +1,71 @@
+# T-0014: PocketBase on the NAS, reachable only through Tailscale Funnel (D-0005).
+# Install on TrueNAS SCALE / HexOS via Apps -> Discover Apps -> Install via YAML; the steps
+# are in deploy/nas/README.md and the background in docs/deploy/pocketbase-on-the-nas.md.
+#
+# DIY_DIR is the NAS dataset holding tailscale/, pb_data/, serve.json and .env. Replace the
+# placeholder default /mnt/POOL/apps/diy-projects with the real path when pasting; never
+# commit the real path, the tailnet name or a secret (D-0010).
+name: diy-projects
+
+services:
+  tailscale:
+    image: ghcr.io/tailscale/tailscale:v1.104.7
+    hostname: diy-projects
+    environment:
+      TS_HOSTNAME: diy-projects
+      TS_USERSPACE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_AUTH_ONCE: "true"
+    # TS_AUTHKEY comes from here, and only for the first start (README step 4).
+    env_file:
+      - ${DIY_DIR:-/mnt/POOL/apps/diy-projects}/.env
+    volumes:
+      - ${DIY_DIR:-/mnt/POOL/apps/diy-projects}/tailscale:/var/lib/tailscale
+      - ${DIY_DIR:-/mnt/POOL/apps/diy-projects}/serve.json:/config/serve.json:ro
+    restart: unless-stopped
+
+  pocketbase:
+    image: ghcr.io/sandergeraedts/diy-projects-pocketbase:stable
+    # Shares Tailscale's network namespace: no port is published on the NAS or the router,
+    # the only way in is through Tailscale (serve.json).
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    # Keep identical to the command line in .github/workflows/backend.yml (CI uses
+    # --http=0.0.0.0:8090 instead).
+    command:
+      - serve
+      - --http=127.0.0.1:8090
+      - --dir=/pb_data
+      - --migrationsDir=/pb_migrations
+      - --hooksDir=/pb_hooks
+      - --automigrate=false
+      - --origins=https://projects.sanderg.nl
+    volumes:
+      - ${DIY_DIR:-/mnt/POOL/apps/diy-projects}/pb_data:/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8090/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      # The only container Watchtower may update.
+      com.centurylinklabs.watchtower.enable: "true"
+    restart: unless-stopped
+
+  watchtower:
+    # Maintained fork; containrrr/watchtower was archived in December 2025. Updated by hand.
+    image: nickfedor/watchtower:1.24.0
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_CLEANUP: "true"
+      TZ: Europe/Amsterdam
+    # REPO_USER / REPO_PASS come from here only if the GHCR package stays private.
+    env_file:
+      - ${DIY_DIR:-/mnt/POOL/apps/diy-projects}/.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
