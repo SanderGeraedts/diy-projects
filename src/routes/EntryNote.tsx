@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { Button, inputClass } from '../components/form'
 import { formatDate } from '../components/format'
 import type { Entry } from '../db/db'
@@ -6,9 +6,10 @@ import { updateEntry } from '../db/write'
 
 // T-0005: an entry's note on the timeline, edited in place. Plain text with its line breaks
 // kept. Saving goes through the write API, which stamps `updatedAt`. The date can't be
-// changed here (it would move photos between days).
+// changed here (it would move photos between days). `actions` (T-0010: Verwijderen) sit
+// next to the edit button.
 
-export function EntryNote({ entry }: { entry: Entry }) {
+export function EntryNote({ entry, actions }: { entry: Entry; actions?: ReactNode }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(entry.note)
   const [error, setError] = useState<string | null>(null)
@@ -40,14 +41,17 @@ export function EntryNote({ entry }: { entry: Entry }) {
     return (
       <div className="mt-2 mb-3">
         {entry.note !== '' && <p className="mt-0 mb-1 break-words whitespace-pre-wrap">{entry.note}</p>}
-        <button
-          type="button"
-          className="p-0 text-sm text-grey underline"
-          aria-label={`Notitie van ${day} bewerken`}
-          onClick={start}
-        >
-          Notitie bewerken
-        </button>
+        <div className="flex flex-wrap gap-4">
+          <button
+            type="button"
+            className="p-0 text-sm text-grey underline"
+            aria-label={`Notitie van ${day} bewerken`}
+            onClick={start}
+          >
+            Notitie bewerken
+          </button>
+          {actions}
+        </div>
       </div>
     )
   }

@@ -105,16 +105,19 @@ export async function createProject(input: NewProject, target: DiyDb = defaultDb
   return project
 }
 
-export type ProjectChanges = Partial<Pick<Project, 'title' | 'description' | 'status' | 'tags' | 'coverPhotoId'>>
+export type ProjectChanges = Partial<Pick<Project, 'title' | 'description' | 'status' | 'tags'>> & {
+  /** A live photo of this project; `null` or `undefined` clears the chosen cover (T-0010). */
+  coverPhotoId?: string | null
+}
 
 export async function updateProject(id: string, changes: ProjectChanges, target: DiyDb = defaultDb): Promise<Project> {
-  const patch: ProjectChanges = {}
+  const patch: Partial<Project> = {}
   if ('title' in changes) patch.title = checkTitle(changes.title)
   if ('description' in changes) patch.description = checkText(changes.description, 'The description')
   if ('status' in changes) patch.status = checkStatus(changes.status)
   if ('tags' in changes) patch.tags = checkTags(changes.tags)
-  if ('coverPhotoId' in changes && changes.coverPhotoId !== undefined)
-    patch.coverPhotoId = checkText(changes.coverPhotoId, 'The cover photo')
+  const clearCover = 'coverPhotoId' in changes && (changes.coverPhotoId === undefined || changes.coverPhotoId === null)
+  if ('coverPhotoId' in changes && !clearCover) patch.coverPhotoId = checkText(changes.coverPhotoId, 'The cover photo')
   const time = now()
   return target.transaction('rw', target.projects, target.photos, target.outbox, async () => {
     const project = await liveProject(target, id)
@@ -123,10 +126,48 @@ export async function updateProject(id: string, changes: ProjectChanges, target:
       if (!photo || photo.deletedAt !== null || photo.projectId !== id) fail('The cover must be a photo of this project.')
     }
     const updated: Project = { ...project, ...patch, updatedAt: time }
+    if (clearCover) delete updated.coverPhotoId
     await target.projects.put(updated)
     await queue(target, 'projects', id, 'put', time)
     return updated
   })
+}
+
+/**
+ * Tombstones a project, its entries and their photos (D-0014), in one transaction with an
+ * outbox row per tombstone (D-0002). Records already tombstoned keep their own delete time
+ * and get no new row. Nothing is removed: the bin comes after v1 (T-0022).
+ */
+export async function deleteProject(id: string, target: DiyDb = defaultDb): Promise<void> {
+  const time = now()
+  await target.transaction('rw', target.projects, target.entries, target.photos, target.outbox, async () => {
+    await liveProject(target, id)
+    const photos = await target.photos.where('projectId').equals(id).toArray()
+    for (const photo of photos) if (photo.deletedAt === null) await tombstone(target, 'photos', photo.id, time)
+    const entries = await target.entries.where('projectId').equals(id).toArray()
+    for (const entry of entries) if (entry.deletedAt === null) await tombstone(target, 'entries', entry.id, time)
+    await tombstone(target, 'projects', id, time)
+  })
+}
+
+/** Sets a record's tombstone and queues its delete. Call inside a transaction. */
+async function tombstone(target: DiyDb, table: SyncedTable, id: string, time: string) {
+  await target.table(table).update(id, { deletedAt: time, updatedAt: time })
+  await queue(target, table, id, 'delete', time)
+}
+
+/**
+ * Clears the project's chosen cover when it is one of the photos just deleted (T-0010), so
+ * the card falls back to the newest remaining photo (T-0009). Call inside a transaction.
+ */
+async function clearCoverIfDeleted(target: DiyDb, projectId: string, photoIds: string[], time: string) {
+  const project = await target.projects.get(projectId)
+  if (!project || project.deletedAt !== null || !project.coverPhotoId) return
+  if (!photoIds.includes(project.coverPhotoId)) return
+  const updated: Project = { ...project, updatedAt: time }
+  delete updated.coverPhotoId
+  await target.projects.put(updated)
+  await queue(target, 'projects', projectId, 'put', time)
 }
 
 // --- Entries ---
@@ -169,6 +210,27 @@ export async function updateEntry(id: string, changes: EntryChanges, target: Diy
     await target.entries.put(updated)
     await queue(target, 'entries', id, 'put', time)
     return updated
+  })
+}
+
+/**
+ * Tombstones an entry and its photos (D-0014), in one transaction with an outbox row per
+ * tombstone (D-0002). If one of the photos was the project's cover, the cover is cleared
+ * too (one more project row). Nothing is removed: the bin comes after v1 (T-0022).
+ */
+export async function deleteEntry(id: string, target: DiyDb = defaultDb): Promise<void> {
+  const time = now()
+  await target.transaction('rw', target.projects, target.entries, target.photos, target.outbox, async () => {
+    const entry = await liveEntry(target, id)
+    const photos = (await target.photos.where('entryId').equals(id).toArray()).filter((p) => p.deletedAt === null)
+    for (const photo of photos) await tombstone(target, 'photos', photo.id, time)
+    await tombstone(target, 'entries', id, time)
+    await clearCoverIfDeleted(
+      target,
+      entry.projectId,
+      photos.map((p) => p.id),
+      time,
+    )
   })
 }
 
@@ -223,16 +285,17 @@ export async function addPhotos(entryId: string, inputs: NewPhoto[], target: Diy
 
 /**
  * Tombstones a photo and queues the delete (D-0002, D-0014). The photo's blobs stay; only
- * the sync engine removes them, once the NAS has the tombstone.
+ * the sync engine removes them, once the NAS has the tombstone. If it was the project's
+ * cover, the cover is cleared too (T-0010).
  */
 export async function deletePhoto(id: string, target: DiyDb = defaultDb): Promise<void> {
   const time = now()
-  await target.transaction('rw', target.photos, target.outbox, async () => {
+  await target.transaction('rw', target.projects, target.photos, target.outbox, async () => {
     const photo = await target.photos.get(id)
     if (!photo) fail(`No photo ${id}.`)
     if (photo.deletedAt !== null) fail(`Photo ${id} is already deleted.`)
-    await target.photos.update(id, { deletedAt: time, updatedAt: time })
-    await queue(target, 'photos', id, 'delete', time)
+    await tombstone(target, 'photos', id, time)
+    await clearCoverIfDeleted(target, photo.projectId, [id], time)
   })
 }
 

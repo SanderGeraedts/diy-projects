@@ -8,6 +8,7 @@ import { AccentHeading, Tags } from '../components/ui'
 import { useScrollToHash } from '../components/useScrollToHash'
 import { db } from '../db/db'
 import { AddEntryLink } from './AddEntry'
+import { DeleteEntryButton, DeleteProjectButton } from './Delete'
 import { EntryNote } from './EntryNote'
 import { ImportPhotos } from './ImportPhotos'
 import { EditProjectLink } from './ProjectLinks'
@@ -16,9 +17,19 @@ const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-te
 
 export function ProjectPage() {
   const { projectId } = useParams({ from: '/projects/$projectId' })
-  const project = useLiveQuery(() => db.projects.get(projectId).then((p) => p ?? null), [projectId])
+  // T-0010: a deleted project (a tombstone, D-0014) and its deleted entries don't show.
+  const project = useLiveQuery(
+    () => db.projects.get(projectId).then((p) => (p && p.deletedAt === null ? p : null)),
+    [projectId],
+  )
   const entries = useLiveQuery(
-    () => db.entries.where('[projectId+date]').between([projectId, ''], [projectId, Dexie.maxKey]).reverse().toArray(),
+    () =>
+      db.entries
+        .where('[projectId+date]')
+        .between([projectId, ''], [projectId, Dexie.maxKey])
+        .reverse()
+        .filter((e) => e.deletedAt === null)
+        .toArray(),
     [projectId],
   )
   // T-0009: every photo, deleted ones (tombstones, D-0002) included, so an entry whose photos
@@ -70,7 +81,7 @@ export function ProjectPage() {
                 <time dateTime={e.date}>{formatDate(e.date)}</time>
               </AccentHeading>
               {allDeleted && <p className="mt-2 mb-0 text-grey italic">Geen foto's meer</p>}
-              <EntryNote entry={e} />
+              <EntryNote entry={e} actions={<DeleteEntryButton entry={e} photos={entryPhotos.length} />} />
               <div className="grid grid-cols-2 gap-2">
                 {entryPhotos.map((ph) => (
                   <Link
@@ -92,6 +103,11 @@ export function ProjectPage() {
           )
         })}
       </ol>
+      {entries && photos && (
+        <footer className="mt-8 border-t border-grey-light pt-4">
+          <DeleteProjectButton project={project} entries={entries.length} photos={photos.length} />
+        </footer>
+      )}
     </article>
   )
 }
