@@ -2,7 +2,7 @@
 id: T-0025
 title: "Check whether the repository can go public"
 description: "Audit the whole git history, every branch and the open PRs for secrets, personal and infrastructure details, real photos and licence problems, and write a findings report with a proposed fix for each, so Sander can decide what blocks going public."
-status: Open
+status: Doing
 guarded: false
 depends_on: []
 decisions: [D-0005, D-0006, D-0010, D-0016, D-0018]
@@ -55,3 +55,5 @@ Check, across **all of history and every branch** (`git log --all`), not only `m
   rotated whatever happens to the history.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Scanned all 101 commits, 23 remote branches and 33 PRs. `gitleaks detect --source . --log-opts="--all"` (8.30.1): 82 commits, no leaks; plus targeted searches and a chunk check of all 10 image blobs. Report in `docs/public-readiness.md`: 2 blockers (hard-coded domain, no LICENSE), 6 decide, 13 fine. Waiting for Sander to mark the decide items.
