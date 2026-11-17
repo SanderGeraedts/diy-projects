@@ -2,13 +2,13 @@
 id: T-0006
 title: "Process photos on the device: date taken, the 2560 px copy and a thumbnail"
 description: "A tested module that reads a photo's EXIF date taken and makes its 2560 px WebP copy and a thumbnail in a worker, leaving the original untouched."
-status: Open
+status: Doing
 guarded: false
 depends_on: []
 decisions: [D-0003, D-0007]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/13"]
 ---
 
 # Goal
@@ -42,3 +42,19 @@ The image work behind photo import (T-0007), on its own and testable:
 - Size and format are fixed by D-0003; changing them needs a new decision.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Built `src/photos/`: `dateTaken(file)` (EXIF DateTimeOriginal via
+  `exifr` 7.1.3 on the first 256 KB, returned as local "YYYY-MM-DDTHH:mm:ss" with
+  `source: 'exif' | 'lastModified'`), `makeCopy(file)` (2560 px long edge, WebP q 0.85, no
+  upscaling, `createImageBitmap(..., { imageOrientation: 'from-image' })`) and
+  `makeThumbnail(copy)` (512 px, WebP q 0.8), both in one module Web Worker with
+  OffscreenCanvas, queued one photo at a time. The original is only read. Tests: unit tests
+  for `dateTaken` on generated EXIF fixtures (`src/photos/exifFixture.ts`) and `fitLongEdge`;
+  e2e `e2e/photos.spec.ts` runs the module from its own Vite dev server (port 5199, as the
+  module isn't in a screen yet) on a generated 6000×4000 JPEG with EXIF orientation 6 and
+  checks WebP, 1707×2560, red on top (rotation applied), a 512 px thumbnail, and unchanged
+  original bytes. Checks: typecheck clean; `pnpm test` 52 passed; build ok; `pnpm run
+  test:e2e` 6 passed (one earlier full run had `app.spec.ts` "no Funnel address" fail once;
+  it passed alone and in three later full runs, so likely a flake not caused by this change).
+  Remaining: the 0.6–0.9 MB copy size can't be checked on a flat-colour fixture (quality 0.85
+  is to be verified on real photos on the Fold, by Sander); wiring into import is T-0007.
