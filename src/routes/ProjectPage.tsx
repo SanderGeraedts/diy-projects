@@ -6,6 +6,8 @@ import { PhotoImage } from '../components/PhotoImage'
 import { StatusBadge } from '../components/StatusBadge'
 import { AccentHeading, Tags } from '../components/ui'
 import { db } from '../db/db'
+import { AddEntryLink } from './AddEntry'
+import { EntryNote } from './EntryNote'
 import { EditProjectLink } from './ProjectLinks'
 
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
@@ -49,13 +51,14 @@ export function ProjectPage() {
         </div>
         <p className="mt-3">{project.description}</p>
       </header>
+      <AddEntryLink projectId={project.id} />
       <ol className="timeline m-0 mt-8 list-none p-0">
         {(entries ?? []).map((e) => (
           <li key={e.id} className="mb-8">
             <AccentHeading level={2}>
               <time dateTime={e.date}>{formatDate(e.date)}</time>
             </AccentHeading>
-            <p className="mt-2">{e.note}</p>
+            <EntryNote entry={e} />
             <div className="grid grid-cols-2 gap-2">
               {(photos ?? [])
                 .filter((ph) => ph.entryId === e.id)
