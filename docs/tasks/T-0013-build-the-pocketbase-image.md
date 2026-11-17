@@ -2,13 +2,13 @@
 id: T-0013
 title: "Build the PocketBase image: schema, rules, history and the publish workflow"
 description: "The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image."
-status: Open
+status: Doing
 guarded: true
 depends_on: [T-0003]
 decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0017, D-0013, D-0014, D-0015, D-0018]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/17"]
 ---
 
 # Goal
@@ -54,3 +54,28 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
   backup. (For this first PR there's no data yet, but keep the habit.)
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: first draft under a hard time limit. Added
+  `deploy/nas/Dockerfile` (pinned `0.30.0`, tag not yet verified), the migration
+  `1794931200_diy_projects.js` (users: sign-up closed, 90-day token; rate limits; projects,
+  entries, photos with original 40 MB/copy/thumbnail; admin-only history; owner-only rules;
+  down-migration) and `pb_hooks/history.pb.js`. Nothing was run: no Docker locally, so
+  neither the image, the migration nor the hook has executed. Remaining: verify the pinned
+  tag and the PocketBase JS API against that version (field options, `authToken.duration`,
+  `settings.rateLimits`, `publicExport()`); decide whether `status` should be a `select`
+  matching `ProjectStatus`; `.github/workflows/backend.yml` has the build, empty-DB start, CORS check
+  and publish but the smoke test is a TODO (superuser, two users, write and update a
+  record, history row, stranger sees empty list, history unreadable); `docker build
+  deploy/nas`; quote the run in the PR.
+- 2026-11-17 claude-code/opus-5.5: Pinned PocketBase to 0.40.6 (the version Reading List runs with the same migration APIs: authToken.duration, rateLimits). Both 0.30.0 and 0.40.6 exist on GHCR (manifest 200). Still not built or run.
+- 2026-11-17 claude-code/opus-5.5: Checked the migration against 0.40.6 (muchobien image's
+  entrypoint passes `serve ...` straight to pocketbase); made `status` a `select` with
+  D-0004's values. Finished `backend.yml` (NAS command line plus `--origins`, health wait
+  that stops when the container exits, logs always, publish `:sha-…`/`:stable` only on push
+  to main) with the smoke test in `deploy/nas/smoke-test.sh`: collections and their
+  settings, sign-up closed (403), owner-only create/list/view/update, no change of owner,
+  status limited to D-0004, history rows for project and entry updates, history closed to
+  users, CORS for projects.sanderg.nl only. Green on the PR:
+  https://github.com/SanderGeraedts/diy-projects/actions/runs/44092929449. `docker build`
+  ran in CI only (no Docker locally). Remaining: Sander's review and, after the first
+  publish, the GHCR package visibility (or a read token).
