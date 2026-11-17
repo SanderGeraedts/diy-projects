@@ -2,12 +2,12 @@
 id: T-0024
 title: "Switch the project to pnpm"
 description: "Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated."
-status: Doing
+status: Done
 guarded: true
 depends_on: []
 decisions: [D-0006, D-0017, D-0019]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-17"
 result: [https://github.com/SanderGeraedts/diy-projects/pull/9]
 ---
 
@@ -41,3 +41,4 @@ D-0019: parallel worktrees share pnpm's store instead of each copying `node_modu
 
 # Log
 - 2026-11-17 claude-code/opus-5.5: PR #9. Locally: typecheck clean, 46/46 unit tests, build ok, 5/5 e2e; npm install in a clean copy fails with "Use pnpm (D-0019)"; a fresh worktree installs offline in 14.2 s, hard-linked to the store. CI `checks` passed; the Netlify deploy preview built with pnpm and shows the demo projects ("Demo data · sync is off (deploy-preview)"). Waiting for Sander's review.
+- 2026-11-17 claude-code/opus-5.5: Done. Sander reviewed and merged PR #9.
