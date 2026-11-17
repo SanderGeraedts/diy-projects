@@ -8,7 +8,7 @@ depends_on: [T-0003, T-0013, T-0015]
 decisions: [D-0002, D-0005, D-0006, D-0017]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: [https://github.com/SanderGeraedts/diy-projects/pull/30]
 ---
 
 # Goal
@@ -62,4 +62,6 @@ syncs photo *records* (and tombstones) but not their files.
   T-0017), and the photos cursor moves past them: T-0017 must reset `cursor:photos`. "Nu
   synchroniseren" is `syncNow()` in `src/sync/app.ts`; the button is T-0018's. Checks:
   typecheck clean, `pnpm test` 162 passed / 14 skipped, build OK, e2e 9 passed / 2 skipped;
-  `sync.pocketbase.test.ts` 9/9 against PocketBase 0.40.6 locally.
+  `sync.pocketbase.test.ts` 9/9 against PocketBase 0.40.6 locally. CI run 44098757341 green: `checks`, and
+  `pocketbase-auth` with the sign-in tests 5/5 and the sync tests 9/9; `backend` smoke test
+  green with the new migration and hook. Draft PR #30 (base `t-0015-sign-in`).
