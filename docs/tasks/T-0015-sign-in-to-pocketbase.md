@@ -2,13 +2,13 @@
 id: T-0015
 title: "Sign in to PocketBase with email and password"
 description: "The sign-in screen and token handling in src/auth/, production only: a 90-day token renewed on sync, an expired sign-in that only pauses sync, and a sign-out that syncs, warns, then clears the device."
-status: Open
+status: Doing
 guarded: true
 depends_on: [T-0003, T-0013]
 decisions: [D-0002, D-0005, D-0006, D-0013]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/27"]
 ---
 
 # Goal
@@ -42,3 +42,17 @@ D-0013's sign-in:
 - If T-0013 didn't set the 90-day token lifetime, add it as a migration in `deploy/nas/`.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Built on #14 (T-0002) and #17 (T-0013). Added the
+  PocketBase JS SDK 0.29.0; `src/auth/` (sign-in, `refreshAfterSync` and `markExpired` for
+  T-0016, `setSyncNow` hook, sign-out with second confirmation, `useAuthState`, the
+  `/account` page registered only when sync is on), `clearLocalData()` in `src/db/write.ts`.
+  T-0013 already sets the 90-day lifetime; the CI job `pocketbase-auth` checks it on a token.
+  Locally: typecheck, `pnpm test` (120 passed, 5 skipped = the real-PocketBase file), build,
+  e2e on private port 4791 (8 passed, 2 screenshot tests skipped on Windows).
+  Open for Sander: the form's inputs and buttons are a new component style (D-0020 asks for a
+  decision); they use tokens only, with `rounded-card` corners.
+- 2026-11-17 claude-code/opus-5.5: The first CI run showed the SDK clears its auth store on
+  any 401, which turned a revoked sign-in into "signed out"; auth now remembers the account
+  so it reads as `expired`. CI run 44095495434 green: `checks` (Linux screenshots 10/10)
+  and `pocketbase-auth` 5/5. Draft PR #27.
