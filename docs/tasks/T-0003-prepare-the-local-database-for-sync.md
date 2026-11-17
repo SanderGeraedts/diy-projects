@@ -5,7 +5,7 @@ description: "Dexie schema v2 with updatedAt and tombstones on every record, an 
 status: Open
 guarded: true
 depends_on: []
-decisions: [D-0002, D-0003, D-0004, D-0007, D-0012, D-0014, D-0015]
+decisions: [D-0002, D-0003, D-0004, D-0007, D-0017, D-0014, D-0015]
 raised_on: 2026-11-17
 done_on: ""
 result: []

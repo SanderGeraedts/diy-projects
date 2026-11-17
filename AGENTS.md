@@ -17,10 +17,12 @@ recorded decisions and tasks.
 - **Decisions are the source of truth,** not chat history. A choice that would need a
   discussion to reverse becomes a decision record, in the same commit as the code.
 - **Never contradict an Accepted decision.** Stop and ask Sander.
-- **Guarded paths need Sander's review** (D-0012): `deploy/nas/`, `src/sync/`, `src/db/`,
-  `src/sw/`, `src/auth/`, `docs/decisions/`, `AGENTS.md`, `CLAUDE.md`, `.github/`. Keep
-  such code in those folders; never merge a guarded PR yourself. One exception: a PR that
-  only raises new open questions merges itself, so raise each in a PR of its own.
+- **Guarded paths need Sander's review** (D-0017): `deploy/nas/`, `src/sync/`, `src/db/`,
+  `src/sw/`, `src/auth/`, `docs/decisions/`, `AGENTS.md`, `CLAUDE.md`, `.github/`,
+  `.claude/`, `.githooks/`. Keep such code in those folders. One exception: a PR that only
+  raises new open questions merges itself, so raise each in a PR of its own.
+- **Never merge a PR, push to `main`, or skip git hooks** (D-0017). The auto-merge workflow
+  and Sander merge.
 - **Never point anything but production at the real NAS** (D-0006).
 - **Prove your work.** Run the task's check and report its actual output.
 - **Personal repository** (D-0010): commit as `sandergeraedts@live.nl`, and push or use `gh`

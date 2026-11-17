@@ -5,7 +5,7 @@ description: "The sync engine in src/sync/: push the outbox, pull changes since 
 status: Open
 guarded: true
 depends_on: [T-0003, T-0013, T-0015]
-decisions: [D-0002, D-0005, D-0006, D-0012]
+decisions: [D-0002, D-0005, D-0006, D-0017]
 raised_on: 2026-11-17
 done_on: ""
 result: []
@@ -32,7 +32,7 @@ syncs photo *records* (and tombstones) but not their files.
 
 - `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
 - A new CI job (`.github/workflows/ci.yml`) starts T-0013's image as a throwaway PocketBase
-  and runs sync tests against it (D-0006, D-0012). They cover: push and pull between two
+  and runs sync tests against it (D-0006, D-0017). They cover: push and pull between two
   simulated devices; an edit on both while offline, where the later wins and the earlier is
   in `history`; a tombstone syncing; a push that fails halfway and resumes without losing or
   duplicating anything.

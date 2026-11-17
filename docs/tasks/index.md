@@ -25,6 +25,7 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 - [T-0019 Offer app updates safely](T-0019-prompt-for-app-updates.md): When a new version is ready, show 'Nieuwe versie beschikbaar' and switch to it on a tap, never in the middle of an import or sync.
 - [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
 - [T-0022 Add the bin: restore or permanently delete deleted projects and entries (after v1)](T-0022-add-the-bin.md): A bin screen listing deleted projects and entries, with restore, and a permanent delete that removes the files and history from the NAS but keeps a marker that refuses late uploads.
+- [T-0023 Add the local guard: no agent merges or pushes to main](T-0023-add-the-local-merge-and-push-guard.md): Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths.
 
 ## Doing
 

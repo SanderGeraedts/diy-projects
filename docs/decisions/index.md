@@ -10,7 +10,7 @@ Read this list first, then only the records your work touches. How the registry 
 - [D-0001 Decisions and open questions live as files in this repository](D-0001-decisions-live-in-a-registry-in-the-repo.md): Every lasting choice is a D-NNNN file and every unanswered one a Q-NNN file under docs/decisions/, listed in its index, so agents work from recorded decisions instead of chat history.
 - [D-0008 Tasks are T-NNNN files in docs/tasks, each with a check that proves it done](D-0008-tasks-are-files-in-the-repo.md): Work for agents is one file per task under docs/tasks, listed in its index, with a Done-when check and the decisions it must follow; there is no claim mechanism while Sander is the only contributor.
 - [D-0010 The repo is SanderGeraedts/diy-projects, private until v1 works, then public under MIT](D-0010-private-personal-repo-mit-later.md): The code lives on Sander's personal GitHub account as diy-projects, private while it's rough; once v1 works and the deploy docs are generic it goes public under the MIT licence.
-- [D-0012 Agents may auto-merge a green PR, except one that touches a guarded path; raising a new question is allowed](D-0012-agents-auto-merge-except-guarded-paths-new-questions-allowed.md): An agent's PR merges itself when CI is green, unless it touches the NAS backend, the sync engine or local database, the service worker or auth, or the decisions, CI and agent rules; those need Sander's review, enforced by CI from the changed files. One exception: a PR whose only guarded change is adding new open questions (Q-NNN files and their index lines) merges itself too.
+- [D-0017 Agents may auto-merge a green PR, except one that touches a guarded path; until the repo is public a local guard stops agents merging or pushing to main](D-0017-guarded-paths-enforced-by-ci-and-a-local-guard.md): D-0012's auto-merge rule and question exception, with .claude/ and .githooks/ added to the guarded paths, and a local guard (Claude Code permissions and a versioned pre-push hook) that stops agents merging PRs or pushing to main while GitHub Free offers no branch protection; branch protection replaces it when the repo goes public.
 
 ### Architecture
 
@@ -31,10 +31,11 @@ Read this list first, then only the records your work touches. How the registry 
 
 ## Open questions
 
-- [Q-001 How should the guarded-path review be enforced while the repo is private on a free plan?](Q-001-how-to-enforce-review-of-guarded-prs-on-a-private-free-repo.md): GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard.
+None.
 
 ## Resolved questions
 
+- [Q-001 How should the guarded-path review be enforced while the repo is private on a free plan?](Q-001-how-to-enforce-review-of-guarded-prs-on-a-private-free-repo.md): GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard.
 - [Q-002 Can projects and entries be deleted, and what happens to their photos?](Q-002-can-projects-and-entries-be-deleted.md): D-0004 doesn't say whether projects and entries can be deleted and D-0002 only defines tombstones for photos; decide whether deleting is allowed, whether it cascades to photos, and whether anything is ever purged from the NAS.
 - [Q-003 How does Sander sign in to PocketBase, and what happens when the sign-in expires offline?](Q-003-how-does-sander-sign-in.md): Sync needs a PocketBase sign-in (D-0005: sign-up closed, owner-only records); decide the sign-in method, how long a sign-in lasts, and that an expired sign-in never blocks offline use.
 - [Q-004 How does a second device (the laptop, or a reinstalled phone) get the 2560 px copy of each photo?](Q-004-how-do-other-devices-get-the-phone-sized-copy.md): D-0003 has the phone make a 2560 px copy before sync and keeps only originals on the NAS; decide how any other device gets its offline copy without downloading every original.
@@ -43,3 +44,4 @@ Read this list first, then only the records your work touches. How the registry 
 ## Replaced
 
 - [D-0009 Agents may auto-merge a green PR, except one that touches a guarded path](D-0009-agents-auto-merge-except-guarded-paths.md): Replaced by D-0012, which adds the exception for PRs that only raise new open questions.
+- [D-0012 Agents may auto-merge a green PR, except one that touches a guarded path; raising a new question is allowed](D-0012-agents-auto-merge-except-guarded-paths-new-questions-allowed.md): Replaced by D-0017, which adds .claude/ and .githooks/ to the guarded paths and a local guard against agents merging or pushing to main.

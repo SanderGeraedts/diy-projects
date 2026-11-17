@@ -5,7 +5,7 @@ description: "The PocketBase backend in deploy/nas/: migrations for projects, en
 status: Open
 guarded: true
 depends_on: [T-0003]
-decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0012, D-0013, D-0014, D-0015, D-0016]
+decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0017, D-0013, D-0014, D-0015, D-0016]
 raised_on: 2026-11-17
 done_on: ""
 result: []

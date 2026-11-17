@@ -5,7 +5,7 @@ description: "Compose files, the Funnel serve.json allowlist and the step-by-ste
 status: Open
 guarded: true
 depends_on: [T-0013]
-decisions: [D-0005, D-0006, D-0010, D-0012]
+decisions: [D-0005, D-0006, D-0010, D-0017]
 raised_on: 2026-11-17
 done_on: ""
 result: []

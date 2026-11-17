@@ -5,7 +5,7 @@ description: "When a new version is ready, show 'Nieuwe versie beschikbaar' and 
 status: Open
 guarded: true
 depends_on: [T-0002]
-decisions: [D-0002, D-0007, D-0012]
+decisions: [D-0002, D-0007, D-0017]
 raised_on: 2026-11-17
 done_on: ""
 result: []

@@ -2,11 +2,11 @@
 id: D-0012
 title: "Agents may auto-merge a green PR, except one that touches a guarded path; raising a new question is allowed"
 description: "An agent's PR merges itself when CI is green, unless it touches the NAS backend, the sync engine or local database, the service worker or auth, or the decisions, CI and agent rules; those need Sander's review, enforced by CI from the changed files. One exception: a PR whose only guarded change is adding new open questions (Q-NNN files and their index lines) merges itself too."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: [D-0009]
-replaced_by: []
+replaced_by: [D-0017]
 resolves: []
 tags: [process, safety]
 ---
