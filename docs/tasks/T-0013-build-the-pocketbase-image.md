@@ -2,7 +2,7 @@
 id: T-0013
 title: "Build the PocketBase image: schema, rules, history and the publish workflow"
 description: "The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image."
-status: Open
+status: Doing
 guarded: true
 depends_on: [T-0003]
 decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0017, D-0013, D-0014, D-0015, D-0018]
@@ -54,3 +54,16 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
   backup. (For this first PR there's no data yet, but keep the habit.)
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: first draft under a hard time limit. Added
+  `deploy/nas/Dockerfile` (pinned `0.30.0`, tag not yet verified), the migration
+  `1794931200_diy_projects.js` (users: sign-up closed, 90-day token; rate limits; projects,
+  entries, photos with original 40 MB/copy/thumbnail; admin-only history; owner-only rules;
+  down-migration) and `pb_hooks/history.pb.js`. Nothing was run: no Docker locally, so
+  neither the image, the migration nor the hook has executed. Remaining: verify the pinned
+  tag and the PocketBase JS API against that version (field options, `authToken.duration`,
+  `settings.rateLimits`, `publicExport()`); decide whether `status` should be a `select`
+  matching `ProjectStatus`; `.github/workflows/backend.yml` has the build, empty-DB start, CORS check
+  and publish but the smoke test is a TODO (superuser, two users, write and update a
+  record, history row, stranger sees empty list, history unreadable); `docker build
+  deploy/nas`; quote the run in the PR.
