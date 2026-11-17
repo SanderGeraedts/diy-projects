@@ -13,6 +13,8 @@ const synced: SyncStatus = {
   needsSignIn: false,
   pushed: 0,
   pulled: 0,
+  uploaded: 0,
+  photoUpload: null,
   nextRetryAt: null,
 }
 
