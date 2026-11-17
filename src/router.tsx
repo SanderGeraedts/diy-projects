@@ -6,6 +6,7 @@ import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
 import { ProjectPage } from './routes/ProjectPage'
 import { EditProjectPage, NewProjectPage } from './routes/ProjectForm'
+import { SearchPage, validateSearchParams } from './routes/SearchPage'
 import { PhotoViewer } from './viewer/PhotoViewer'
 
 const rootRoute = createRootRoute({ component: Layout, notFoundComponent: NotFound })
@@ -45,6 +46,13 @@ const photoRoute = createRoute({
   component: PhotoViewer,
 })
 
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/zoeken',
+  validateSearch: validateSearchParams,
+  component: SearchPage,
+})
+
 // D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
 // build time, so in production this branch and the page's chunk are dropped.
 const designRoutes =
@@ -65,6 +73,7 @@ const routeTree = rootRoute.addChildren([
   editProjectRoute,
   addEntryRoute,
   photoRoute,
+  searchRoute,
   ...designRoutes,
 ])
 

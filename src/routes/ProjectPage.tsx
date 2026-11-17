@@ -5,6 +5,7 @@ import { formatDate } from '../components/format'
 import { PhotoImage } from '../components/PhotoImage'
 import { StatusBadge } from '../components/StatusBadge'
 import { AccentHeading, Tags } from '../components/ui'
+import { useScrollToHash } from '../components/useScrollToHash'
 import { db } from '../db/db'
 import { AddEntryLink } from './AddEntry'
 import { EntryNote } from './EntryNote'
@@ -24,6 +25,7 @@ export function ProjectPage() {
   // were all deleted can say so. Only the live ones are shown.
   const allPhotos = useLiveQuery(() => db.photos.where('projectId').equals(projectId).sortBy('takenAt'), [projectId])
   const photos = allPhotos?.filter((ph) => ph.deletedAt === null)
+  useScrollToHash(!!project && entries !== undefined)
 
   if (project === undefined) return null
   if (project === null) {
@@ -63,7 +65,7 @@ export function ProjectPage() {
           const allDeleted =
             entryPhotos.length === 0 && e.note === '' && (allPhotos ?? []).some((ph) => ph.entryId === e.id)
           return (
-            <li key={e.id} className="mb-8">
+            <li key={e.id} id={`entry-${e.id}`} className="mb-8 scroll-mt-20">
               <AccentHeading level={2}>
                 <time dateTime={e.date}>{formatDate(e.date)}</time>
               </AccentHeading>
