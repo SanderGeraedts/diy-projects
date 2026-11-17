@@ -8,7 +8,7 @@ depends_on: [T-0003, T-0013]
 decisions: [D-0002, D-0005, D-0006, D-0013]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/27"]
 ---
 
 # Goal
@@ -52,3 +52,7 @@ D-0013's sign-in:
   e2e on private port 4791 (8 passed, 2 screenshot tests skipped on Windows).
   Open for Sander: the form's inputs and buttons are a new component style (D-0020 asks for a
   decision); they use tokens only, with `rounded-card` corners.
+- 2026-11-17 claude-code/opus-5.5: The first CI run showed the SDK clears its auth store on
+  any 401, which turned a revoked sign-in into "signed out"; auth now remembers the account
+  so it reads as `expired`. CI run 44095495434 green: `checks` (Linux screenshots 10/10)
+  and `pocketbase-auth` 5/5. Draft PR #27.
