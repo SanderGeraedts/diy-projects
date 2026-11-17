@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -18,6 +19,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
@@ -25,13 +27,13 @@ export default defineConfig({
       manifest: {
         name: 'DIY projects',
         short_name: 'DIY projects',
-        description: 'Photos and progress of DIY projects, offline first.',
-        lang: 'en',
+        description: "Foto's en voortgang van klusprojecten, offline.",
+        lang: 'nl',
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#f6f3ee',
-        theme_color: '#2f5d50',
+        background_color: '#212121',
+        theme_color: '#212121',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -39,7 +41,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,woff2}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
       },

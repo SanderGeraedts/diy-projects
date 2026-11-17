@@ -1,0 +1,84 @@
+/* D-0020: the design system. Every colour, radius and font is a token here; components
+   use Tailwind utilities built from these tokens only. Dark values follow the device's
+   prefers-color-scheme. */
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/poppins-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/poppins-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/poppins-latin-400-italic.woff2') format('woff2');
+}
+
+@theme {
+  --font-sans: 'Poppins', system-ui, sans-serif;
+
+  /* Light palette (sanderg.nl). */
+  --color-text: #212121;
+  --color-bg: #fefefe;
+  --color-grey: #666666;
+  --color-grey-light: #dddddd;
+  --color-grey-lighter: #eeeeee;
+  --color-accent: #fc5e97;
+  --color-panel: rgb(254 254 254 / 0.88);
+
+  /* Status hues: no red, orange or pink (D-0020). */
+  --color-status-idea-bg: #ece6fa;
+  --color-status-idea-text: #4b2f94;
+  --color-status-in-progress-bg: #dde8f7;
+  --color-status-in-progress-text: #1d4f91;
+  --color-status-paused-bg: #d8efee;
+  --color-status-paused-text: #0f5757;
+  --color-status-done-bg: #dff0da;
+  --color-status-done-text: #2b5a24;
+
+  --radius-card: 25px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text: #dedede;
+    --color-bg: #212121;
+    --color-grey: #999999;
+    --color-grey-light: #444444;
+    --color-grey-lighter: #333333;
+    --color-accent: #f5581a;
+    --color-panel: rgb(33 33 33 / 0.88);
+
+    --color-status-idea-bg: #3a2e5c;
+    --color-status-idea-text: #ddd2fc;
+    --color-status-in-progress-bg: #1f3657;
+    --color-status-in-progress-text: #c6dbf7;
+    --color-status-paused-bg: #1d4443;
+    --color-status-paused-text: #b3e6e3;
+    --color-status-done-bg: #27431f;
+    --color-status-done-text: #c9ebc0;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+  body {
+    @apply bg-bg font-sans leading-normal text-text;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}

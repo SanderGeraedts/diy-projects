@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '@tanstack/react-router'
 import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
@@ -14,7 +14,20 @@ const projectRoute = createRoute({
   component: ProjectPage,
 })
 
-const routeTree = rootRoute.addChildren([overviewRoute, projectRoute])
+// D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
+// build time, so in production this branch and the page's chunk are dropped.
+const designRoutes =
+  __DEPLOY_CONTEXT__ !== 'production'
+    ? [
+        createRoute({
+          getParentRoute: () => rootRoute,
+          path: '/design',
+          component: lazyRouteComponent(() => import('./routes/DesignPage'), 'DesignPage'),
+        }),
+      ]
+    : []
+
+const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, ...designRoutes])
 
 export const router = createRouter({ routeTree })
 

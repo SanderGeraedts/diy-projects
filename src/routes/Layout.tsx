@@ -4,22 +4,23 @@ import { deployContext, syncConfig } from '../sync/config'
 export function Layout() {
   return (
     <>
-      <header className="app-header">
-        <Link to="/" className="app-title">
+      <header className="sticky top-0 z-10 bg-bg px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+        <Link to="/" className="inline-block text-xl font-semibold text-text no-underline">
           DIY projects
+          <span aria-hidden="true" className="mt-0.5 block h-1 w-full bg-accent" />
         </Link>
       </header>
       {deployContext !== 'production' && (
-        <p className="demo-banner" role="status">
-          Demo data · sync is off ({deployContext})
+        <p className="m-0 bg-grey-lighter px-4 py-1.5 text-sm" role="status">
+          Demodata · synchronisatie staat uit ({deployContext})
         </p>
       )}
       {deployContext === 'production' && !syncConfig.enabled && (
-        <p className="demo-banner" role="status">
-          Offline only · {syncConfig.reason}
+        <p className="m-0 bg-grey-lighter px-4 py-1.5 text-sm" role="status">
+          Alleen offline · {syncConfig.reason}
         </p>
       )}
-      <main className="app-main">
+      <main className="mx-auto max-w-5xl p-4">
         <Outlet />
       </main>
     </>

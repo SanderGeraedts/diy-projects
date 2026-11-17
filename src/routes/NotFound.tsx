@@ -1,11 +1,14 @@
 import { Link } from '@tanstack/react-router'
+import { AccentHeading } from '../components/ui'
 
 export function NotFound() {
   return (
     <section>
-      <h1>Not found</h1>
+      <AccentHeading>Niet gevonden</AccentHeading>
       <p>
-        <Link to="/">Back to all projects</Link>
+        <Link to="/" className="text-text underline decoration-accent decoration-2 underline-offset-4">
+          Terug naar alle projecten
+        </Link>
       </p>
     </section>
   )

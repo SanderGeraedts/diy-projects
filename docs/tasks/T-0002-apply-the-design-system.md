@@ -2,13 +2,13 @@
 id: T-0002
 title: "Apply the sanderg.nl-based design system"
 description: "Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests."
-status: Open
+status: Doing
 guarded: false
 depends_on: []             # builds on T-0001's merged scaffold; its PR is T-0001's gate test
-decisions: [D-0004, D-0005, D-0006, D-0007, D-0011]
+decisions: [D-0004, D-0005, D-0006, D-0007, D-0020]
 raised_on: 2026-11-16
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/14"]
 ---
 
 # Goal
@@ -57,3 +57,8 @@ also T-0001's last check of the auto-merge gate.
 - Netlify's CSP already allows fonts from 'self' (via `default-src`).
 
 # Log
+- 2026-11-17 claude-code/opus-5.5: Tailwind v4 (`@tailwindcss/vite`) with D-0011 tokens under `@theme` in `src/styles/app.css` (dark via prefers-color-scheme; old `src/styles.css` removed); self-hosted Poppins 400/600/400-italic Latin woff2 + OFL licence in `public/fonts/` (copied from `@fontsource/poppins`), woff2 precached; header, project card (photo + translucent panel, initial tile without cover), status badge (4 hues: violet, blue, teal, green), project title block and entries restyled; Dutch UI, `nl-NL` dates, Dutch seed text (ids unchanged); new icon (#212121, orange house over an accent bar), manifest and theme-color meta tags; `/design` page, dropped from production builds; tests: token contrast (light + dark, body/grey/badge text), no raw colours in `src/components` + `src/routes`, Poppins-in-use check in the offline e2e, `/design` screenshot tests (skipped off Linux and until baselines exist). Checks: typecheck clean, `pnpm test` 70 passed, build ok, `test:e2e` 6 passed / 2 skipped (Windows); `CONTEXT=production pnpm run build` has no DesignPage chunk. Remaining: (1) generate the Linux baselines in CI with `pnpm exec playwright test e2e/design.spec.ts --update-snapshots` and commit `e2e/design.spec.ts-snapshots/`; that needs a workflow change (guarded `.github/`), so it goes in its own PR; (2) the production "offline only" banner shows `syncConfig.reason`, which is English and lives in guarded `src/sync/config.ts`; translate it in a guarded PR; (3) the app name stays "DIY projects" (whether to translate it is undecided); (4) Sander checks the overview, a project page and `/design` on the Netlify preview on his Pixel, light and dark.
+- 2026-11-17 claude-code/opus-5.5: Accent bars (header title and every heading, entry dates included) are now as wide as their text instead of a fixed 40–48 px, at Sander's request; recorded as D-0020 (replaces D-0011) in its own PR. Code comments point to D-0020. Checks: typecheck clean, 70 tests passed, build ok; screenshot of a project page checked.
+- 2026-11-17 claude-code/opus-5.5: Accent bars have square ends (no rounded corners), at Sander's request (D-0020).
+- 2026-11-17 claude-code/opus-5.5: CI failed on PR #14 after T-0003 merged (v2 schema: /design sample data lacked thumbnail, original, uploads, updatedAt, deletedAt). Merged main into the branch (no conflicts) and filled the sample data like the demo seed. Checks: typecheck clean, 91 tests passed, build ok, e2e 7 passed, 2 skipped.
+- 2026-11-17 claude-code/opus-5.5: Merged main (D-0020). CI now runs `pnpm run test:e2e --update-snapshots=missing` and always uploads `e2e/**/*-snapshots/**` as the `screenshot-baselines` artifact (guarded `.github/`); the design spec no longer skips a missing baseline on Linux. Linux baselines for `/design` light + dark made by CI run https://github.com/SanderGeraedts/diy-projects/actions/runs/44092806686 and committed in `e2e/design.spec.ts-snapshots/`. Production sync-off reasons in `src/sync/config.ts` are Dutch ("synchronisatie staat uit in …-builds", "geen PocketBase-adres ingesteld"; guarded `src/sync/`). App name stays "DIY projects". Checks: typecheck clean, `pnpm test` 91 passed, build ok, `test:e2e` 7 passed / 2 skipped locally (Windows); CI https://github.com/SanderGeraedts/diy-projects/actions/runs/44093111985 green, e2e 9 passed with both screenshots compared. Remaining: Sander checks the overview, a project page and `/design` on the Netlify preview on his Pixel, light and dark.

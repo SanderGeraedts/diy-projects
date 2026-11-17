@@ -2,15 +2,16 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
 
-const BG = [0x2f, 0x5d, 0x50]
-const FG = [0xff, 0xff, 0xff]
+const BG = [0x21, 0x21, 0x21]
+const FG = [0xf5, 0x58, 0x1a]
 
-/** Shape in unit coordinates (0..1): a house with a door. */
+/** Shape in unit coordinates (0..1): a house with a door, over an accent bar (D-0011). */
 function inHouse(x, y) {
   const roof = y >= 0.22 && y <= 0.47 && Math.abs(x - 0.5) <= (y - 0.22) * 1.2
   const walls = y > 0.47 && y <= 0.78 && x >= 0.27 && x <= 0.73
   const door = y > 0.58 && y <= 0.78 && x >= 0.45 && x <= 0.55
-  return (roof || walls) && !door
+  const bar = y >= 0.83 && y <= 0.88 && x >= 0.35 && x <= 0.65
+  return ((roof || walls) && !door) || bar
 }
 
 function inRoundedSquare(x, y, r) {
@@ -79,8 +80,8 @@ function png(size, { maskable }) {
 }
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-<rect width="100" height="100" rx="20" fill="#2f5d50"/>
-<path fill="#fff" fill-rule="evenodd" d="M50 22 80 47H73V78H27V47H20ZM45 58V78H55V58Z"/>
+<rect width="100" height="100" rx="20" fill="#212121"/>
+<path fill="#f5581a" fill-rule="evenodd" d="M50 22 80 47H73V78H27V47H20ZM45 58V78H55V58ZM35 83H65V88H35Z"/>
 </svg>
 `
 
