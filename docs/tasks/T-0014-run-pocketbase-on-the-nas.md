@@ -13,13 +13,16 @@ result: []
 
 # Goal
 
-Everything Sander needs to bring the backend up on the NAS, as in Reading List (D-0005):
+Everything Sander needs to bring the backend up on the NAS (D-0005), following
+`docs/deploy/pocketbase-on-the-nas.md`:
 
 - `deploy/nas/compose.yml`: PocketBase sharing a network with a Tailscale container;
   Watchtower watching only the PocketBase container; data on a named volume
   (`pb_data`).
-- `deploy/nas/serve.json`: Funnel on 443 allows only the API paths the app needs (records
-  and files of the app's collections, auth); the admin screen on 8443, tailnet only.
+- `deploy/nas/serve.json`: Funnel on 443 allows only the API paths the app needs:
+  `/api/health`, sign-in (`/api/collections/users/`), the app's collections, and
+  `/api/files/` for photo copies and thumbnails (D-0015). Never `history` or the admin
+  screen; the admin screen is on 8443, tailnet only.
 - The tailnet name, auth key and any secret come from an `.env` on the NAS, never the repo
   (`.env.example` lists them).
 - `deploy/nas/README.md`: the steps, in order, including creating Sander's user,

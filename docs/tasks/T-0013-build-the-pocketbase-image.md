@@ -42,8 +42,12 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
 
 # Notes
 
-- Follow Hanna's Reading List's backend setup where it applies; ask Sander for its
-  repository before starting.
+- Read `docs/deploy/pocketbase-on-the-nas.md` first: the image, workflow, migration and hook
+  patterns that already work on the NAS, and the incident they came from. Don't depend on
+  the Reading List repository.
+- Set `--origins=https://projects.sanderg.nl` on `serve` (the browser calls PocketBase
+  directly, D-0005) and check in the workflow that another origin gets no CORS header.
+- Turn on PocketBase's rate limits; the sign-in path is on the internet.
 - PocketBase's own thumbnail feature isn't used; the NAS does no image processing (D-0015).
 - Running it on the NAS is T-0014.
 
