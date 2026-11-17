@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { auth, useAuthState } from '../auth/session'
+import { UpdateBar } from '../components/UpdateBar'
 import { deployContext, syncConfig } from '../sync/config'
 
 const ACCOUNT_LINK = { 'signed-out': 'Inloggen', expired: 'Opnieuw inloggen', 'signed-in': 'Account' } as const
@@ -38,6 +39,7 @@ export function Layout() {
       <main className="mx-auto max-w-5xl p-4">
         <Outlet />
       </main>
+      <UpdateBar />
     </>
   )
 }

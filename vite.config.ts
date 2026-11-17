@@ -12,6 +12,10 @@ const deployContext = process.env.CONTEXT ?? 'local'
 // address is never read, so it can't end up in a preview, dev or test bundle.
 const pocketbaseUrl = deployContext === 'production' ? (process.env.POCKETBASE_URL ?? '') : ''
 
+// T-0019: which build this is, in <meta name="build-id">. Netlify sets COMMIT_REF; the
+// update e2e test sets BUILD_ID to tell two builds apart.
+const buildId = process.env.BUILD_ID ?? process.env.COMMIT_REF ?? 'local'
+
 export default defineConfig({
   define: {
     __DEPLOY_CONTEXT__: JSON.stringify(deployContext),
@@ -20,6 +24,10 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'build-id',
+      transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'build-id', content: buildId }, injectTo: 'head' }],
+    },
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
