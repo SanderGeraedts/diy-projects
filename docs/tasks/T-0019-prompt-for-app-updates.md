@@ -2,7 +2,7 @@
 id: T-0019
 title: "Offer app updates safely"
 description: "When a new version is ready, show 'Nieuwe versie beschikbaar' and switch to it on a tap, never in the middle of an import or sync."
-status: Open
+status: Doing
 guarded: true
 depends_on: [T-0002]
 decisions: [D-0002, D-0007, D-0017]
@@ -34,3 +34,19 @@ on an installed app can take days.
 - Keep the logic in `src/sw/`; the bar itself can be a component outside it.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Stacked on T-0002 (#14). Logic in `src/sw/`: `busy.ts`
+  (`startBusy(reason)` returns a release function; `isBusy`, `busyReasons`, `whenIdle`) for
+  T-0007 and T-0016 to wrap an import or sync in; `update.ts` (update state, `apply()` waits
+  until nothing is busy, then activates; `watchForUpdates` checks on `visibilitychange` to
+  visible, at most hourly, registration counting as the first check); `register.ts` wires both
+  to `registerSW`. The bar is `src/components/UpdateBar.tsx`, one line in `Layout.tsx`; while
+  waiting it reads "Bijwerken zodra de foto-import klaar is…". `vite.config.ts` writes
+  `<meta name="build-id">` (`BUILD_ID`, else Netlify's `COMMIT_REF`, else `local`).
+  `e2e/update.spec.ts` builds twice (`e2e-a`, `e2e-b`), serves a then b from its own server on
+  port 4183, sees the bar, taps it, and finds build b with a project written to IndexedDB
+  before the update. Checks: typecheck clean, `pnpm test` 110 passed, build ok,
+  `pnpm run test:e2e` 8 passed, 2 skipped (the /design screenshots, as before).
+  Not decided, left as is: a page opened for the first time (not yet controlled by a service
+  worker) gets no reload after "Bijwerken" until reopened; an app kept in view for hours
+  doesn't check until it comes into view again.

@@ -1,4 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
+import { UpdateBar } from '../components/UpdateBar'
 import { deployContext, syncConfig } from '../sync/config'
 
 export function Layout() {
@@ -23,6 +24,7 @@ export function Layout() {
       <main className="mx-auto max-w-5xl p-4">
         <Outlet />
       </main>
+      <UpdateBar />
     </>
   )
 }
