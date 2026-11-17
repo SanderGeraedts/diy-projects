@@ -64,6 +64,12 @@ const designRoutes =
           path: '/design',
           component: lazyRouteComponent(() => import('./routes/DesignPage'), 'DesignPage'),
         }),
+        // T-0018: the sync status with a stubbed engine, for e2e tests (sync is production-only).
+        createRoute({
+          getParentRoute: () => rootRoute,
+          path: '/design/sync-status',
+          component: lazyRouteComponent(() => import('./routes/SyncStatusFixture'), 'SyncStatusFixture'),
+        }),
       ]
     : []
 

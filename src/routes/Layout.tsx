@@ -1,6 +1,7 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { auth, useAuthState } from '../auth/session'
 import { SearchLink } from '../components/SearchLink'
+import { SyncStatusBar } from '../components/SyncStatus'
 import { UpdateBar } from '../components/UpdateBar'
 import { deployContext, syncConfig } from '../sync/config'
 
@@ -30,6 +31,8 @@ export function Layout() {
           <AccountLink />
         </div>
       </header>
+      {/* T-0018: only where sync runs; previews and dev show the demo banner (D-0006). */}
+      <SyncStatusBar />
       {deployContext !== 'production' && (
         <p className="m-0 bg-grey-lighter px-4 py-1.5 text-sm" role="status">
           Demodata · synchronisatie staat uit ({deployContext})
