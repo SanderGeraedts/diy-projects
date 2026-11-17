@@ -21,6 +21,7 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 - [T-0019 Offer app updates safely](T-0019-prompt-for-app-updates.md): When a new version is ready, show 'Nieuwe versie beschikbaar' and switch to it on a tap, never in the middle of an import or sync.
 - [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
 - [T-0022 Add the bin: restore or permanently delete deleted projects and entries (after v1)](T-0022-add-the-bin.md): A bin screen listing deleted projects and entries, with restore, and a permanent delete that removes the files and history from the NAS but keeps a marker that refuses late uploads.
+- [T-0025 Check whether the repository can go public](T-0025-check-whether-the-repo-can-go-public.md): Audit the whole git history, every branch and the open PRs for secrets, personal and infrastructure details, real photos and licence problems, and write a findings report with a proposed fix for each, so Sander can decide what blocks going public.
 
 ## Doing
 
