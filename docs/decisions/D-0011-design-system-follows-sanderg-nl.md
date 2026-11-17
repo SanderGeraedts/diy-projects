@@ -2,11 +2,11 @@
 id: D-0011
 title: "The app's look follows sanderg.nl: Poppins, a pink/orange accent, the system theme, Dutch, built with Tailwind"
 description: "A small design system modelled on sanderg.nl (palette, Poppins, accent bars, 25px corners), adapted for an offline phone app: self-hosted font, system light/dark only, four status hues, Dutch interface, Tailwind v4 tokens, and a /design page with screenshot tests."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0020]
 resolves: []
 tags: [design, ux, stack]
 ---

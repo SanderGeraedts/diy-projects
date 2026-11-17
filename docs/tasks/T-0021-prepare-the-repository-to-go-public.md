@@ -36,6 +36,6 @@ D-0010: private until v1 works and the deploy docs are generic, then public unde
 
 - Revisit D-0008 then: outside contributors may suit GitHub Issues better.
 - Revisit D-0018 then: self-hosters will expect backup instructions.
-- A Dutch-only interface may need revisiting for others (D-0011).
+- A Dutch-only interface may need revisiting for others (D-0020).
 
 # Log

@@ -5,7 +5,7 @@ description: "A small status in the header with the number of unsynced changes a
 status: Open
 guarded: false
 depends_on: [T-0016]
-decisions: [D-0002, D-0006, D-0011, D-0013]
+decisions: [D-0002, D-0006, D-0020, D-0013]
 raised_on: 2026-11-17
 done_on: ""
 result: []

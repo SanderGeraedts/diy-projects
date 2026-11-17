@@ -5,7 +5,7 @@ description: "Status and tag filters on the overview, combinable, kept in the UR
 status: Open
 guarded: false
 depends_on: [T-0002]
-decisions: [D-0004, D-0011]
+decisions: [D-0004, D-0020]
 raised_on: 2026-11-17
 done_on: ""
 result: []
