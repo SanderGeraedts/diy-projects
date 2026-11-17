@@ -3,14 +3,14 @@ import type { Photo, Project } from '../db/db'
 import { PhotoImage } from './PhotoImage'
 import { StatusBadge } from './StatusBadge'
 
-/** A heading underlined with the accent bar (D-0011). */
+/** A heading underlined with an accent bar as wide as its text (D-0020). */
 export function AccentHeading({ children, level = 1 }: { children: ReactNode; level?: 1 | 2 }) {
   const Tag = level === 1 ? 'h1' : 'h2'
   const size = level === 1 ? 'text-2xl' : 'text-lg'
   return (
     <Tag className={`m-0 inline-block font-semibold ${size}`}>
       {children}
-      <span aria-hidden="true" className="mt-1 block h-1.5 w-12 rounded-full bg-accent" />
+      <span aria-hidden="true" className="mt-1 block h-1.5 w-full rounded-full bg-accent" />
     </Tag>
   )
 }

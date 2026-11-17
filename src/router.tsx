@@ -14,7 +14,7 @@ const projectRoute = createRoute({
   component: ProjectPage,
 })
 
-// D-0011: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
+// D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
 // build time, so in production this branch and the page's chunk are dropped.
 const designRoutes =
   __DEPLOY_CONTEXT__ !== 'production'

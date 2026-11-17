@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// D-0011 checks, read straight from the token stylesheet and the component sources.
+// D-0020 checks, read straight from the token stylesheet and the component sources.
 
 const css = readFileSync(join(__dirname, 'app.css'), 'utf8')
 

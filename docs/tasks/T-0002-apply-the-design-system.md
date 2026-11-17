@@ -5,7 +5,7 @@ description: "Replace T-0001's placeholder look with D-0011's design system in T
 status: Doing
 guarded: false
 depends_on: []             # builds on T-0001's merged scaffold; its PR is T-0001's gate test
-decisions: [D-0004, D-0005, D-0006, D-0007, D-0011]
+decisions: [D-0004, D-0005, D-0006, D-0007, D-0020]
 raised_on: 2026-11-16
 done_on: ""
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/14"]
@@ -58,3 +58,4 @@ also T-0001's last check of the auto-merge gate.
 
 # Log
 - 2026-11-17 claude-code/opus-5.5: Tailwind v4 (`@tailwindcss/vite`) with D-0011 tokens under `@theme` in `src/styles/app.css` (dark via prefers-color-scheme; old `src/styles.css` removed); self-hosted Poppins 400/600/400-italic Latin woff2 + OFL licence in `public/fonts/` (copied from `@fontsource/poppins`), woff2 precached; header, project card (photo + translucent panel, initial tile without cover), status badge (4 hues: violet, blue, teal, green), project title block and entries restyled; Dutch UI, `nl-NL` dates, Dutch seed text (ids unchanged); new icon (#212121, orange house over an accent bar), manifest and theme-color meta tags; `/design` page, dropped from production builds; tests: token contrast (light + dark, body/grey/badge text), no raw colours in `src/components` + `src/routes`, Poppins-in-use check in the offline e2e, `/design` screenshot tests (skipped off Linux and until baselines exist). Checks: typecheck clean, `pnpm test` 70 passed, build ok, `test:e2e` 6 passed / 2 skipped (Windows); `CONTEXT=production pnpm run build` has no DesignPage chunk. Remaining: (1) generate the Linux baselines in CI with `pnpm exec playwright test e2e/design.spec.ts --update-snapshots` and commit `e2e/design.spec.ts-snapshots/`; that needs a workflow change (guarded `.github/`), so it goes in its own PR; (2) the production "offline only" banner shows `syncConfig.reason`, which is English and lives in guarded `src/sync/config.ts`; translate it in a guarded PR; (3) the app name stays "DIY projects" (whether to translate it is undecided); (4) Sander checks the overview, a project page and `/design` on the Netlify preview on his Pixel, light and dark.
+- 2026-11-17 claude-code/opus-5.5: Accent bars (header title and every heading, entry dates included) are now as wide as their text instead of a fixed 40–48 px, at Sander's request; recorded as D-0020 (replaces D-0011) in its own PR. Code comments point to D-0020. Checks: typecheck clean, 70 tests passed, build ok; screenshot of a project page checked.

@@ -5,7 +5,7 @@ import { STATUS_LABELS, StatusBadge } from '../components/StatusBadge'
 import { AccentHeading, ProjectCard, Tags } from '../components/ui'
 import { demoPhotoSvg } from '../seed/demo'
 
-// D-0011: the reference page of every token and component. Left out of production builds
+// D-0020: the reference page of every token and component. Left out of production builds
 // (see router.tsx). Screenshot tests in e2e/design.spec.ts cover it in light and dark.
 
 const COLOR_TOKENS = [

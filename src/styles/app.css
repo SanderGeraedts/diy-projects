@@ -1,4 +1,4 @@
-/* D-0011: the design system. Every colour, radius and font is a token here; components
+/* D-0020: the design system. Every colour, radius and font is a token here; components
    use Tailwind utilities built from these tokens only. Dark values follow the device's
    prefers-color-scheme. */
 @import 'tailwindcss';
@@ -37,7 +37,7 @@
   --color-accent: #fc5e97;
   --color-panel: rgb(254 254 254 / 0.88);
 
-  /* Status hues: no red, orange or pink (D-0011). */
+  /* Status hues: no red, orange or pink (D-0020). */
   --color-status-idea-bg: #ece6fa;
   --color-status-idea-text: #4b2f94;
   --color-status-in-progress-bg: #dde8f7;

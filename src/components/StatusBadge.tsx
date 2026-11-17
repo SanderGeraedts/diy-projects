@@ -1,6 +1,6 @@
 import type { ProjectStatus } from '../db/db'
 
-/** D-0011: Dutch labels, keyed by the value stored in Dexie (D-0004). */
+/** D-0020: Dutch labels, keyed by the value stored in Dexie (D-0004). */
 export const STATUS_LABELS: Record<ProjectStatus, string> = {
   idea: 'idee',
   'in progress': 'bezig',
