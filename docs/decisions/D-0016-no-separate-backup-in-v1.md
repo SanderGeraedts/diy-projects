@@ -2,11 +2,11 @@
 id: D-0016
 title: "No separate backup of the NAS data in v1; losing the NAS is an accepted risk"
 description: "v1 relies on the NAS's two-disk redundancy, and on Immich, which already holds the photos; losing the notes, tags and project structure if the NAS dies or the database corrupts is accepted for now."
-status: Accepted
+status: Replaced
 date: 2026-11-17
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0018]
 resolves: [Q-005]
 tags: [backend, backup, nas]
 ---

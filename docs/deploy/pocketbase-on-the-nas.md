@@ -231,9 +231,8 @@ recovered by hand. What carries over:
   device's pre-account data into an account that has none. Here: seeded demo data never
   enters the outbox (T-0003), and previews never get a backend address (D-0006).
 - **Before merging a schema change, take a backup** ("Backup now" in the admin screen): the
-  CI check proves a migration on an *empty* database, not on real data. D-0016 decided on no
-  separate backup in v1; whether a backup before migrations still applies is open (see the
-  PR that added this file).
+  CI check proves a migration on an *empty* database, not on real data. Adopted here as
+  D-0018.
 - **Node 26 ships its own `localStorage`**, which hid happy-dom's in Reading List's tests and
   made them fail locally while CI (an older Node) passed. This repo runs Node 26 locally and
   24 in CI: if storage tests behave differently between the two, look there first.
