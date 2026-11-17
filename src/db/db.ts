@@ -89,11 +89,22 @@ export interface OutboxItem {
   queuedAt: string
 }
 
+/**
+ * The sync engine's own state on this device (T-0016): pull cursors, the last successful
+ * sync. Not a record: never synced, never in the outbox. Cleared with the local copy on
+ * sign-out, so the next sign-in pulls everything again.
+ */
+export interface SyncStateRow {
+  key: string
+  value: string
+}
+
 export type DiyDb = Dexie & {
   projects: EntityTable<Project, 'id'>
   entries: EntityTable<Entry, 'id'>
   photos: EntityTable<Photo, 'id'>
   outbox: EntityTable<OutboxItem, 'id'>
+  syncState: EntityTable<SyncStateRow, 'key'>
 }
 
 /** The v1 schema, as shipped. Kept so older databases can be upgraded (D-0007). */
@@ -108,6 +119,12 @@ export const SCHEMA_V2 = {
   entries: 'id, projectId, [projectId+date], updatedAt',
   photos: 'id, projectId, entryId, updatedAt',
   outbox: '++id, [table+recordId]',
+} as const
+
+/** v3 (T-0016) adds the sync engine's state; nothing else changes, so no upgrade step. */
+export const SCHEMA_V3 = {
+  ...SCHEMA_V2,
+  syncState: 'key',
 } as const
 
 /** v1 → v2: add tombstones, `updatedAt` on photos, and the photo file fields. Keeps all data. */
@@ -143,6 +160,7 @@ export function openDb(name = 'diy-projects'): DiyDb {
   const db = new Dexie(name) as DiyDb
   db.version(1).stores(SCHEMA_V1)
   db.version(2).stores(SCHEMA_V2).upgrade(upgradeToV2)
+  db.version(3).stores(SCHEMA_V3)
   return db
 }
 

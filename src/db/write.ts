@@ -263,13 +263,15 @@ export function countUnsynced(target: DiyDb = defaultDb): Promise<number> {
 // --- Sign-out (T-0015) ---
 
 /**
- * Empties this device's copy: records, photos and the outbox, in one transaction (D-0013).
- * Destructive: only sign-out calls it, after a sync attempt and, when anything is unsynced,
- * a second confirmation (`src/auth/`).
+ * Empties this device's copy: records, photos, the outbox and the sync state (cursors, so
+ * the next sign-in pulls everything again), in one transaction (D-0013). Destructive: only
+ * sign-out calls it, after a sync attempt and, when anything is unsynced, a second
+ * confirmation (`src/auth/`). A sync still running sees its state gone and stops (T-0016).
  */
 export async function clearLocalData(target: DiyDb = defaultDb): Promise<void> {
-  await target.transaction('rw', [target.projects, target.entries, target.photos, target.outbox], async () => {
-    await Promise.all([target.projects.clear(), target.entries.clear(), target.photos.clear(), target.outbox.clear()])
+  const tables = [target.projects, target.entries, target.photos, target.outbox, target.syncState]
+  await target.transaction('rw', tables, async () => {
+    await Promise.all(tables.map((table) => table.clear()))
   })
 }
 

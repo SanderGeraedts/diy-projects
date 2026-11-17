@@ -2,7 +2,7 @@
 // Node, not jsdom: jsdom Blobs do not survive fake-indexeddb's structured clone.
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
-import { openDb, SCHEMA_V1, type DiyDb } from './db'
+import { openDb, SCHEMA_V1, SCHEMA_V2, upgradeToV2, type DiyDb } from './db'
 import {
   addEntry,
   addPhotos,
@@ -69,7 +69,7 @@ describe('schema v1 → v2', () => {
 
     db = openDb(name)
     await db.open()
-    expect(db.verno).toBe(2)
+    expect(db.verno).toBe(3)
     expect(await db.projects.count()).toBe(1)
     expect(await db.entries.count()).toBe(1)
     expect(await db.photos.count()).toBe(2)
@@ -81,6 +81,28 @@ describe('schema v1 → v2', () => {
     expect(f?.blob).toBeInstanceOf(Blob)
     expect(f?.thumbnail).toBeInstanceOf(Blob)
     expect(await db.outbox.count()).toBe(0)
+  })
+})
+
+describe('schema v2 → v3 (T-0016)', () => {
+  it('keeps records and the outbox, and adds an empty sync state', async () => {
+    const name = `upgrade-test-${++counter}`
+    const v2 = new Dexie(name)
+    v2.version(1).stores(SCHEMA_V1)
+    v2.version(2).stores(SCHEMA_V2).upgrade(upgradeToV2)
+    await v2.table('projects').add({
+      id: 'p1', title: 'Old', description: '', status: 'idea', tags: [],
+      createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z', deletedAt: null,
+    })
+    await v2.table('outbox').add({ table: 'projects', recordId: 'p1', op: 'put', queuedAt: '2026-01-02T00:00:00.000Z' })
+    v2.close()
+
+    db = openDb(name)
+    await db.open()
+    expect(db.verno).toBe(3)
+    expect(await db.projects.get('p1')).toMatchObject({ title: 'Old' })
+    expect(await db.outbox.toArray()).toMatchObject([{ id: 1, table: 'projects', recordId: 'p1', op: 'put' }])
+    expect(await db.syncState.count()).toBe(0)
   })
 })
 
@@ -221,12 +243,14 @@ describe('photos', () => {
 })
 
 describe('clearLocalData (T-0015)', () => {
-  it('empties records, photos and the outbox', async () => {
+  it('empties records, photos, the outbox and the sync state', async () => {
     const d = freshDb()
     const { entry } = await projectWithEntry(d)
     await addPhotos(entry.id, [newPhoto()], d)
+    await d.syncState.put({ key: 'cursor:projects', value: '2026-11-17 10:00:00.000Z' })
     expect(await countUnsynced(d)).toBe(3)
     await clearLocalData(d)
+    expect(await d.syncState.count()).toBe(0)
     expect(await d.projects.count()).toBe(0)
     expect(await d.entries.count()).toBe(0)
     expect(await d.photos.count()).toBe(0)
