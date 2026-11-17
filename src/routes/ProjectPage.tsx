@@ -8,6 +8,7 @@ import { AccentHeading, Tags } from '../components/ui'
 import { db } from '../db/db'
 import { AddEntryLink } from './AddEntry'
 import { EntryNote } from './EntryNote'
+import { ImportPhotos } from './ImportPhotos'
 import { EditProjectLink } from './ProjectLinks'
 
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
@@ -52,6 +53,7 @@ export function ProjectPage() {
         <p className="mt-3">{project.description}</p>
       </header>
       <AddEntryLink projectId={project.id} />
+      <ImportPhotos projectId={project.id} />
       <ol className="timeline m-0 mt-8 list-none p-0">
         {(entries ?? []).map((e) => (
           <li key={e.id} className="mb-8">

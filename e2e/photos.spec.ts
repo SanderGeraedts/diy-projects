@@ -5,7 +5,7 @@ import { createServer, type ViteDevServer } from 'vite'
 // it from a Vite dev server of its own and drives it in the browser. The fixture is generated
 // in the page: no real photos (D-0006, D-0010).
 
-const PORT = 5199
+const PORT = Number(process.env.PHOTOS_E2E_PORT ?? 5199)
 let server: ViteDevServer
 
 test.beforeAll(async () => {
