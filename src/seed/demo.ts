@@ -99,19 +99,34 @@ export function buildDemoData(): DemoData {
     let coverPhotoId: string | undefined
     p.entries.forEach((e, ei) => {
       const entryId = `${projectId}-entry-${ei + 1}`
-      entries.push({ id: entryId, projectId, date: e.date, note: e.note, createdAt: SEED_TIME, updatedAt: SEED_TIME })
+      entries.push({
+        id: entryId,
+        projectId,
+        date: e.date,
+        note: e.note,
+        createdAt: SEED_TIME,
+        updatedAt: SEED_TIME,
+        deletedAt: null,
+      })
       for (let i = 0; i < e.photos; i++) {
         const id = `${entryId}-photo-${i + 1}`
         const svg = demoPhotoSvg(`${p.title} · ${e.date}`, p.hue, ei * 3 + i)
+        const blob = new Blob([svg], { type: 'image/svg+xml' })
+        // Demo photos never sync (D-0006): no original and nothing to upload.
         photos.push({
           id,
           projectId,
           entryId,
           takenAt: `${e.date}T${String(10 + i).padStart(2, '0')}:00:00.000Z`,
-          blob: new Blob([svg], { type: 'image/svg+xml' }),
+          blob,
+          thumbnail: blob,
+          original: null,
+          uploads: { original: 'none', copy: 'none', thumbnail: 'none' },
           width: 1600,
           height: 1200,
           createdAt: SEED_TIME,
+          updatedAt: SEED_TIME,
+          deletedAt: null,
         })
         coverPhotoId = id
       }
@@ -125,12 +140,16 @@ export function buildDemoData(): DemoData {
       coverPhotoId,
       createdAt: SEED_TIME,
       updatedAt: SEED_TIME,
+      deletedAt: null,
     })
   }
   return { projects, entries, photos }
 }
 
-/** Fills an empty database with the demo projects. Leaves a database with data alone. */
+/**
+ * Fills an empty database with the demo projects. Leaves a database with data alone. Writes
+ * v2 records directly, without outbox rows: demo data never syncs (D-0006).
+ */
 export async function seedIfEmpty(db: DiyDb): Promise<boolean> {
   return db.transaction('rw', db.projects, db.entries, db.photos, async () => {
     if ((await db.projects.count()) > 0) return false

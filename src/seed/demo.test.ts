@@ -31,5 +31,7 @@ describe('demo seed', () => {
     expect(count).toBe(buildDemoData().projects.length)
     expect(await seedIfEmpty(db)).toBe(false)
     expect(await db.projects.count()).toBe(count)
+    // Demo data never syncs (D-0006).
+    expect(await db.outbox.count()).toBe(0)
   })
 })
