@@ -2,12 +2,12 @@
 id: T-0006
 title: "Process photos on the device: date taken, the 2560 px copy and a thumbnail"
 description: "A tested module that reads a photo's EXIF date taken and makes its 2560 px WebP copy and a thumbnail in a worker, leaving the original untouched."
-status: Doing
+status: Done
 guarded: false
 depends_on: []
 decisions: [D-0003, D-0007]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-17"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/13"]
 ---
 
@@ -58,3 +58,4 @@ The image work behind photo import (T-0007), on its own and testable:
   it passed alone and in three later full runs, so likely a flake not caused by this change).
   Remaining: the 0.6–0.9 MB copy size can't be checked on a flat-colour fixture (quality 0.85
   is to be verified on real photos on the Fold, by Sander); wiring into import is T-0007.
+- 2026-11-17 claude-code/opus-5.5: Done. PR #13 passed CI and merged itself (unguarded, D-0017). Still worth checking when T-0007 lands: the WebP quality 0.85 against the 0.6–0.9 MB target on real Fold photos.
