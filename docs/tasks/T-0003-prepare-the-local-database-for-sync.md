@@ -2,13 +2,13 @@
 id: T-0003
 title: "Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API"
 description: "Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses."
-status: Open
+status: Done
 guarded: true
 depends_on: []
 decisions: [D-0002, D-0003, D-0004, D-0007, D-0017, D-0014, D-0015]
 raised_on: 2026-11-17
-done_on: ""
-result: []
+done_on: "2026-11-17"
+result: [https://github.com/SanderGeraedts/diy-projects/pull/11]
 ---
 
 # Goal
@@ -54,3 +54,19 @@ Deleting projects and entries (D-0014's cascading soft delete) is T-0010; don't 
 - Don't touch `src/sync/` beyond reading the config; the engine is T-0016.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Built schema v2 (`src/db/db.ts`: `updatedAt`/`deletedAt`
+  on every record, photo `thumbnail`, `original`, per-file `uploads`, `outbox` table with an
+  upgrade from v1 that keeps all data) and the write API (`src/db/write.ts`: `createProject`,
+  `updateProject`, `addEntry`, `updateEntry`, `addPhotos` (one outbox row per photo),
+  `deletePhoto`, `markPhotoFileUploaded`, `countUnsynced`, `requestPersistentStorage`, called
+  from `main.tsx`). Seed writes v2 records with no outbox rows. Outbox rows are never
+  collapsed, so the sync engine can't lose an in-flight change. The original is dropped
+  only when all three files are confirmed (D-0015). Tests in `src/db/write.test.ts` run in
+  the node environment, since jsdom Blobs don't survive fake-indexeddb. Checks: typecheck
+  clean, `pnpm test` 57 passed, build OK, `test:e2e` 5 passed. Open points for Sander:
+  (1) v1 photos are upgraded with the copy as thumbnail, no original and upload state
+  `none`, and v1 records are not queued in the outbox; is that right, or did v1 data ever
+  reach production and need to sync? (2) Existing screens don't hide tombstoned photos yet;
+  nothing can delete one from the UI so far. Remaining: Sander's review, then `done`.
+- 2026-11-17 claude-code/opus-5.5: Done. Sander reviewed and merged PR #11. Open point carried to T-0016: how photos already in a v1 database are upgraded, if v1 data ever reached production.

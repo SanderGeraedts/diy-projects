@@ -16,6 +16,8 @@ describe('isGuarded', () => {
     'CLAUDE.md',
     '.github/workflows/ci.yml',
     '.github/CODEOWNERS',
+    '.claude/settings.json',
+    '.githooks/pre-push',
   ])('guards %s', (p) => expect(isGuarded(p)).toBe(true))
 
   it.each([
@@ -28,6 +30,8 @@ describe('isGuarded', () => {
     'package.json',
     'netlify.toml',
     'docs/AGENTS.md',
+    '.claude-notes.md',
+    'docs/.githooks/pre-push',
   ])('lets %s through', (p) => expect(isGuarded(p)).toBe(false))
 })
 
@@ -36,7 +40,7 @@ const Q_LINE = '+- [Q-002 What colour should it be?](Q-002-what-colour.md): Pick
 /** @param {string} body */
 const index = (body) => ({ filename: 'docs/decisions/index.md', status: 'modified', patch: `@@ -27,3 +27,4 @@\n ## Open questions\n${body}` })
 
-describe('onlyRaisesQuestions (D-0012)', () => {
+describe('onlyRaisesQuestions (D-0017)', () => {
   it('accepts a new question file', () => expect(onlyRaisesQuestions(Q_FILE)).toBe(true))
   it('accepts a question line added to the index', () => expect(onlyRaisesQuestions(index(Q_LINE))).toBe(true))
   it('accepts replacing the placeholder with a question line', () =>

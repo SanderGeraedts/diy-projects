@@ -1,4 +1,4 @@
-// D-0012: a PR that touches any of these paths needs Sander's review; any other green PR
+// D-0017: a PR that touches any of these paths needs Sander's review; any other green PR
 // merges itself. Exception: a PR whose only guarded changes raise new open questions.
 // GUARDED_PATHS and .github/CODEOWNERS must stay the same (a test checks it); the question
 // exception lives only here. Changing any of this is a guarded change: say so plainly in
@@ -20,6 +20,8 @@ export const GUARDED_PATHS = [
   'AGENTS.md',
   'CLAUDE.md',
   '.github/',
+  '.claude/',
+  '.githooks/',
 ]
 
 const QUESTION_FILE = /^docs\/decisions\/Q-\d{3}-[a-z0-9-]+\.md$/
@@ -41,7 +43,7 @@ export function isGuarded(path) {
 }
 
 /**
- * True if this change only raises a new open question (D-0012's exception).
+ * True if this change only raises a new open question (D-0017's exception).
  * @param {ChangedFile} file
  */
 export function onlyRaisesQuestions(file) {
