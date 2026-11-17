@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { PhotoImage } from '../components/PhotoImage'
-import { StatusBadge } from '../components/StatusBadge'
+import { ProjectCard } from '../components/ui'
 import { db } from '../db/db'
 
 export function Overview() {
@@ -13,31 +12,19 @@ export function Overview() {
   }, [projects])
 
   if (!projects) return null
-  if (projects.length === 0) return <p className="empty">No projects yet.</p>
+  if (projects.length === 0) return <p className="text-grey italic">Nog geen projecten.</p>
 
   return (
     <section>
-      <h1 className="visually-hidden">Projects</h1>
-      <ul className="project-grid">
-        {projects.map((p) => {
-          const cover = p.coverPhotoId ? covers?.get(p.coverPhotoId) : undefined
-          return (
-            <li key={p.id}>
-              <Link to="/projects/$projectId" params={{ projectId: p.id }} className="project-card">
-                <div className="cover">{cover && <PhotoImage photo={cover} alt="" />}</div>
-                <div className="project-card-body">
-                  <h2>{p.title}</h2>
-                  <StatusBadge status={p.status} />
-                  <ul className="tags">
-                    {p.tags.map((t) => (
-                      <li key={t}>{t}</li>
-                    ))}
-                  </ul>
-                </div>
-              </Link>
-            </li>
-          )
-        })}
+      <h1 className="sr-only">Projecten</h1>
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4 p-0">
+        {projects.map((p) => (
+          <li key={p.id}>
+            <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block text-text no-underline">
+              <ProjectCard project={p} cover={p.coverPhotoId ? covers?.get(p.coverPhotoId) : undefined} />
+            </Link>
+          </li>
+        ))}
       </ul>
     </section>
   )

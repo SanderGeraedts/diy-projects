@@ -6,7 +6,7 @@ import { router } from './router'
 import { seedIfEmpty } from './seed/demo'
 import { registerServiceWorker } from './sw/register'
 import { deployContext } from './sync/config'
-import './styles.css'
+import './styles/app.css'
 
 async function start() {
   // D-0006: everything but production starts with demo projects.

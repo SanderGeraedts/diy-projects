@@ -2,17 +2,17 @@ import { expect, test } from '@playwright/test'
 
 test('shows the seeded demo projects with sync off', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('status')).toContainText('Demo data')
-  await expect(page.getByRole('heading', { name: 'Garden bench' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Bathroom shelf' })).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Demodata')
+  await expect(page.getByRole('heading', { name: 'Tuinbank' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Badkamerplank' })).toBeVisible()
 })
 
 test('opens a project with its timeline, newest entry first', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('link', { name: /Garden bench/ }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Garden bench' })).toBeVisible()
+  await page.getByRole('link', { name: /Tuinbank/ }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Tuinbank' })).toBeVisible()
   const dates = await page.locator('.timeline time').allTextContents()
-  expect(dates).toEqual(['2026-10-25', '2026-10-11', '2026-10-04'])
+  expect(dates).toEqual(['25 okt 2026', '11 okt 2026', '4 okt 2026'])
 })
 
 test('is installable: manifest with icons, and an active service worker', async ({ page }) => {
@@ -34,7 +34,15 @@ test('opens offline once loaded', async ({ page, context }) => {
   await page.reload() // now controlled by the service worker
   await context.setOffline(true)
   await page.goto('/projects/demo-bathroom-shelf')
-  await expect(page.getByRole('heading', { level: 1, name: 'Bathroom shelf' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Badkamerplank' })).toBeVisible()
+  // D-0011: Poppins comes from the precache, so it is in use with the network off.
+  const poppins = await page.evaluate(async () => {
+    await document.fonts.ready
+    return ['400 1em Poppins', '600 1em Poppins', 'italic 400 1em Poppins'].map((f) => document.fonts.check(f))
+  })
+  expect(poppins).toEqual([true, true, true])
+  const family = await page.locator('h1').first().evaluate((el) => getComputedStyle(el).fontFamily)
+  expect(family).toMatch(/^"?Poppins/)
 })
 
 test('the bundle contains no Funnel (ts.net) address', async ({ page }) => {

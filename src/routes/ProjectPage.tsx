@@ -1,9 +1,13 @@
 import { Link, useParams } from '@tanstack/react-router'
 import Dexie from 'dexie'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { formatDate } from '../components/format'
 import { PhotoImage } from '../components/PhotoImage'
 import { StatusBadge } from '../components/StatusBadge'
+import { AccentHeading, Tags } from '../components/ui'
 import { db } from '../db/db'
+
+const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
 
 export function ProjectPage() {
   const { projectId } = useParams({ from: '/projects/$projectId' })
@@ -18,39 +22,46 @@ export function ProjectPage() {
   if (project === null) {
     return (
       <section>
-        <h1>Project not found</h1>
-        <Link to="/">Back to all projects</Link>
+        <AccentHeading>Project niet gevonden</AccentHeading>
+        <p>
+          <Link to="/" className={backLink}>
+            ← Alle projecten
+          </Link>
+        </p>
       </section>
     )
   }
 
   return (
     <article>
-      <Link to="/" className="back">
-        ← All projects
+      <Link to="/" className={backLink}>
+        ← Alle projecten
       </Link>
-      <h1>{project.title}</h1>
-      <div className="project-meta">
-        <StatusBadge status={project.status} />
-        <ul className="tags">
-          {project.tags.map((t) => (
-            <li key={t}>{t}</li>
-          ))}
-        </ul>
-      </div>
-      <p>{project.description}</p>
-      <ol className="timeline">
+      <header>
+        <AccentHeading>{project.title}</AccentHeading>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-grey italic">
+          <StatusBadge status={project.status} />
+          <Tags tags={project.tags} />
+        </div>
+        <p className="mt-3">{project.description}</p>
+      </header>
+      <ol className="timeline m-0 mt-8 list-none p-0">
         {(entries ?? []).map((e) => (
-          <li key={e.id}>
-            <h2>
-              <time dateTime={e.date}>{e.date}</time>
-            </h2>
-            <p>{e.note}</p>
-            <div className="entry-photos">
+          <li key={e.id} className="mb-8">
+            <AccentHeading level={2}>
+              <time dateTime={e.date}>{formatDate(e.date)}</time>
+            </AccentHeading>
+            <p className="mt-2">{e.note}</p>
+            <div className="grid grid-cols-2 gap-2">
               {(photos ?? [])
                 .filter((ph) => ph.entryId === e.id)
                 .map((ph) => (
-                  <PhotoImage key={ph.id} photo={ph} alt={`${project.title}, ${e.date}`} />
+                  <PhotoImage
+                    key={ph.id}
+                    photo={ph}
+                    alt={`${project.title}, ${formatDate(e.date)}`}
+                    className="aspect-[4/3] h-auto w-full rounded-card object-cover"
+                  />
                 ))}
             </div>
           </li>
