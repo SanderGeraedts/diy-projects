@@ -5,11 +5,8 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 
 ## Open
 
-- [T-0002 Apply the sanderg.nl-based design system](T-0002-apply-the-design-system.md): Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests.
-- [T-0003 Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API](T-0003-prepare-the-local-database-for-sync.md): Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses.
 - [T-0004 Create and edit projects](T-0004-create-and-edit-projects.md): A form to add a project and edit its title, description, status and tags, through the local write API, working offline.
 - [T-0005 Add and edit timeline entries](T-0005-add-and-edit-entries.md): Add an entry with a date and a note to a project, and edit its note, offline, through the local write API.
-- [T-0006 Process photos on the device: date taken, the 2560 px copy and a thumbnail](T-0006-process-photos-on-the-device.md): A tested module that reads a photo's EXIF date taken and makes its 2560 px WebP copy and a thumbnail in a worker, leaving the original untouched.
 - [T-0007 Import photos from the gallery into a project's entries](T-0007-import-photos-from-the-gallery.md): A multi-select picker that adds photos to a project, grouped into one entry per day taken, storing the 2560 px copy, a thumbnail and the original until it's uploaded.
 - [T-0008 View photos full screen](T-0008-view-photos-full-screen.md): A full-screen photo viewer with swipe between an entry's photos and pinch zoom, sized for the open Pixel Fold.
 - [T-0009 Choose a project's cover photo and delete photos](T-0009-choose-a-cover-and-delete-photos.md): Set any of a project's photos as its cover, and delete a photo as a tombstone that syncs, from the photo viewer.
@@ -25,16 +22,18 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 - [T-0019 Offer app updates safely](T-0019-prompt-for-app-updates.md): When a new version is ready, show 'Nieuwe versie beschikbaar' and switch to it on a tap, never in the middle of an import or sync.
 - [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
 - [T-0022 Add the bin: restore or permanently delete deleted projects and entries (after v1)](T-0022-add-the-bin.md): A bin screen listing deleted projects and entries, with restore, and a permanent delete that removes the files and history from the NAS but keeps a marker that refuses late uploads.
-- [T-0023 Add the local guard: no agent merges or pushes to main](T-0023-add-the-local-merge-and-push-guard.md): Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths.
 
 ## Doing
 
+- [T-0002 Apply the sanderg.nl-based design system](T-0002-apply-the-design-system.md): Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests.
+- [T-0003 Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API](T-0003-prepare-the-local-database-for-sync.md): Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses.
+- [T-0006 Process photos on the device: date taken, the 2560 px copy and a thumbnail](T-0006-process-photos-on-the-device.md): A tested module that reads a photo's EXIF date taken and makes its 2560 px WebP copy and a thumbnail in a worker, leaving the original untouched.
+- [T-0023 Add the local guard: no agent merges or pushes to main](T-0023-add-the-local-merge-and-push-guard.md): Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths.
 - [T-0001 Scaffold the app, CI and the auto-merge gate](T-0001-scaffold-the-app-and-ci.md): An installable, empty React + Vite PWA with seeded demo data, deployed to Netlify with previews, and CI that runs checks and enforces the guarded-path auto-merge rule.
-- [T-0024 Switch the project to pnpm](T-0024-switch-to-pnpm.md): Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated.
 
 ## Done
 
-None.
+- [T-0024 Switch the project to pnpm](T-0024-switch-to-pnpm.md): Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated.
 
 ## Dropped
 
