@@ -20,6 +20,13 @@ D-0010: private until v1 works and the deploy docs are generic, then public unde
 - Fix what T-0025's report (`docs/public-readiness.md`) lists as a blocker or what Sander
   chose to fix, then re-run its scan over the full history; anything left is removed before
   going public, or Sander decides it's harmless.
+- **From T-0025** (`docs/public-readiness.md`): B1, take `projects.sanderg.nl` out of
+  `.github/workflows/backend.yml`, `deploy/nas/smoke-test.sh`, `ci.yml` (`--origins`),
+  `deploy/nas/compose.yml` and README, and `docs/deploy/*`: an `APP_ORIGIN` setting in
+  compose/`.env`, a variable in the workflows (CI may use any test origin), `<your-domain>`
+  in docs; decision records keep the name. B2: the MIT `LICENSE` says `public/fonts/` is
+  under the OFL. Personal details are already redacted (PR #36, D-0021); D4 (commit email)
+  and D5 (NAS details) stay, by Sander's choice.
 - `LICENSE` (MIT) and a short `README.md`: what it is, how to run it locally, how to
   self-host it.
 - After Sander makes the repo public: branch protection on `main` (required CI check,
