@@ -13,7 +13,6 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 - [T-0010 Delete projects and entries as soft deletes that cascade to their photos](T-0010-delete-projects-and-entries.md): 'Verwijderen' on an entry or project tombstones it and its photos in one transaction, after a confirmation naming the photo count; nothing is removed from the NAS.
 - [T-0011 Filter the overview by status and tag](T-0011-filter-the-overview.md): Status and tag filters on the overview, combinable, kept in the URL, working offline on the local data.
 - [T-0012 Search projects and notes offline](T-0012-search-offline.md): One search field over project titles, descriptions, entry notes and tags, run on the device's local copy, with results that open the matching project or entry.
-- [T-0013 Build the PocketBase image: schema, rules, history and the publish workflow](T-0013-build-the-pocketbase-image.md): The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image.
 - [T-0014 Run PocketBase on the NAS behind Tailscale Funnel](T-0014-run-pocketbase-on-the-nas.md): Compose files, the Funnel serve.json allowlist and the step-by-step setup in deploy/nas/, so Sander can run the image on the NAS, reachable only through Funnel, updated by Watchtower.
 - [T-0015 Sign in to PocketBase with email and password](T-0015-sign-in-to-pocketbase.md): The sign-in screen and token handling in src/auth/, production only: a 90-day token renewed on sync, an expired sign-in that only pauses sync, and a sign-out that syncs, warns, then clears the device.
 - [T-0016 Sync projects and entries with PocketBase](T-0016-sync-records.md): The sync engine in src/sync/: push the outbox, pull changes since the last sync, last-write-wins with history kept on the NAS, tested in CI against a throwaway PocketBase.
@@ -25,13 +24,14 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 
 ## Doing
 
+- [T-0013 Build the PocketBase image: schema, rules, history and the publish workflow](T-0013-build-the-pocketbase-image.md): The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image.
 - [T-0002 Apply the sanderg.nl-based design system](T-0002-apply-the-design-system.md): Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests.
-- [T-0003 Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API](T-0003-prepare-the-local-database-for-sync.md): Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses.
 - [T-0023 Add the local guard: no agent merges or pushes to main](T-0023-add-the-local-merge-and-push-guard.md): Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths.
 - [T-0001 Scaffold the app, CI and the auto-merge gate](T-0001-scaffold-the-app-and-ci.md): An installable, empty React + Vite PWA with seeded demo data, deployed to Netlify with previews, and CI that runs checks and enforces the guarded-path auto-merge rule.
 
 ## Done
 
+- [T-0003 Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API](T-0003-prepare-the-local-database-for-sync.md): Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses.
 - [T-0006 Process photos on the device: date taken, the 2560 px copy and a thumbnail](T-0006-process-photos-on-the-device.md): A tested module that reads a photo's EXIF date taken and makes its 2560 px WebP copy and a thumbnail in a worker, leaving the original untouched.
 - [T-0024 Switch the project to pnpm](T-0024-switch-to-pnpm.md): Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated.
 
