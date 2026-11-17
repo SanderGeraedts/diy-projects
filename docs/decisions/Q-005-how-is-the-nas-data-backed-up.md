@@ -2,11 +2,11 @@
 id: Q-005
 title: "How are PocketBase's data and the photo originals on the NAS backed up?"
 description: "The NAS holds the only copy of every photo original (D-0003) and is the source of truth (D-0002), but no decision covers backups; decide what is backed up, where to, how often, and how a restore is tested."
-status: Open
+status: Resolved
 raised_on: 2026-11-17
 raised_by: claude-code/opus-5.5
 blocks: [T-0020]
-resolved_by: []
+resolved_by: [D-0016]
 tags: [backend, backup, nas]
 ---
 
@@ -33,4 +33,4 @@ only says the setup reuses one Sander knows how to restore.
 
 # Answer
 
-Open.
+Resolved on 2026-11-17 by D-0016: no separate backup in v1. The NAS's two-disk redundancy covers disk failure and Immich already holds the photos; losing the PocketBase data if the NAS dies is an accepted risk.

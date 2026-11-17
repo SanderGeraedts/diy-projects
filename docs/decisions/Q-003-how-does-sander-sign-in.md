@@ -2,11 +2,11 @@
 id: Q-003
 title: "How does Sander sign in to PocketBase, and what happens when the sign-in expires offline?"
 description: "Sync needs a PocketBase sign-in (D-0005: sign-up closed, owner-only records); decide the sign-in method, how long a sign-in lasts, and that an expired sign-in never blocks offline use."
-status: Open
+status: Resolved
 raised_on: 2026-11-17
 raised_by: claude-code/opus-5.5
 blocks: [T-0015]
-resolved_by: []
+resolved_by: [D-0013]
 tags: [auth, sync, security]
 ---
 
@@ -32,4 +32,4 @@ must keep working without it.
 
 # Answer
 
-Open.
+Resolved on 2026-11-17 by D-0013: email and password; the token lasts 90 days and is renewed on every sync; an expired sign-in only pauses sync and never blocks local use; sign-out syncs, warns about anything unsynced, then clears the device.

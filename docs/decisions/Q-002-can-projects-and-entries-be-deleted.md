@@ -2,11 +2,11 @@
 id: Q-002
 title: "Can projects and entries be deleted, and what happens to their photos?"
 description: "D-0004 doesn't say whether projects and entries can be deleted and D-0002 only defines tombstones for photos; decide whether deleting is allowed, whether it cascades to photos, and whether anything is ever purged from the NAS."
-status: Open
+status: Resolved
 raised_on: 2026-11-17
 raised_by: claude-code/opus-5.5
 blocks: [T-0010]
-resolved_by: []
+resolved_by: [D-0014]
 tags: [product, sync, data]
 ---
 
@@ -34,4 +34,4 @@ the sync engine have to know the answer before they're built (T-0003, T-0016).
 
 # Answer
 
-Open.
+Resolved on 2026-11-17 by D-0014: in v1 deleting a project or entry is a soft delete (tombstone) that cascades to its photos, after a confirmation naming the photo count; nothing is removed from the NAS. After v1 a bin lets Sander restore or permanently delete; a permanent delete keeps a marker that refuses late uploads. (Sander first chose a hard delete; it would reintroduce the upload race D-0002 avoids, so he settled on the bin.)
