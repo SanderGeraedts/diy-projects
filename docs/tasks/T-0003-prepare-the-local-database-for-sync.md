@@ -2,12 +2,12 @@
 id: T-0003
 title: "Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API"
 description: "Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses."
-status: Doing
+status: Done
 guarded: true
 depends_on: []
 decisions: [D-0002, D-0003, D-0004, D-0007, D-0017, D-0014, D-0015]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-17"
 result: [https://github.com/SanderGeraedts/diy-projects/pull/11]
 ---
 
@@ -69,3 +69,4 @@ Deleting projects and entries (D-0014's cascading soft delete) is T-0010; don't 
   `none`, and v1 records are not queued in the outbox; is that right, or did v1 data ever
   reach production and need to sync? (2) Existing screens don't hide tombstoned photos yet;
   nothing can delete one from the UI so far. Remaining: Sander's review, then `done`.
+- 2026-11-17 claude-code/opus-5.5: Done. Sander reviewed and merged PR #11. Open point carried to T-0016: how photos already in a v1 database are upgraded, if v1 data ever reached production.
