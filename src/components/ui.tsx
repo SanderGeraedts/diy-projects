@@ -10,7 +10,7 @@ export function AccentHeading({ children, level = 1 }: { children: ReactNode; le
   return (
     <Tag className={`m-0 inline-block font-semibold ${size}`}>
       {children}
-      <span aria-hidden="true" className="mt-1 block h-1.5 w-full rounded-full bg-accent" />
+      <span aria-hidden="true" className="mt-1 block h-1.5 w-full bg-accent" />
     </Tag>
   )
 }
