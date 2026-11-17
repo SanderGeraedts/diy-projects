@@ -260,6 +260,19 @@ export function countUnsynced(target: DiyDb = defaultDb): Promise<number> {
   return target.outbox.count()
 }
 
+// --- Sign-out (T-0015) ---
+
+/**
+ * Empties this device's copy: records, photos and the outbox, in one transaction (D-0013).
+ * Destructive: only sign-out calls it, after a sync attempt and, when anything is unsynced,
+ * a second confirmation (`src/auth/`).
+ */
+export async function clearLocalData(target: DiyDb = defaultDb): Promise<void> {
+  await target.transaction('rw', [target.projects, target.entries, target.photos, target.outbox], async () => {
+    await Promise.all([target.projects.clear(), target.entries.clear(), target.photos.clear(), target.outbox.clear()])
+  })
+}
+
 /**
  * Asks the browser not to clear this site's storage (D-0002). Resolves to whether storage
  * is persistent; `false` where the API is missing. The result is kept in

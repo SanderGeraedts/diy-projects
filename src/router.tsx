@@ -3,6 +3,7 @@ import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
 import { ProjectPage } from './routes/ProjectPage'
+import { syncConfig } from './sync/config'
 
 const rootRoute = createRootRoute({ component: Layout, notFoundComponent: NotFound })
 
@@ -27,7 +28,18 @@ const designRoutes =
       ]
     : []
 
-const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, ...designRoutes])
+// T-0015: sign-in exists only when sync is on, a production build with an address (D-0006).
+const accountRoutes = syncConfig.enabled
+  ? [
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: '/account',
+        component: lazyRouteComponent(() => import('./routes/AccountPage'), 'AccountPage'),
+      }),
+    ]
+  : []
+
+const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, ...designRoutes, ...accountRoutes])
 
 export const router = createRouter({ routeTree })
 

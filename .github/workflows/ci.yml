@@ -48,3 +48,45 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  # T-0015: sign-in against a throwaway PocketBase built from deploy/nas, on an empty
+  # database (D-0006: never the NAS). src/auth/auth.pocketbase.test.ts is skipped elsewhere.
+  pocketbase-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      POCKETBASE_TEST_URL: http://127.0.0.1:8090
+      POCKETBASE_TEST_SUPERUSER_EMAIL: admin@ci.invalid
+      POCKETBASE_TEST_SUPERUSER_PASSWORD: ci-only-password-123456
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build PocketBase
+        run: docker build -t pb-test deploy/nas
+      - name: Start on an empty database
+        # As .github/workflows/backend.yml does, with the NAS's command line.
+        run: |
+          docker run -d --name pb -p 127.0.0.1:8090:8090 pb-test serve --http=0.0.0.0:8090 \
+            --dir=/pb_data --migrationsDir=/pb_migrations --hooksDir=/pb_hooks \
+            --automigrate=false --origins=https://projects.sanderg.nl
+          for i in $(seq 1 30); do
+            if curl -fsS "$POCKETBASE_TEST_URL/api/health"; then echo; break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' pb)" != "true" ]; then
+              echo "PocketBase exited"; exit 1
+            fi
+            sleep 1
+          done
+          curl -fsS "$POCKETBASE_TEST_URL/api/health" >/dev/null
+      - name: Create the superuser
+        # The CLI, as deploy/nas/smoke-test.sh does; the test makes its users through it.
+        run: docker exec pb pocketbase superuser upsert "$POCKETBASE_TEST_SUPERUSER_EMAIL" "$POCKETBASE_TEST_SUPERUSER_PASSWORD" --dir=/pb_data
+      - name: Sign-in tests
+        run: pnpm exec vitest run --reporter=verbose src/auth/auth.pocketbase.test.ts
+      - name: PocketBase logs
+        if: always()
+        run: docker logs pb || true

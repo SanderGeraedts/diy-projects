@@ -6,6 +6,7 @@ import { openDb, SCHEMA_V1, type DiyDb } from './db'
 import {
   addEntry,
   addPhotos,
+  clearLocalData,
   countUnsynced,
   createProject,
   deletePhoto,
@@ -216,5 +217,19 @@ describe('photos', () => {
     const [photo] = await addPhotos(entry.id, [newPhoto()], d)
     await markPhotoFileUploaded(photo!.id, 'original', d)
     expect((await d.photos.get(photo!.id))?.original).toBeInstanceOf(Blob)
+  })
+})
+
+describe('clearLocalData (T-0015)', () => {
+  it('empties records, photos and the outbox', async () => {
+    const d = freshDb()
+    const { entry } = await projectWithEntry(d)
+    await addPhotos(entry.id, [newPhoto()], d)
+    expect(await countUnsynced(d)).toBe(3)
+    await clearLocalData(d)
+    expect(await d.projects.count()).toBe(0)
+    expect(await d.entries.count()).toBe(0)
+    expect(await d.photos.count()).toBe(0)
+    expect(await countUnsynced(d)).toBe(0)
   })
 })
