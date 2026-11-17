@@ -5,7 +5,7 @@ description: "A small status in the header with the number of unsynced changes a
 status: Open
 guarded: false
 depends_on: [T-0016]
-decisions: [D-0002, D-0006, D-0011]
+decisions: [D-0002, D-0006, D-0011, D-0013]
 raised_on: 2026-11-17
 done_on: ""
 result: []
@@ -22,13 +22,15 @@ count must be visible (D-0002):
 - When `navigator.storage.persist()` wasn't granted: a warning that unsynced items can be
   lost, with how to fix it (install the app).
 - Offline: "Offline – wijzigingen worden later gesynchroniseerd".
+- Signed out or sign-in expired: "Opnieuw inloggen om te synchroniseren", with a link to
+  sign in (D-0013).
 - In previews and dev: the existing demo banner, no sync status (D-0006).
 
 # Done when
 
 - `npm run typecheck`, `npm test`, `npm run build` pass.
 - `npm run test:e2e` passes, with tests (sync stubbed) for: everything synced, pending
-  changes with a count, an error, offline, and storage not persisted.
+  changes with a count, an error, offline, sign-in expired, and storage not persisted.
 - Sander confirms on his phone in production.
 
 # Notes

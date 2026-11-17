@@ -5,7 +5,7 @@ description: "Dexie schema v2 with updatedAt and tombstones on every record, an 
 status: Open
 guarded: true
 depends_on: []
-decisions: [D-0002, D-0003, D-0004, D-0007, D-0012]
+decisions: [D-0002, D-0003, D-0004, D-0007, D-0012, D-0014, D-0015]
 raised_on: 2026-11-17
 done_on: ""
 result: []
@@ -21,8 +21,7 @@ This is the riskiest code in the app (D-0002): a bug here loses unsynced photos.
   - `projects`, `entries`, `photos`: `updatedAt` (ISO time of the last edit, used for
     last-write-wins) and `deletedAt` (tombstone, `null` when alive) on every record.
   - `photos`: the 2560 px copy (`blob`), a thumbnail blob, the original blob until the NAS
-    confirms it, and an `originalUploaded` flag. Takes no position on where other devices
-    get their copy (Q-004).
+    confirms it, and per-file upload state for the original, copy and thumbnail (D-0015).
   - `outbox`: one row per change (`table`, `recordId`, `op`: put or delete, `queuedAt`),
     in order; several edits to one record may collapse into one row.
 - **Write API** in `src/db/` (for example `createProject`, `updateProject`, `addEntry`,
@@ -33,7 +32,7 @@ This is the riskiest code in the app (D-0002): a bug here loses unsynced photos.
 - `navigator.storage.persist()` is requested at start-up and its result kept for T-0018.
 - A `countUnsynced()` read for the sync status (T-0018).
 
-Deleting projects and entries waits for Q-002 (T-0010); don't add it here.
+Deleting projects and entries (D-0014's cascading soft delete) is T-0010; don't add it here.
 
 # Done when
 

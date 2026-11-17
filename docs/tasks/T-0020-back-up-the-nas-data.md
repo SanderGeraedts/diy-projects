@@ -2,7 +2,7 @@
 id: T-0020
 title: "Back up the NAS data, as Q-005 decides, and test a restore"
 description: "The backup of PocketBase's data and the photo originals as Q-005's decision describes, with a restore tested once and written down in deploy/nas/."
-status: Open
+status: Dropped
 guarded: true
 depends_on: [T-0014]
 decisions: [D-0002, D-0003, D-0005]
@@ -33,3 +33,5 @@ and a restore has been tested before relying on it.
 - Mostly NAS configuration Sander does; the agent writes the steps and any script.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: dropped. Q-005 was answered by D-0016: no separate backup in v1 (NAS redundancy, photos also in Immich, losing the NAS is an accepted risk).

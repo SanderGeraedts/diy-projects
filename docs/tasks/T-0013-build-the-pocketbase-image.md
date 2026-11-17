@@ -5,7 +5,7 @@ description: "The PocketBase backend in deploy/nas/: migrations for projects, en
 status: Open
 guarded: true
 depends_on: [T-0003]
-decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0012]
+decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0012, D-0013, D-0014, D-0015, D-0016]
 raised_on: 2026-11-17
 done_on: ""
 result: []
@@ -19,10 +19,11 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
   `pb_hooks/` baked in.
 - **Migrations:** collections `projects`, `entries`, `photos` matching T-0003's v2 records
   (including `updatedAt` and `deletedAt`), and `history` for overwritten versions (D-0002).
-  Photo file fields with a size limit above 50 MP originals (D-0003), say 40 MB. Every
-  change additive, so the running app tolerates it (D-0005).
+  `photos` has three file fields (D-0015): `original` with a size limit above 50 MP
+  originals (D-0003), say 40 MB, and `copy` and `thumbnail`. Every change additive, so the
+  running app tolerates it (D-0005); there is no backup, so never destructive (D-0016).
 - **Rules:** sign-up closed; every record readable and writable only by its owner
-  (D-0005). No public read.
+  (D-0005). No public read. The `users` auth token lasts 90 days (D-0013).
 - **History hook:** before a `projects` or `entries` record is updated, its previous version
   is written to `history` (D-0002).
 - **CORS:** only `https://projects.sanderg.nl` (D-0005).
@@ -43,8 +44,7 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
 
 - Follow Hanna's Reading List's backend setup where it applies; ask Sander for its
   repository before starting.
-- Which file fields `photos` gets for copies and thumbnails depends on Q-004. Add only the
-  original now; T-0017 adds the rest.
+- PocketBase's own thumbnail feature isn't used; the NAS does no image processing (D-0015).
 - Running it on the NAS is T-0014.
 
 # Log

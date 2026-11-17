@@ -13,18 +13,18 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 - [T-0007 Import photos from the gallery into a project's entries](T-0007-import-photos-from-the-gallery.md): A multi-select picker that adds photos to a project, grouped into one entry per day taken, storing the 2560 px copy, a thumbnail and the original until it's uploaded.
 - [T-0008 View photos full screen](T-0008-view-photos-full-screen.md): A full-screen photo viewer with swipe between an entry's photos and pinch zoom, sized for the open Pixel Fold.
 - [T-0009 Choose a project's cover photo and delete photos](T-0009-choose-a-cover-and-delete-photos.md): Set any of a project's photos as its cover, and delete a photo as a tombstone that syncs, from the photo viewer.
-- [T-0010 Delete projects and entries, as Q-002 decides](T-0010-delete-projects-and-entries.md): Whatever deleting projects and entries Q-002's answer allows, with confirmation, in the write API and the screens.
+- [T-0010 Delete projects and entries as soft deletes that cascade to their photos](T-0010-delete-projects-and-entries.md): 'Verwijderen' on an entry or project tombstones it and its photos in one transaction, after a confirmation naming the photo count; nothing is removed from the NAS.
 - [T-0011 Filter the overview by status and tag](T-0011-filter-the-overview.md): Status and tag filters on the overview, combinable, kept in the URL, working offline on the local data.
 - [T-0012 Search projects and notes offline](T-0012-search-offline.md): One search field over project titles, descriptions, entry notes and tags, run on the device's local copy, with results that open the matching project or entry.
 - [T-0013 Build the PocketBase image: schema, rules, history and the publish workflow](T-0013-build-the-pocketbase-image.md): The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image.
 - [T-0014 Run PocketBase on the NAS behind Tailscale Funnel](T-0014-run-pocketbase-on-the-nas.md): Compose files, the Funnel serve.json allowlist and the step-by-step setup in deploy/nas/, so Sander can run the image on the NAS, reachable only through Funnel, updated by Watchtower.
-- [T-0015 Sign in to PocketBase, as Q-003 decides](T-0015-sign-in-to-pocketbase.md): The sign-in screen and token handling in src/auth/, production only, that never blocks offline use.
+- [T-0015 Sign in to PocketBase with email and password](T-0015-sign-in-to-pocketbase.md): The sign-in screen and token handling in src/auth/, production only: a 90-day token renewed on sync, an expired sign-in that only pauses sync, and a sign-out that syncs, warns, then clears the device.
 - [T-0016 Sync projects and entries with PocketBase](T-0016-sync-records.md): The sync engine in src/sync/: push the outbox, pull changes since the last sync, last-write-wins with history kept on the NAS, tested in CI against a throwaway PocketBase.
-- [T-0017 Sync photo files: upload originals, fetch copies on other devices](T-0017-sync-photos.md): Upload each photo's untouched original to the NAS in the background, resuming after interruptions, drop the device's original once confirmed, and get other devices their copy as Q-004 decides.
+- [T-0017 Sync photo files: upload the original, copy and thumbnail; other devices fetch copy and thumbnail](T-0017-sync-photos.md): Upload each photo's untouched original, its 2560 px copy and its thumbnail in the background, resuming after interruptions; drop the device's original once confirmed; other devices download only the copy and thumbnail.
 - [T-0018 Show sync status: unsynced changes, last sync and storage warnings](T-0018-show-sync-status.md): A small status in the header with the number of unsynced changes and photos, the last successful sync, errors, and a warning when the browser hasn't granted persistent storage.
 - [T-0019 Offer app updates safely](T-0019-prompt-for-app-updates.md): When a new version is ready, show 'Nieuwe versie beschikbaar' and switch to it on a tap, never in the middle of an import or sync.
-- [T-0020 Back up the NAS data, as Q-005 decides, and test a restore](T-0020-back-up-the-nas-data.md): The backup of PocketBase's data and the photo originals as Q-005's decision describes, with a restore tested once and written down in deploy/nas/.
 - [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
+- [T-0022 Add the bin: restore or permanently delete deleted projects and entries (after v1)](T-0022-add-the-bin.md): A bin screen listing deleted projects and entries, with restore, and a permanent delete that removes the files and history from the NAS but keeps a marker that refuses late uploads.
 
 ## Doing
 
@@ -36,4 +36,4 @@ None.
 
 ## Dropped
 
-None.
+- [T-0020 Back up the NAS data, as Q-005 decides, and test a restore](T-0020-back-up-the-nas-data.md): The backup of PocketBase's data and the photo originals as Q-005's decision describes, with a restore tested once and written down in deploy/nas/.
