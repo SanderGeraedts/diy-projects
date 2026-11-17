@@ -7,6 +7,15 @@ test('shows the seeded demo projects with sync off', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Badkamerplank' })).toBeVisible()
 })
 
+test('has no sign-in outside production (D-0006, T-0015)', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Tuinbank' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /inloggen|account/i })).toHaveCount(0)
+  await page.goto('/account')
+  await expect(page.getByRole('heading', { name: 'Niet gevonden' })).toBeVisible()
+  await expect(page.getByLabel('Wachtwoord')).toHaveCount(0)
+})
+
 test('opens a project with its timeline, newest entry first', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('link', { name: /Tuinbank/ }).click()

@@ -2,13 +2,13 @@
 id: T-0018
 title: "Show sync status: unsynced changes, last sync and storage warnings"
 description: "A small status in the header with the number of unsynced changes and photos, the last successful sync, errors, and a warning when the browser hasn't granted persistent storage."
-status: Open
+status: Doing
 guarded: false
 depends_on: [T-0016]
 decisions: [D-0002, D-0006, D-0020, D-0013]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: [https://github.com/SanderGeraedts/diy-projects/pull/33]
 ---
 
 # Goal
@@ -39,3 +39,21 @@ count must be visible (D-0002):
   This task doesn't change `src/db/` or `src/sync/`.
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Built `src/components/SyncStatus.tsx` (a pure
+  `SyncStatusView` plus `SyncStatusBar`, which wires it to `useSyncStatus()`, `syncNow()`,
+  `countUnsynced`, `storagePersisted`, `useAuthState()` and the browser's online state) and
+  `useOnline.ts`; one line in `src/routes/Layout.tsx` puts it under the header, where the demo
+  banner sits in previews. It renders only when the sync engine exists (production with an
+  address), so previews and dev show just the demo banner (D-0006). Nothing in `src/db/`,
+  `src/sync/` or `src/auth/` changed. Stubbing: the e2e build has no engine, so a test-only
+  route `/design/sync-status?state=…` (left out of production like `/design`) feeds the real
+  component a stubbed status; offline uses Playwright's real `setOffline`. Component tests
+  cover the same states, plus the live bar rendering nothing without an engine. Gaps: no
+  pending-photo count or upload progress yet (T-0017 must add a count to `src/db/`; the view
+  already takes `pendingPhotos`). Choices for Sander's review (not decisions): the line shows
+  one state by priority (sign-in, offline, error, pending, storage); the storage warning also
+  shows when everything is synced; signed-out reads "Opnieuw inloggen…" as the task says.
+  Checks: typecheck clean, `pnpm test` 174 passed / 14 skipped, build OK, e2e 16 passed /
+  2 skipped (screenshot tests, Linux only) on port 4718; a production build
+  (`POCKETBASE_URL=https://pb.invalid`) contains the status and not the test route.

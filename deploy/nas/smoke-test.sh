@@ -60,6 +60,10 @@ photos=$(body "$(req GET /api/collections/photos "$SU")")
 for f in copy thumbnail; do
   [ "$(jq -r ".fields[] | select(.name==\"$f\") | .type" <<<"$photos")" = file ] || fail "photos.$f is not a file field"
 done
+# T-0017: photo files need a file token, like their owner-only records (D-0005).
+for f in original copy thumbnail; do
+  [ "$(jq -r ".fields[] | select(.name==\"$f\") | .protected" <<<"$photos")" = true ] || fail "photos.$f is not protected"
+done
 history=$(body "$(req GET /api/collections/history "$SU")")
 [ "$(jq -c '[.listRule,.viewRule,.createRule,.updateRule,.deleteRule]' <<<"$history")" = '[null,null,null,null,null]' ] ||
   fail "history is not admin-only"

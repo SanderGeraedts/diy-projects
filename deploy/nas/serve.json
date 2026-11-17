@@ -1,0 +1,26 @@
+{
+  "TCP": {
+    "443": { "HTTPS": true },
+    "8443": { "HTTPS": true }
+  },
+  "Web": {
+    "${TS_CERT_DOMAIN}:443": {
+      "Handlers": {
+        "/api/health": { "Proxy": "http://127.0.0.1:8090/api/health" },
+        "/api/collections/users/": { "Proxy": "http://127.0.0.1:8090/api/collections/users" },
+        "/api/collections/projects/": { "Proxy": "http://127.0.0.1:8090/api/collections/projects" },
+        "/api/collections/entries/": { "Proxy": "http://127.0.0.1:8090/api/collections/entries" },
+        "/api/collections/photos/": { "Proxy": "http://127.0.0.1:8090/api/collections/photos" },
+        "/api/files/": { "Proxy": "http://127.0.0.1:8090/api/files" }
+      }
+    },
+    "${TS_CERT_DOMAIN}:8443": {
+      "Handlers": {
+        "/": { "Proxy": "http://127.0.0.1:8090" }
+      }
+    }
+  },
+  "AllowFunnel": {
+    "${TS_CERT_DOMAIN}:443": true
+  }
+}
