@@ -4,6 +4,7 @@ import { ClearFilters, Filters } from '../components/Filters'
 import { ProjectCard } from '../components/ui'
 import { db } from '../db/db'
 import { filterProjects, tagsInUse } from '../filters'
+import { NewProjectLink } from './ProjectLinks'
 
 export function Overview() {
   const filters = useSearch({ from: '/' })
@@ -16,11 +17,18 @@ export function Overview() {
   }, [all])
 
   if (!all || !projects) return null
-  if (filterProjects(all, {}).length === 0) return <p className="text-grey italic">Nog geen projecten.</p>
+  if (filterProjects(all, {}).length === 0)
+    return (
+      <section>
+        <p className="text-grey italic">Nog geen projecten.</p>
+        <NewProjectLink />
+      </section>
+    )
 
   return (
     <section>
       <h1 className="sr-only">Projecten</h1>
+      <NewProjectLink />
       <Filters filters={filters} tags={tagsInUse(all)} />
       {projects.length === 0 && (
         <p className="text-grey italic">
