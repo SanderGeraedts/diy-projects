@@ -21,5 +21,15 @@ export function PhotoImage({
     return () => URL.revokeObjectURL(objectUrl)
   }, [blob])
   if (!url) return null
-  return <img src={url} alt={alt} width={photo.width} height={photo.height} className={className} loading="lazy" />
+  return (
+    <img
+      src={url}
+      alt={alt}
+      width={photo.width}
+      height={photo.height}
+      className={className}
+      loading="lazy"
+      data-photo-id={photo.id}
+    />
+  )
 }

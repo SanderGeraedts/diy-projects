@@ -20,7 +20,10 @@ export function ProjectPage() {
     () => db.entries.where('[projectId+date]').between([projectId, ''], [projectId, Dexie.maxKey]).reverse().toArray(),
     [projectId],
   )
-  const photos = useLiveQuery(() => db.photos.where('projectId').equals(projectId).sortBy('takenAt'), [projectId])
+  // T-0009: every photo, deleted ones (tombstones, D-0002) included, so an entry whose photos
+  // were all deleted can say so. Only the live ones are shown.
+  const allPhotos = useLiveQuery(() => db.photos.where('projectId').equals(projectId).sortBy('takenAt'), [projectId])
+  const photos = allPhotos?.filter((ph) => ph.deletedAt === null)
 
   if (project === undefined) return null
   if (project === null) {
@@ -55,16 +58,19 @@ export function ProjectPage() {
       <AddEntryLink projectId={project.id} />
       <ImportPhotos projectId={project.id} />
       <ol className="timeline m-0 mt-8 list-none p-0">
-        {(entries ?? []).map((e) => (
-          <li key={e.id} className="mb-8">
-            <AccentHeading level={2}>
-              <time dateTime={e.date}>{formatDate(e.date)}</time>
-            </AccentHeading>
-            <EntryNote entry={e} />
-            <div className="grid grid-cols-2 gap-2">
-              {(photos ?? [])
-                .filter((ph) => ph.entryId === e.id)
-                .map((ph) => (
+        {(entries ?? []).map((e) => {
+          const entryPhotos = (photos ?? []).filter((ph) => ph.entryId === e.id)
+          const allDeleted =
+            entryPhotos.length === 0 && e.note === '' && (allPhotos ?? []).some((ph) => ph.entryId === e.id)
+          return (
+            <li key={e.id} className="mb-8">
+              <AccentHeading level={2}>
+                <time dateTime={e.date}>{formatDate(e.date)}</time>
+              </AccentHeading>
+              {allDeleted && <p className="mt-2 mb-0 text-grey italic">Geen foto's meer</p>}
+              <EntryNote entry={e} />
+              <div className="grid grid-cols-2 gap-2">
+                {entryPhotos.map((ph) => (
                   <Link
                     key={ph.id}
                     to="/projects/$projectId/photos/$photoId"
@@ -79,9 +85,10 @@ export function ProjectPage() {
                     />
                   </Link>
                 ))}
-            </div>
-          </li>
-        ))}
+              </div>
+            </li>
+          )
+        })}
       </ol>
     </article>
   )

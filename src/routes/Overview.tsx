@@ -1,15 +1,20 @@
 import { Link } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { pickCover } from '../components/cover'
 import { ProjectCard } from '../components/ui'
 import { db } from '../db/db'
 import { NewProjectLink } from './ProjectLinks'
 
 export function Overview() {
   const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), [])
+  // T-0009: the chosen cover, or the newest remaining photo once it is deleted.
   const covers = useLiveQuery(async () => {
-    const ids = (projects ?? []).flatMap((p) => (p.coverPhotoId ? [p.coverPhotoId] : []))
-    const photos = await db.photos.bulkGet(ids)
-    return new Map(photos.flatMap((p) => (p ? [[p.id, p] as const] : [])))
+    const list = projects ?? []
+    const photos = await db.photos
+      .where('projectId')
+      .anyOf(list.map((p) => p.id))
+      .toArray()
+    return new Map(list.map((p) => [p.id, pickCover(p, photos)] as const))
   }, [projects])
 
   if (!projects) return null
@@ -29,7 +34,7 @@ export function Overview() {
         {projects.map((p) => (
           <li key={p.id}>
             <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block text-text no-underline">
-              <ProjectCard project={p} cover={p.coverPhotoId ? covers?.get(p.coverPhotoId) : undefined} />
+              <ProjectCard project={p} cover={covers?.get(p.id)} />
             </Link>
           </li>
         ))}

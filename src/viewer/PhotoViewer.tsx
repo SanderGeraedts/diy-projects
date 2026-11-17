@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { formatDate } from '../components/format'
 import { AccentHeading } from '../components/ui'
 import { db, type Photo } from '../db/db'
+import { deletePhoto, updateProject } from '../db/write'
+import { ConfirmDelete, PhotoActions } from './PhotoActions'
 import {
   IDENTITY,
   clampTransform,
@@ -20,6 +22,8 @@ import {
 // and a reload reopens it. Moving between photos replaces the URL, so back always closes.
 // It shows the 2560 px copy (photo.blob, D-0003) from the device, so it works offline.
 // Gestures are plain pointer events: swipe left/right, swipe down to close, pinch, double-tap.
+// T-0009: from here a photo becomes the project's cover, or is deleted (a tombstone, D-0002).
+// Photos are never edited (D-0002): no rotate or crop.
 
 const SETTLE_MS = 200
 const DOUBLE_TAP_MS = 300
@@ -41,11 +45,12 @@ export function PhotoViewer() {
   const data = useLiveQuery(async () => {
     const photo = await db.photos.get(photoId)
     if (!photo || photo.deletedAt || photo.projectId !== projectId) return null
-    const [entry, all] = await Promise.all([
+    const [entry, project, all] = await Promise.all([
       db.entries.get(photo.entryId),
+      db.projects.get(projectId),
       db.photos.where('entryId').equals(photo.entryId).sortBy('takenAt'),
     ])
-    return { entry, siblings: all.filter((p) => !p.deletedAt) }
+    return { entry, project, siblings: all.filter((p) => !p.deletedAt) }
   }, [projectId, photoId])
 
   const siblings = data?.siblings ?? []
@@ -61,6 +66,11 @@ export function PhotoViewer() {
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 })
   const [animating, setAnimating] = useState(false)
   const [chrome, setChrome] = useState(true)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  /** Set once this photo is deleted, so the viewer moves on instead of saying it's gone. */
+  const leaving = useRef(false)
 
   /** True while the strip slides to a neighbour; input waits for the new photo. */
   const navigating = useRef(false)
@@ -100,6 +110,9 @@ export function PhotoViewer() {
   // A new photo starts unzoomed and centred, before it is painted.
   useLayoutEffect(() => {
     navigating.current = false
+    leaving.current = false
+    setConfirming(false)
+    setError(null)
     setAnimating(false)
     setOffset({ x: 0, y: 0 })
     setTransform(IDENTITY)
@@ -136,13 +149,52 @@ export function PhotoViewer() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (confirming) {
+        if (e.key === 'Escape') setConfirming(false)
+        return
+      }
       if (e.key === 'ArrowRight') go('next')
       else if (e.key === 'ArrowLeft') go('previous')
       else if (e.key === 'Escape') close()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, close])
+  }, [go, close, confirming])
+
+  const makeCover = async () => {
+    if (!current) return
+    setBusy(true)
+    setError(null)
+    try {
+      await updateProject(projectId, { coverPhotoId: current.id })
+    } catch (err) {
+      console.error(err)
+      setError('Dat is niet gelukt. Probeer het opnieuw.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Tombstones the photo, then shows the next one in the entry, or the previous, or closes. */
+  const remove = async () => {
+    if (!current) return
+    const after = next ?? previous
+    setBusy(true)
+    setError(null)
+    try {
+      leaving.current = true
+      await deletePhoto(current.id)
+      setConfirming(false)
+      if (after) show(after)
+      else close()
+    } catch (err) {
+      console.error(err)
+      leaving.current = false
+      setError('Verwijderen is niet gelukt. Probeer het opnieuw.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const photoSize: Size = current ? { width: current.width, height: current.height } : { width: 0, height: 0 }
   const fitted = fitSize(photoSize, stage)
@@ -282,7 +334,8 @@ export function PhotoViewer() {
     }
   }
 
-  if (data === undefined) return <div className="fixed inset-0 z-30 bg-bg" />
+  if (data === undefined || ((data === null || !current) && leaving.current))
+    return <div className="fixed inset-0 z-30 bg-bg" />
   if (data === null || !current) {
     return (
       <section className="fixed inset-0 z-30 bg-bg p-4">
@@ -382,20 +435,44 @@ export function PhotoViewer() {
         </button>
       )}
 
-      {data.entry && (
-        <div
-          className="absolute inset-x-0 bottom-0 max-h-[40%] overflow-y-auto bg-panel px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
-          style={{
-            opacity: showChrome ? 1 : 0,
-            pointerEvents: showChrome ? 'auto' : 'none',
-            transition: 'opacity 150ms',
+      <div
+        className="absolute inset-x-0 bottom-0 max-h-[40%] overflow-y-auto bg-panel px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
+        style={{
+          opacity: showChrome ? 1 : 0,
+          pointerEvents: showChrome ? 'auto' : 'none',
+          transition: 'opacity 150ms',
+        }}
+      >
+        {data.entry && (
+          <>
+            <AccentHeading level={2}>
+              <time dateTime={data.entry.date}>{date}</time>
+            </AccentHeading>
+            {data.entry.note && <p className="mt-2 mb-0">{data.entry.note}</p>}
+          </>
+        )}
+        <PhotoActions
+          isCover={data.project?.coverPhotoId === current.id}
+          busy={busy}
+          error={confirming ? null : error}
+          onUseAsCover={() => void makeCover()}
+          onDelete={() => {
+            setError(null)
+            setConfirming(true)
           }}
-        >
-          <AccentHeading level={2}>
-            <time dateTime={data.entry.date}>{date}</time>
-          </AccentHeading>
-          {data.entry.note && <p className="mt-2 mb-0">{data.entry.note}</p>}
-        </div>
+        />
+      </div>
+
+      {confirming && (
+        <ConfirmDelete
+          busy={busy}
+          error={error}
+          onConfirm={() => void remove()}
+          onCancel={() => {
+            setError(null)
+            setConfirming(false)
+          }}
+        />
       )}
     </div>
   )
