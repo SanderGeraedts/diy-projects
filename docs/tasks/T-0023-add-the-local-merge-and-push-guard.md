@@ -21,16 +21,16 @@ D-0017's local guard, while the repository is private:
 - `.githooks/pre-push`: refuses any push whose remote ref is `refs/heads/main`, with a
   message pointing to D-0017. POSIX `sh`, so it runs in Git Bash on Windows too.
 - `package.json`: a `prepare` script that sets `git config core.hooksPath .githooks`, so
-  `npm install` / `npm ci` enables it.
+  `pnpm install` enables it.
 - Add `.claude/` and `.githooks/` to `GUARDED_PATHS` in `.github/scripts/guarded-paths.mjs`
   and to `.github/CODEOWNERS` (the test keeps them identical). Update the D-0012 references
   in `.github/` and `CODEOWNERS` to D-0017 (AGENTS.md already points to it).
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass; the guarded-path tests include
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass; the guarded-path tests include
   `.claude/settings.json` and `.githooks/pre-push`.
-- After `npm install`, `git config core.hooksPath` prints `.githooks`.
+- After `pnpm install`, `git config core.hooksPath` prints `.githooks`.
 - `git push --dry-run origin HEAD:main` is refused by the hook (quote the output); a push of a
   feature branch still works.
 - In a Claude Code session in this repo, `gh pr merge` is refused by the permission rule

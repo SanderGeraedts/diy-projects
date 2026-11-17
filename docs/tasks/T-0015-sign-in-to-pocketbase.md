@@ -28,7 +28,7 @@ D-0013's sign-in:
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass.
 - Tests against a throwaway PocketBase (local or CI, never the NAS, D-0006): sign in; a
   wrong password; an expired token leaves local data editable and the outbox intact; sign-out
   with unsynced changes needs a second confirmation and then leaves an empty database.

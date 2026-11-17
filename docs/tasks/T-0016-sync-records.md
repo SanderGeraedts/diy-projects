@@ -30,7 +30,7 @@ syncs photo *records* (and tombstones) but not their files.
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass.
 - A new CI job (`.github/workflows/ci.yml`) starts T-0013's image as a throwaway PocketBase
   and runs sync tests against it (D-0006, D-0017). They cover: push and pull between two
   simulated devices; an edit on both while offline, where the later wins and the earlier is

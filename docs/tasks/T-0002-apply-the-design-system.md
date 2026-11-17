@@ -22,14 +22,14 @@ also T-0001's last check of the auto-merge gate.
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass, locally
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass, locally
   and in CI.
 - Screenshot tests of `/design` in light and dark run in CI (Linux baselines) and pass.
   Locally they are skipped.
 - An automated contrast test checks body text and status badge text at 4.5:1 or better in
   both themes, from the tokens.
 - The e2e offline test also checks that Poppins is in use with the network off.
-- `/design` isn't in the production build (`CONTEXT=production npm run build`, then the
+- `/design` isn't in the production build (`CONTEXT=production pnpm run build`, then the
   route shows the not-found page).
 - No raw colour values in `src/components` or `src/routes` (a test or lint rule checks it).
 - All interface text is Dutch; status values stored in Dexie are unchanged.

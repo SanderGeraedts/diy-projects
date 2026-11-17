@@ -26,10 +26,10 @@ offline (D-0004):
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
 - Unit tests for the matcher (case, accents, word starts, tombstones).
 - A unit test builds 100 projects and 2,000 entries and checks a search takes under 100 ms.
-- `npm run test:e2e` passes, with tests that search the demo data for a title word and a
+- `pnpm run test:e2e` passes, with tests that search the demo data for a title word and a
   note word, offline, and open a result.
 - Sander confirms on the deploy preview.
 

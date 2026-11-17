@@ -30,6 +30,7 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 ## Doing
 
 - [T-0001 Scaffold the app, CI and the auto-merge gate](T-0001-scaffold-the-app-and-ci.md): An installable, empty React + Vite PWA with seeded demo data, deployed to Netlify with previews, and CI that runs checks and enforces the guarded-path auto-merge rule.
+- [T-0024 Switch the project to pnpm](T-0024-switch-to-pnpm.md): Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated.
 
 ## Done
 

@@ -23,8 +23,8 @@ result: []
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with tests that change the cover (the overview card shows it)
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with tests that change the cover (the overview card shows it)
   and delete the cover photo (the fallback shows), offline.
 - Sander confirms on the deploy preview.
 

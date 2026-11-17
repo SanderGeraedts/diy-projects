@@ -20,7 +20,7 @@ touches `.github/`, so it is guarded.
 
 # Done when
 
-- `npm run typecheck`, `npm test` and `npm run build` pass locally and in CI.
+- `pnpm run typecheck`, `pnpm test` and `pnpm run build` pass locally and in CI.
 - A PR gets a Netlify deploy preview that installs as a PWA and shows seeded demo projects,
   with no PocketBase address in its configuration.
 - A test PR touching only `src/` (outside guarded folders) auto-merges when green; a test PR

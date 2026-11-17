@@ -28,8 +28,8 @@ Sander takes photos with the Pixel camera and adds them later (D-0003):
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with a test that imports generated fixture photos taken on two
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with a test that imports generated fixture photos taken on two
   different days and sees two entries with the right photos, offline.
 - Sander imports a real batch of 20+ photos on his Pixel from the deploy preview without
   the app freezing.

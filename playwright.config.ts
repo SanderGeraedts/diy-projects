@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 // End-to-end tests run against the production-style build on the seeded demo data (D-0006,
-// D-0009). Build first: npm run build.
+// D-0017). Build first: pnpm run build.
 export default defineConfig({
   testDir: 'e2e',
   forbidOnly: !!process.env.CI,
@@ -13,7 +13,7 @@ export default defineConfig({
   },
   projects: [{ name: 'pixel', use: { ...devices['Pixel 7'] } }],
   webServer: {
-    command: 'npm run preview -- --port 4173 --strictPort',
+    command: 'pnpm run preview --port 4173 --strictPort',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
   },

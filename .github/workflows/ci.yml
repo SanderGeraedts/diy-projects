@@ -1,4 +1,4 @@
-# D-0012: every PR runs the checks; the auto-merge workflow acts on the result.
+# D-0017: every PR runs the checks; the auto-merge workflow acts on the result.
 name: CI
 
 on:
@@ -20,17 +20,19 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+      # D-0019: pnpm, at the version in package.json's packageManager field.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm test
       # No CONTEXT here, so this is a "local" build: seeded data, no PocketBase address (D-0006).
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - run: pnpm run build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run test:e2e
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

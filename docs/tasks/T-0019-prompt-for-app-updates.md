@@ -24,7 +24,7 @@ on an installed app can take days.
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
 - An e2e test builds the app twice (a changed build id), serves the first, swaps in the
   second, and sees the bar; tapping it shows the new version, and no local data is lost.
 - Sander reviews the PR (guarded: `src/sw/`).

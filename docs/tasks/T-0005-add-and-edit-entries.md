@@ -25,8 +25,8 @@ An entry is a date, its photos and a note; a project is a timeline of entries, n
 
 # Done when
 
-- `npm run typecheck`, `npm test`, `npm run build` pass.
-- `npm run test:e2e` passes, with new tests that add an entry, add a second note on the same
+- `pnpm run typecheck`, `pnpm test`, `pnpm run build` pass.
+- `pnpm run test:e2e` passes, with new tests that add an entry, add a second note on the same
   day (lands in the same entry), edit the note, and see the timeline newest first, also
   offline.
 - Sander confirms on the deploy preview.
