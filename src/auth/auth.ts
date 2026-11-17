@@ -73,9 +73,16 @@ export function createAuth({ client, db, syncNow = async () => {} }: AuthOptions
   const store = client.authStore
   const users = () => client.collection(AUTH_COLLECTION)
 
+  // The SDK clears its auth store itself on any 401. Remember the account so a refused token
+  // reads as `expired` (sync paused), not as never signed in.
+  let lastRecord: AuthRecord = store.record
+  store.onChange((_token, record) => {
+    if (record) lastRecord = record
+  })
+
   /** Keeps the account (for the email field) but drops the refused token: state `expired`. */
   function markExpired() {
-    store.save('', store.record)
+    store.save('', store.record ?? lastRecord)
   }
 
   return {
@@ -114,8 +121,8 @@ export function createAuth({ client, db, syncNow = async () => {} }: AuthOptions
     },
 
     /**
-     * For T-0016 to call when the NAS refuses a sync request with 401/403: sync pauses and
-     * the outbox stays (D-0013).
+     * For T-0016 to call when the NAS refuses a sync request with 401/403 (the SDK will
+     * already have cleared its store on a 401): sync pauses and the outbox stays (D-0013).
      */
     markExpired,
 
@@ -135,6 +142,7 @@ export function createAuth({ client, db, syncNow = async () => {} }: AuthOptions
       const unsynced = await countUnsynced(db)
       if (unsynced > 0 && !(await confirmUnsynced(unsynced))) return 'cancelled'
       await clearLocalData(db)
+      lastRecord = null
       store.clear()
       return 'signed-out'
     },

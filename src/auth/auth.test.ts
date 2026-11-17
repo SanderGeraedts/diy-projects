@@ -92,9 +92,9 @@ describe('refreshAfterSync', () => {
   })
 
   it.each([401, 403])('marks a token the NAS refuses (%i) as expired, keeping the account', async (status) => {
-    const { auth, authRefresh } = setup()
+    const { auth, refuseNextRefresh } = setup()
     await auth.signIn(RECORD.email, 'correct horse')
-    authRefresh.mockRejectedValueOnce(responseError(status))
+    refuseNextRefresh(status)
     expect(await auth.refreshAfterSync()).toBe('expired')
     expect(auth.record()?.email).toBe(RECORD.email)
   })
@@ -117,10 +117,10 @@ describe('refreshAfterSync', () => {
 
 describe('an expired sign-in never blocks local use (D-0013)', () => {
   it('keeps local data editable and the outbox intact', async () => {
-    const { auth, authRefresh, d } = setup()
+    const { auth, refuseNextRefresh, d } = setup()
     await auth.signIn(RECORD.email, 'correct horse')
     const project = await createProject({ title: 'Schuurdeur' }, d)
-    authRefresh.mockRejectedValueOnce(responseError(401))
+    refuseNextRefresh(401)
     await auth.refreshAfterSync()
     expect(auth.state()).toBe('expired')
 
@@ -129,12 +129,14 @@ describe('an expired sign-in never blocks local use (D-0013)', () => {
     expect(await countUnsynced(d)).toBe(2)
   })
 
-  it('markExpired keeps the outbox', async () => {
-    const { auth, d } = setup()
+  it('markExpired keeps the outbox, also after the SDK cleared its store on a 401', async () => {
+    const { auth, authStore, d } = setup()
     await auth.signIn(RECORD.email, 'correct horse')
     await createProject({ title: 'Schuurdeur' }, d)
+    authStore.clear() // what the SDK does on any 401
     auth.markExpired()
     expect(auth.state()).toBe('expired')
+    expect(auth.record()?.email).toBe(RECORD.email)
     expect(await countUnsynced(d)).toBe(1)
   })
 })

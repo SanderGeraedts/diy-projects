@@ -35,5 +35,11 @@ export function mockClient() {
   })
   const collection = vi.fn(() => ({ authWithPassword, authRefresh }))
   const client: AuthClient = { authStore, collection }
-  return { client, authStore, authWithPassword, authRefresh, collection }
+  /** Refuses the next refresh like the SDK does: on a 401 it clears its own store first. */
+  const refuseNextRefresh = (status: number) =>
+    authRefresh.mockImplementationOnce(async () => {
+      if (status === 401) authStore.clear()
+      throw responseError(status)
+    })
+  return { client, authStore, authWithPassword, authRefresh, collection, refuseNextRefresh }
 }
