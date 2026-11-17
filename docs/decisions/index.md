@@ -29,6 +29,7 @@ Read this list first, then only the records your work touches. How the registry 
 
 - [Q-001 How should the guarded-path review be enforced while the repo is private on a free plan?](Q-001-how-to-enforce-review-of-guarded-prs-on-a-private-free-repo.md): GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard.
 - [Q-002 Can projects and entries be deleted, and what happens to their photos?](Q-002-can-projects-and-entries-be-deleted.md): D-0004 doesn't say whether projects and entries can be deleted and D-0002 only defines tombstones for photos; decide whether deleting is allowed, whether it cascades to photos, and whether anything is ever purged from the NAS.
+- [Q-003 How does Sander sign in to PocketBase, and what happens when the sign-in expires offline?](Q-003-how-does-sander-sign-in.md): Sync needs a PocketBase sign-in (D-0005: sign-up closed, owner-only records); decide the sign-in method, how long a sign-in lasts, and that an expired sign-in never blocks offline use.
 
 ## Resolved questions
 
