@@ -32,9 +32,8 @@ jobs:
       # No CONTEXT here, so this is a "local" build: seeded data, no PocketBase address (D-0006).
       - run: pnpm run build
       - run: pnpm exec playwright install --with-deps chromium
-      # Screenshot baselines (T-0002): missing ones are written (that test fails once) and
-      # uploaded as the screenshot-baselines artifact, to commit under e2e/. Committed
-      # baselines are compared as usual.
+      # Screenshot baselines (T-0002): committed ones are compared; missing ones are written
+      # and uploaded as the screenshot-baselines artifact, to commit under e2e/.
       - run: pnpm run test:e2e --update-snapshots=missing
       - if: always()
         uses: actions/upload-artifact@v4
