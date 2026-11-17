@@ -1,4 +1,5 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '@tanstack/react-router'
+import { validateOverviewSearch } from './filters'
 import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
@@ -6,7 +7,12 @@ import { ProjectPage } from './routes/ProjectPage'
 
 const rootRoute = createRootRoute({ component: Layout, notFoundComponent: NotFound })
 
-const overviewRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: Overview })
+const overviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: Overview,
+  validateSearch: validateOverviewSearch,
+})
 
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
