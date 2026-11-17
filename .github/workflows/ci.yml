@@ -91,6 +91,10 @@ jobs:
       - name: Sync tests
         # Two simulated devices (two Dexie databases, two clients) against the same PocketBase.
         run: pnpm exec vitest run --reporter=verbose src/sync/sync.pocketbase.test.ts
+      - name: Photo file tests
+        # T-0017: uploads that resume byte for byte, the original dropped only after all three
+        # files are confirmed, a second device with copy and thumbnail only, no upload after a delete.
+        run: pnpm exec vitest run --reporter=verbose src/sync/photos.pocketbase.test.ts
       - name: PocketBase logs
         if: always()
         run: docker logs pb || true

@@ -1,8 +1,21 @@
 import { ClientResponseError } from 'pocketbase'
 import { REAUTH_MESSAGE } from '../auth/auth'
 import type { DiyDb, OutboxItem, SyncedTable } from '../db/db'
+import { markPhotoFileUploaded } from '../db/write'
 import { startBusy } from '../sw/busy'
-import { fromServer, isNewer, SYNCED_TABLES, toServer, type LocalRecord, type ServerRecord } from './records'
+import {
+  confirmedFiles,
+  downloadable,
+  fetchFile as defaultFetchFile,
+  nextUpload,
+  stepFiles,
+  uploadBody,
+  UPLOAD_STEPS,
+  type FetchFile,
+  type FileApi,
+  type UploadStep,
+} from './photos'
+import { downloadedPhoto, fromServer, isNewer, SYNCED_TABLES, toServer, type LocalRecord, type ServerRecord } from './records'
 
 // T-0016: the sync engine (D-0002). PocketBase on the NAS is the master; each run
 //
@@ -13,7 +26,13 @@ import { fromServer, isNewer, SYNCED_TABLES, toServer, type LocalRecord, type Se
 // 2. pulls what changed on the NAS since this device's cursor (PocketBase's `updated`) and
 //    applies it with last-write-wins by `updatedAt`. A record with a change still in the
 //    outbox is left alone: its push settles it.
-// 3. renews the sign-in (D-0013).
+// 3. uploads photo files (T-0017, D-0015): every photo's copy and thumbnail, then the
+//    originals, one request at a time. The state lives in each photo's `uploads` (Dexie), so
+//    an interrupted run or a closed app carries on where it stopped; a file counts as
+//    uploaded only once PocketBase's answer names it, and the device's original is dropped
+//    only when all three are confirmed. A tombstoned photo uploads nothing more (D-0014).
+//    Photos from other devices are downloaded during the pull: copy and thumbnail only.
+// 4. renews the sign-in (D-0013).
 //
 // Last-write-wins itself is decided on the NAS (deploy/nas/pb_hooks/last_write_wins.pb.js):
 // a push older than the stored record is kept in `history` and answered with the stored
@@ -21,18 +40,28 @@ import { fromServer, isNewer, SYNCED_TABLES, toServer, type LocalRecord, type Se
 // overwritten version in `history` (history.pb.js). So nothing is lost silently either way.
 //
 // One run at a time, across tabs (Web Locks). A refused sign-in (401/403) pauses sync and
-// keeps the outbox (D-0013). Photo files are T-0017; photos sync here as records only.
+// keeps the outbox (D-0013).
 
 /** The part of PocketBase's record API sync uses; the real client fits, and so does a fake. */
 export interface RecordApi {
   getList(page: number, perPage: number, options?: Record<string, unknown>): Promise<{ items: ServerRecord[] }>
   create(body: Record<string, unknown>, options?: Record<string, unknown>): Promise<ServerRecord>
-  update(id: string, body: Record<string, unknown>, options?: Record<string, unknown>): Promise<ServerRecord>
+  update(id: string, body: Record<string, unknown> | FormData, options?: Record<string, unknown>): Promise<ServerRecord>
 }
 
 export interface SyncClient {
   authStore: { record: { id: string } | null }
   collection(name: string): RecordApi
+  files: FileApi
+}
+
+/** The photo upload in progress, for per-photo progress (T-0018). */
+export interface PhotoUploadProgress {
+  photoId: string
+  step: UploadStep
+  /** This photo's place in this run's queue for the step, from 1. */
+  index: number
+  count: number
 }
 
 /** The part of src/auth sync needs (T-0015's `Auth` fits). */
@@ -58,8 +87,12 @@ export interface SyncStatus {
   needsSignIn: boolean
   /** Outbox rows the NAS confirmed in the last run. */
   pushed: number
-  /** Records the last run took over from the NAS. */
+  /** Records the last run took over from the NAS (photos only once their files are here). */
   pulled: number
+  /** Photo files the NAS confirmed in the last run (T-0017). */
+  uploaded: number
+  /** The photo upload under way, null when none. */
+  photoUpload: PhotoUploadProgress | null
   /** When the engine tries again after a failure, if it will. */
   nextRetryAt: string | null
 }
@@ -78,6 +111,8 @@ export interface SyncEngineOptions {
   retryMaxMs?: number
   /** Records per pull request. */
   pageSize?: number
+  /** Downloads one photo file (T-0017); `fetch` by default. */
+  fetchFile?: FetchFile
 }
 
 export const BUSY_REASON = 'de synchronisatie'
@@ -93,6 +128,13 @@ export const PULL_OVERLAP_MS = 60_000
 const EPOCH_KEY = 'epoch'
 const LAST_SUCCESS_KEY = 'lastSuccessAt'
 const cursorKey = (table: SyncedTable) => `cursor:${table}`
+/**
+ * T-0016 let the photos cursor move past photo records it couldn't store (no files yet).
+ * Set once the photos cursor has been reset for T-0017, so those are pulled again.
+ */
+const PHOTO_FILES_KEY = 'photoFiles'
+/** PocketBase's file tokens last a few minutes; get a new one well before. */
+const FILE_TOKEN_MS = 60_000
 
 /** The sync state was cleared under a running sync (sign-out): stop without writing. */
 class Cancelled extends Error {
@@ -135,6 +177,8 @@ function shiftServerTime(time: string, ms: number): string {
   return new Date(parsed + ms).toISOString().replace('T', ' ')
 }
 
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
 /** A PocketBase filter string literal. */
 const quote = (value: string) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 
@@ -163,6 +207,7 @@ export function createSyncEngine(options: SyncEngineOptions) {
   const retryBaseMs = options.retryBaseMs ?? 5_000
   const retryMaxMs = options.retryMaxMs ?? 5 * 60_000
   const pageSize = options.pageSize ?? 200
+  const fetchFile = options.fetchFile ?? defaultFetchFile
   const requestOptions = { requestKey: null } // never let the SDK auto-cancel a sync request
 
   let status: SyncStatus = {
@@ -173,6 +218,8 @@ export function createSyncEngine(options: SyncEngineOptions) {
     needsSignIn: false,
     pushed: 0,
     pulled: 0,
+    uploaded: 0,
+    photoUpload: null,
     nextRetryAt: null,
   }
   const listeners = new Set<() => void>()
@@ -286,6 +333,7 @@ export function createSyncEngine(options: SyncEngineOptions) {
       const page = await api.getList(1, pageSize, { filter, sort: 'updated,id', skipTotal: true, ...requestOptions })
       const items = page.items
       if (items.length === 0) return
+      if (tableName === 'photos') await downloadNewPhotos(items, epoch, counts)
 
       await db.transaction('rw', db.outbox, table, db.syncState, async () => {
         await checkEpoch(epoch)
@@ -295,7 +343,7 @@ export function createSyncEngine(options: SyncEngineOptions) {
           const local = await table.get(remote.id)
           if (local && !isNewer(String(remote.updatedAt ?? ''), local.updatedAt)) continue
           const next = fromServer(tableName, remote, local)
-          if (!next) continue // a photo without files here yet (T-0017)
+          if (!next) continue // a photo whose files aren't on the NAS yet: it comes again when they are
           await table.put(next)
           counts.pulled++
         }
@@ -306,6 +354,104 @@ export function createSyncEngine(options: SyncEngineOptions) {
       after = { updated: last.updated, id: last.id }
       if (items.length < pageSize) return
     }
+  }
+
+  // --- Photo files (T-0017) ---
+
+  let fileToken: { value: string; at: number } | null = null
+
+  async function fileUrl(remote: ServerRecord, filename: string): Promise<string> {
+    if (!fileToken || Date.now() - fileToken.at > FILE_TOKEN_MS) {
+      fileToken = { value: await client.files.getToken(requestOptions), at: Date.now() }
+    }
+    return client.files.getURL(remote, filename, { token: fileToken.value })
+  }
+
+  /** A file that isn't there (404): skip that photo rather than block the pull. */
+  async function download(remote: ServerRecord, filename: string): Promise<Blob | null> {
+    try {
+      return await fetchFile(await fileUrl(remote, filename))
+    } catch (err) {
+      if (err instanceof ClientResponseError && err.status === 404) {
+        console.warn(`sync: photos/${remote.id}/${filename} is missing on the NAS`)
+        return null
+      }
+      throw err
+    }
+  }
+
+  /**
+   * Photos from another device: download the copy and the thumbnail (never the original,
+   * D-0015) and store the photo with them, one photo at a time. A photo whose files aren't
+   * on the NAS yet is skipped; uploading them changes its `updated`, so it is pulled again.
+   * A failed download throws before the page's cursor moves, so the next run tries again.
+   */
+  async function downloadNewPhotos(items: ServerRecord[], epoch: string, counts: { pulled: number }): Promise<void> {
+    for (const remote of items) {
+      const files = downloadable(remote)
+      if (!files) continue
+      if ((await db.photos.where('id').equals(remote.id).count()) > 0) continue
+      const copy = await download(remote, files.copy)
+      const thumbnail = copy && (await download(remote, files.thumbnail))
+      if (!copy || !thumbnail) continue
+      await db.transaction('rw', db.photos, db.syncState, async () => {
+        await checkEpoch(epoch)
+        if ((await db.photos.where('id').equals(remote.id).count()) > 0) return
+        await db.photos.put(downloadedPhoto(remote, copy, thumbnail))
+        counts.pulled++
+      })
+    }
+  }
+
+  /** The ids of photos with a pending upload for `step`, oldest first. */
+  async function pendingUploads(step: UploadStep): Promise<string[]> {
+    const photos = await db.photos.filter((p) => nextUpload(p) === step).toArray()
+    photos.sort((a, b) => (a.createdAt === b.createdAt ? cmp(a.id, b.id) : cmp(a.createdAt, b.createdAt)))
+    return photos.map((p) => p.id)
+  }
+
+  /**
+   * Uploads pending photo files, one request at a time: first every photo's copy and
+   * thumbnail, then the originals. A request PocketBase refuses (400, e.g. a file over the
+   * size limit) skips that photo for this run; any other failure stops the run, which
+   * retries later from the state in Dexie.
+   */
+  async function uploadPhotoFiles(epoch: string, counts: { uploaded: number }): Promise<void> {
+    const api = client.collection('photos')
+    let refused: unknown = null
+    for (const step of UPLOAD_STEPS) {
+      const ids = await pendingUploads(step)
+      for (const [i, id] of ids.entries()) {
+        const photo = await db.photos.get(id)
+        // Tombstoned (or otherwise done) since the list was made: nothing to send (D-0014).
+        if (!photo || nextUpload(photo) !== step) continue
+        // The record must be on the NAS as it is here: its push comes first.
+        if ((await db.outbox.where('[table+recordId]').equals(['photos', id]).count()) > 0) continue
+        const files = stepFiles(photo, step)
+        update({ photoUpload: { photoId: id, step, index: i + 1, count: ids.length } })
+        let stored: ServerRecord
+        try {
+          stored = await api.update(id, uploadBody(photo, step), requestOptions)
+        } catch (err) {
+          if (err instanceof ClientResponseError && err.status === 400) {
+            console.warn(`sync: the NAS refused ${step} of photo ${id}`, err)
+            refused ??= err
+            continue
+          }
+          throw err
+        }
+        const confirmed = confirmedFiles(stored, files)
+        await db.transaction('rw', db.photos, db.syncState, async () => {
+          await checkEpoch(epoch)
+          for (const file of confirmed) await markPhotoFileUploaded(id, file, db)
+        })
+        counts.uploaded += confirmed.length
+        if (confirmed.length < files.length) {
+          refused ??= new Error(`the NAS did not confirm ${step} of photo ${id}`)
+        }
+      }
+    }
+    if (refused) throw refused
   }
 
   // --- A run ---
@@ -329,10 +475,16 @@ export function createSyncEngine(options: SyncEngineOptions) {
 
     const release = busy(BUSY_REASON)
     update({ running: true })
-    const counts = { pushed: 0, pulled: 0 }
+    const counts = { pushed: 0, pulled: 0, uploaded: 0 }
     let error: unknown = null
     try {
       const epoch = await ensureEpoch()
+      await db.transaction('rw', db.syncState, async () => {
+        await checkEpoch(epoch)
+        if (await db.syncState.get(PHOTO_FILES_KEY)) return
+        await db.syncState.delete(cursorKey('photos'))
+        await db.syncState.put({ key: PHOTO_FILES_KEY, value: new Date().toISOString() })
+      })
       try {
         await push(epoch, counts)
       } catch (err) {
@@ -346,6 +498,12 @@ export function createSyncEngine(options: SyncEngineOptions) {
           if (err instanceof Cancelled || isAuthError(err)) throw err
           error ??= err
         }
+      }
+      try {
+        await uploadPhotoFiles(epoch, counts)
+      } catch (err) {
+        if (err instanceof Cancelled || isAuthError(err)) throw err
+        error ??= err
       }
       if (error) {
         // PocketBase treats a refused token as no sign-in at all: a push then comes back as
@@ -380,7 +538,7 @@ export function createSyncEngine(options: SyncEngineOptions) {
         scheduleRetry()
       }
     } finally {
-      update({ running: false })
+      update({ running: false, photoUpload: null })
       release()
     }
   }

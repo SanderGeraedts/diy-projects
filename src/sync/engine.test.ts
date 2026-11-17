@@ -35,7 +35,14 @@ function device(server: FakePocketBase, userId = 'u1') {
   dbs.push(db)
   const client = server.client(userId)
   const auth = fakeAuth(client)
-  const engine = createSyncEngine({ db, client, auth, retryBaseMs: 1_000_000, retryMaxMs: 1_000_000 })
+  const engine = createSyncEngine({
+    db,
+    client,
+    auth,
+    fetchFile: server.fetchFile,
+    retryBaseMs: 1_000_000,
+    retryMaxMs: 1_000_000,
+  })
   engines.push(engine)
   return { db, client, auth, engine, sync: () => engine.syncNow() }
 }
@@ -91,7 +98,7 @@ describe('push', () => {
     expect(phone.auth.refreshes).toBe(1)
   })
 
-  it('sends photo records and tombstones, without files', async () => {
+  it('sends photo records before their files, and tombstones as records only', async () => {
     const server = new FakePocketBase()
     const phone = device(server)
     const project = await createProject({ title: 'Bank' }, phone.db)
@@ -99,14 +106,15 @@ describe('push', () => {
     const [a, b] = await addPhotos(entry.id, [photo(1), photo(2)], phone.db)
     await phone.sync()
     expect(server.get('photos', a!.id)).toMatchObject({ entryId: entry.id, projectId: project.id, width: 4, deletedAt: '' })
-    expect(server.get('photos', a!.id)).not.toHaveProperty('original')
+    const ops = server.requests.filter((r) => r.collection === 'photos' && r.op !== 'getList').map((r) => r.op)
+    expect(ops.indexOf('create')).toBeLessThan(ops.indexOf('upload'))
 
+    server.requests.length = 0
     await deletePhoto(b!.id, phone.db)
     await phone.sync()
     expect(server.get('photos', b!.id)?.deletedAt).toBe((await phone.db.photos.get(b!.id))!.deletedAt)
+    expect(server.requests.filter((r) => r.op === 'upload')).toEqual([])
     expect(await countUnsynced(phone.db)).toBe(0)
-    // Its files stay on the device (T-0017 decides when they go).
-    expect((await phone.db.photos.get(b!.id))?.original).toBeInstanceOf(Blob)
   })
 
   it('keeps every row on a failure halfway, and resumes without losing or duplicating anything', async () => {
@@ -309,30 +317,305 @@ describe('pull', () => {
     expect((await laptop.db.entries.get(entry.id))?.deletedAt).toBe(time)
   })
 
-  it('leaves photos without files here for T-0017, but takes over tombstones of known ones', async () => {
+  it('leaves photos whose files are not on the NAS yet, but takes over tombstones of known ones', async () => {
     const server = new FakePocketBase()
     const phone = device(server)
     const laptop = device(server)
     const project = await createProject({ title: 'Bank' }, phone.db)
     const entry = await addEntry({ projectId: project.id, date: '2026-11-17' }, phone.db)
-    const [p] = await addPhotos(entry.id, [photo()], phone.db)
+    await addPhotos(entry.id, [photo()], phone.db)
+    server.interceptor = (op) => (op === 'upload' ? responseError(0) : undefined)
     await phone.sync()
     await laptop.sync()
     expect(await laptop.db.photos.count()).toBe(0)
     expect(await laptop.db.entries.count()).toBe(1)
+    server.interceptor = null
 
     // The laptop's own photo, deleted on the phone.
     const [q] = await addPhotos(entry.id, [photo(2)], laptop.db)
     await laptop.sync()
-    await phone.sync()
-    expect(await phone.db.photos.get(q!.id)).toBeUndefined() // no files on the phone either
     const time = new Date(Date.now() + 1000).toISOString()
     server.put('photos', { ...server.get('photos', q!.id)!, deletedAt: time, updatedAt: time })
     await laptop.sync()
     const local = await laptop.db.photos.get(q!.id)
     expect(local?.deletedAt).toBe(time)
     expect(local?.blob).toBeInstanceOf(Blob)
-    expect(p).toBeDefined()
+  })
+})
+
+describe('photo files (T-0017, D-0015)', () => {
+  const bytes = async (blob: Blob | null | undefined) => (blob ? new Uint8Array(await blob.arrayBuffer()) : null)
+
+  async function onePhotoEntry(db: DiyDb) {
+    const project = await createProject({ title: 'Tafel' }, db)
+    return addEntry({ projectId: project.id, date: '2026-11-17' }, db)
+  }
+
+  it('uploads copy and thumbnail, then the original, and drops the original once all three are confirmed', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a] = await addPhotos(entry.id, [photo(1)], phone.db)
+    await phone.sync()
+
+    const uploads = server.requests.filter((r) => r.op === 'upload')
+    expect(uploads.map((r) => r.files)).toEqual([['copy', 'thumbnail'], ['original']])
+    expect(await bytes(server.file('photos', a!.id, 'original'))).toEqual(await bytes(photo(1).original))
+    expect(await bytes(server.file('photos', a!.id, 'copy'))).toEqual(await bytes(photo(1).copy))
+    expect(await bytes(server.file('photos', a!.id, 'thumbnail'))).toEqual(await bytes(photo(1).thumbnail))
+    const local = (await phone.db.photos.get(a!.id))!
+    expect(local.uploads).toEqual({ original: 'uploaded', copy: 'uploaded', thumbnail: 'uploaded' })
+    expect(local.original).toBeNull()
+    expect(local.blob).toBeInstanceOf(Blob)
+    expect(local.thumbnail).toBeInstanceOf(Blob)
+    expect(phone.engine.getStatus()).toMatchObject({ lastError: null, uploaded: 3, photoUpload: null })
+  })
+
+  it('sends every photo’s copy and thumbnail before any original, one request at a time', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    // One batch has one createdAt: then by id.
+    const photos = (await addPhotos(entry.id, [photo(1), photo(2), photo(3)], phone.db)).sort((a, b) =>
+      a.id < b.id ? -1 : 1,
+    )
+    const progress: unknown[] = []
+    phone.engine.subscribe(() => {
+      const p = phone.engine.getStatus().photoUpload
+      if (p && progress.at(-1) !== p) progress.push(p)
+    })
+    await phone.sync()
+    const uploads = server.requests.filter((r) => r.op === 'upload').map((r) => r.files!.join('+'))
+    expect(uploads).toEqual([
+      'copy+thumbnail',
+      'copy+thumbnail',
+      'copy+thumbnail',
+      'original',
+      'original',
+      'original',
+    ])
+    expect(progress).toEqual([
+      ...photos.map((p, i) => ({ photoId: p.id, step: 'copy+thumbnail', index: i + 1, count: 3 })),
+      ...photos.map((p, i) => ({ photoId: p.id, step: 'original', index: i + 1, count: 3 })),
+    ])
+  })
+
+  it('an upload interrupted halfway resumes after the app is closed, and the original arrives byte for byte', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const big = new Uint8Array(256 * 1024).map((_, i) => (i * 31) % 251)
+    const [a, b] = await addPhotos(entry.id, [{ ...photo(1), original: new Blob([big]) }, photo(2)], phone.db)
+    // The connection drops on the first original.
+    server.interceptor = (op, _c, _id, files) => (op === 'upload' && files?.includes('original') ? responseError(0) : undefined)
+    await phone.sync()
+    expect(phone.engine.getStatus().lastError).toBe('Geen verbinding met de server.')
+    for (const p of [a!, b!]) {
+      const local = (await phone.db.photos.get(p.id))!
+      expect(local.uploads).toEqual({ original: 'pending', copy: 'uploaded', thumbnail: 'uploaded' })
+      expect(local.original).toBeInstanceOf(Blob) // kept until all three are confirmed
+    }
+    expect(server.file('photos', a!.id, 'original')).toBeUndefined()
+
+    // The app is closed and opened again: a new engine on the same database.
+    phone.engine.stop()
+    server.interceptor = null
+    server.requests.length = 0
+    const reopened = createSyncEngine({ db: phone.db, client: phone.client, auth: phone.auth, fetchFile: server.fetchFile })
+    engines.push(reopened)
+    await reopened.syncNow()
+    expect(reopened.getStatus()).toMatchObject({ lastError: null, uploaded: 2 })
+    expect(server.requests.filter((r) => r.op === 'upload').map((r) => r.files)).toEqual([['original'], ['original']])
+    expect(await bytes(server.file('photos', a!.id, 'original'))).toEqual(big)
+    expect((await phone.db.photos.get(a!.id))!.original).toBeNull()
+    expect((await phone.db.photos.get(b!.id))!.original).toBeNull()
+  })
+
+  it('marks nothing uploaded that PocketBase’s answer does not show', async () => {
+    const server = new FakePocketBase()
+    const db = openDb(`sync-engine-test-${++n}`)
+    dbs.push(db)
+    // An answer without the original's file name (as if the field didn't take the file).
+    const client = server.client()
+    const wrapped = {
+      ...client,
+      collection(name: string) {
+        const api = client.collection(name)
+        return {
+          ...api,
+          async update(id: string, body: Record<string, unknown> | FormData) {
+            const stored = await api.update(id, body)
+            delete stored.original
+            return stored
+          },
+        }
+      },
+    }
+    const engine = createSyncEngine({ db, client: wrapped, auth: fakeAuth(client), fetchFile: server.fetchFile })
+    engines.push(engine)
+    const entry = await onePhotoEntry(db)
+    const [a] = await addPhotos(entry.id, [photo(1)], db)
+    await engine.syncNow()
+    const phone = { db, engine }
+    const local = (await phone.db.photos.get(a!.id))!
+    expect(local.uploads.copy).toBe('uploaded')
+    expect(local.uploads.original).toBe('pending')
+    expect(local.original).toBeInstanceOf(Blob)
+    expect(phone.engine.getStatus().lastError).not.toBeNull()
+  })
+
+  it('never uploads a photo deleted before its upload, and keeps its files on the device', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [kept, gone] = await addPhotos(entry.id, [photo(1), photo(2)], phone.db)
+    await deletePhoto(gone!.id, phone.db)
+    await phone.sync()
+
+    const uploads = server.requests.filter((r) => r.op === 'upload')
+    expect(uploads.map((r) => r.id)).toEqual([kept!.id, kept!.id])
+    expect(server.get('photos', gone!.id)).toMatchObject({ deletedAt: (await phone.db.photos.get(gone!.id))!.deletedAt })
+    expect(server.get('photos', gone!.id)).not.toHaveProperty('copy')
+    const local = (await phone.db.photos.get(gone!.id))!
+    expect(local.uploads).toEqual({ original: 'pending', copy: 'pending', thumbnail: 'pending' })
+    expect(local.original).toBeInstanceOf(Blob)
+    expect(phone.engine.getStatus().lastError).toBeNull()
+  })
+
+  it('a photo deleted between its copy and its original sends no original', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a] = await addPhotos(entry.id, [photo(1)], phone.db)
+    server.interceptor = (op, _c, _id, files) => (op === 'upload' && files?.includes('original') ? responseError(0) : undefined)
+    await phone.sync()
+    server.interceptor = null
+    await deletePhoto(a!.id, phone.db)
+    server.requests.length = 0
+    await phone.sync()
+    expect(server.requests.filter((r) => r.op === 'upload')).toEqual([])
+    expect(server.get('photos', a!.id)?.deletedAt).not.toBe('')
+    expect(server.get('photos', a!.id)?.copy).toBeTruthy()
+    expect(server.get('photos', a!.id)?.original).toBeUndefined()
+  })
+
+  it('a refused file skips that photo, not the queue, and is reported', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a, b] = await addPhotos(entry.id, [photo(1), photo(2)], phone.db)
+    server.interceptor = (op, _c, id, files) =>
+      op === 'upload' && id === a!.id && files?.includes('original') ? responseError(400) : undefined
+    await phone.sync()
+    expect((await phone.db.photos.get(a!.id))!.uploads.original).toBe('pending')
+    expect((await phone.db.photos.get(b!.id))!.uploads.original).toBe('uploaded')
+    expect(phone.engine.getStatus().lastError).toBe('De server weigerde een wijziging (400).')
+  })
+
+  it('another device downloads the copy and thumbnail, never the original', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a] = await addPhotos(entry.id, [photo(1)], phone.db)
+    await phone.sync()
+    await laptop.sync()
+
+    const local = (await laptop.db.photos.get(a!.id))!
+    expect(local).toMatchObject({ entryId: entry.id, projectId: entry.projectId, width: 4, height: 3, original: null })
+    expect(local.uploads).toEqual({ original: 'none', copy: 'none', thumbnail: 'none' })
+    expect(local.updatedAt).toBe((await phone.db.photos.get(a!.id))!.updatedAt)
+    expect(await bytes(local.blob)).toEqual(await bytes(photo(1).copy))
+    expect(await bytes(local.thumbnail)).toEqual(await bytes(photo(1).thumbnail))
+    const original = server.get('photos', a!.id)!.original
+    const downloads = server.requests.filter((r) => r.op === 'download')
+    expect(downloads).toHaveLength(2)
+    expect(laptop.engine.getStatus()).toMatchObject({ lastError: null, pulled: 3, uploaded: 0 })
+    expect(original).toBeTruthy()
+
+    // Nothing to upload from the laptop, and nothing downloaded twice.
+    server.requests.length = 0
+    await laptop.sync()
+    expect(server.requests.filter((r) => r.op === 'upload' || r.op === 'download')).toEqual([])
+  })
+
+  it('a photo whose files arrive later is downloaded then', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a] = await addPhotos(entry.id, [photo(1)], phone.db)
+    server.interceptor = (op) => (op === 'upload' ? responseError(0) : undefined)
+    await phone.sync()
+    await laptop.sync()
+    expect(await laptop.db.photos.get(a!.id)).toBeUndefined()
+    server.interceptor = null
+    await phone.sync()
+    await laptop.sync()
+    expect((await laptop.db.photos.get(a!.id))?.blob).toBeInstanceOf(Blob)
+  })
+
+  it('a failed download keeps the cursor, so the next run fetches the photo', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a] = await addPhotos(entry.id, [photo(1)], phone.db)
+    await phone.sync()
+    server.interceptor = (op) => (op === 'download' ? responseError(0) : undefined)
+    await laptop.sync()
+    expect(await laptop.db.photos.get(a!.id)).toBeUndefined()
+    expect(laptop.engine.getStatus().lastError).toBe('Geen verbinding met de server.')
+    server.interceptor = null
+    await laptop.sync()
+    expect((await laptop.db.photos.get(a!.id))?.blob).toBeInstanceOf(Blob)
+  })
+
+  it('pulls photo records again once, which T-0016 skipped and moved its cursor past', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    const [a] = await addPhotos(entry.id, [photo(1)], phone.db)
+    await phone.sync()
+    // As T-0016 left the laptop: its photos cursor past the photo, the photo not stored.
+    await laptop.db.syncState.put({ key: 'cursor:photos', value: '2100-01-01 00:00:00.000Z' })
+    await laptop.sync()
+    expect((await laptop.db.photos.get(a!.id))?.blob).toBeInstanceOf(Blob)
+    // Only once: a later cursor is kept.
+    expect((await laptop.db.syncState.get('photoFiles'))?.value).toBeTruthy()
+    await laptop.db.syncState.put({ key: 'cursor:photos', value: '2100-01-01 00:00:00.000Z' })
+    await laptop.sync()
+    expect((await laptop.db.syncState.get('cursor:photos'))?.value).toBe('2100-01-01 00:00:00.000Z')
+  })
+
+  it('holds the app update back while uploading (T-0019)', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    await addPhotos(entry.id, [photo(1)], phone.db)
+    const busy: boolean[] = []
+    server.interceptor = (op) => {
+      if (op === 'upload') busy.push(isBusy())
+    }
+    await phone.sync()
+    expect(busy).toEqual([true, true])
+    expect(isBusy()).toBe(false)
+  })
+
+  it('stops without marking anything when sign-out clears the device during an upload', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const entry = await onePhotoEntry(phone.db)
+    await addPhotos(entry.id, [photo(1)], phone.db)
+    let cleared: Promise<void> | null = null
+    server.interceptor = (op) => {
+      if (op === 'upload' && !cleared) cleared = clearLocalData(phone.db)
+    }
+    await phone.sync()
+    await cleared
+    expect(await phone.db.photos.count()).toBe(0)
+    expect(await phone.db.syncState.count()).toBe(0)
   })
 })
 

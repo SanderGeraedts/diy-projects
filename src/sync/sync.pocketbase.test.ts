@@ -190,7 +190,7 @@ describe.skipIf(!URL)('sync against a real PocketBase (T-0016)', { timeout: 120_
     expect((await history(project.id)).map((h: RecordModel) => h.data.title)).toEqual(['Kast', 'Kast (telefoon)'])
   })
 
-  it('syncs tombstones, and photo records without their files', async () => {
+  it('syncs tombstones of records and photos', async () => {
     const { email } = await user()
     const phone = await device(email)
     const laptop = await device(email)
@@ -199,7 +199,7 @@ describe.skipIf(!URL)('sync against a real PocketBase (T-0016)', { timeout: 120_
     const [kept, gone] = await addPhotos(entry.id, [photo(1), photo(2)], phone.db)
     await phone.sync()
 
-    // The laptop has its own copy of the record now (T-0017 brings files; here only records).
+    // The laptop has its own copy of the records now.
     await laptop.sync()
     expect(await laptop.db.entries.get(entry.id)).toBeDefined()
 
@@ -216,7 +216,8 @@ describe.skipIf(!URL)('sync against a real PocketBase (T-0016)', { timeout: 120_
     expect(photos).toHaveLength(2)
     expect(photos.find((p) => p.id === gone!.id)?.deletedAt).toBe((await phone.db.photos.get(gone!.id))!.deletedAt)
     expect(photos.find((p) => p.id === kept!.id)?.deletedAt).toBe('')
-    expect(photos.every((p) => p.original === '' && p.copy === '')).toBe(true)
+    // Both were uploaded before the delete (T-0017); the tombstone changes no file.
+    expect(photos.every((p) => p.original !== '' && p.copy !== '' && p.thumbnail !== '')).toBe(true)
     expect((await su.collection('entries').getOne(entry.id)).deletedAt).toBe(time)
 
     await laptop.sync()

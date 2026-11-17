@@ -9,6 +9,9 @@ import type { ServerRecord } from './records'
 // server on every save, the history hook (the overwritten version on every update) and the
 // last-write-wins hook (an older `updatedAt` is kept in history and the stored record is
 // returned unchanged). Requests can be made to fail.
+//
+// Files (T-0017): a multipart update stores each file under a new name, as PocketBase does
+// (replacing the field's earlier file), and protected downloads need a file token.
 
 export interface HistoryRow {
   sourceCollection: string
@@ -16,10 +19,16 @@ export interface HistoryRow {
   data: Record<string, unknown>
 }
 
-export type Operation = 'getList' | 'create' | 'update'
+/** `upload` is an update with files (multipart); `download` fetches one file. */
+export type Operation = 'getList' | 'create' | 'update' | 'upload' | 'token' | 'download'
 
 /** Return an error to fail a request, or nothing to let it through. */
-export type Interceptor = (op: Operation, collection: string, id?: string) => ClientResponseError | void
+export type Interceptor = (
+  op: Operation,
+  collection: string,
+  id?: string,
+  files?: string[],
+) => ClientResponseError | Error | void
 
 export function responseError(status: number): ClientResponseError {
   return new ClientResponseError({ url: 'http://pb.invalid', status, response: {} })
@@ -30,7 +39,11 @@ const clone = <T>(value: T): T => structuredClone(value)
 export class FakePocketBase {
   readonly records = new Map<string, Map<string, ServerRecord>>()
   readonly history: HistoryRow[] = []
-  readonly requests: { op: Operation; collection: string; id?: string }[] = []
+  readonly requests: { op: Operation; collection: string; id?: string; files?: string[] }[] = []
+  /** Stored files by `collection/id/filename`. */
+  readonly files = new Map<string, Blob>()
+  private readonly tokens = new Map<string, string>()
+  private fileCounter = 0
   interceptor: Interceptor | null = null
   private clock = Date.parse('2026-11-17T10:00:00.000Z')
 
@@ -64,9 +77,28 @@ export class FakePocketBase {
     this.table(collection).set(record.id, { ...clone(record), updated: this.now() })
   }
 
-  private check(op: Operation, collection: string, id?: string) {
-    this.requests.push({ op, collection, id })
-    const err = this.interceptor?.(op, collection, id)
+  /** A stored file of a record, by its field. */
+  file(collection: string, id: string, field: string): Blob | undefined {
+    const name = this.table(collection).get(id)?.[field]
+    return typeof name === 'string' && name ? this.files.get(`${collection}/${id}/${name}`) : undefined
+  }
+
+  /** Fetches a file URL made by a client's `files.getURL`, as the browser's fetch would. */
+  readonly fetchFile = async (url: string): Promise<Blob> => {
+    const match = /^fake:\/api\/files\/([^/]+)\/([^/]+)\/([^?]+)\?token=(.*)$/.exec(url)
+    if (!match) throw responseError(404)
+    const [, collection, id, name, token] = match as unknown as [string, string, string, string, string]
+    this.check('download', collection, id)
+    const record = this.table(collection).get(id)
+    const user = this.tokens.get(token)
+    const blob = this.files.get(`${collection}/${id}/${name}`)
+    if (!record || !user || record.owner !== user || !blob) throw responseError(404)
+    return blob
+  }
+
+  private check(op: Operation, collection: string, id?: string, files?: string[]) {
+    this.requests.push(files ? { op, collection, id, files } : { op, collection, id })
+    const err = this.interceptor?.(op, collection, id, files)
     if (err) throw err
   }
 
@@ -76,6 +108,19 @@ export class FakePocketBase {
     const client = {
       signedIn: true,
       authStore: { record: { id: userId } as { id: string } | null },
+      files: {
+        async getToken() {
+          if (!client.signedIn) throw responseError(401)
+          server.check('token', '')
+          const token = `t${++server.fileCounter}`
+          server.tokens.set(token, userId)
+          return token
+        },
+        getURL(record: { [key: string]: unknown }, filename: string, query: Record<string, unknown> = {}) {
+          const collection = String(record.collectionName ?? 'photos')
+          return `fake:/api/files/${collection}/${String(record.id)}/${filename}?token=${String(query.token ?? '')}`
+        },
+      },
       collection(name: string): RecordApi {
         const guard = (op: Operation, id?: string) => {
           if (!client.signedIn) throw responseError(401)
@@ -99,11 +144,29 @@ export class FakePocketBase {
             table.set(id, record)
             return clone(record)
           },
-          async update(id, body) {
-            guard('update', id)
+          async update(id, input) {
+            if (input instanceof FormData) {
+              const fields = [...input.keys()]
+              if (!client.signedIn) throw responseError(401)
+              server.check('upload', name, id, fields)
+            } else guard('update', id)
             const table = server.table(name)
             const stored = table.get(id)
             if (!stored || stored.owner !== userId) throw responseError(404)
+            const body: Record<string, unknown> = input instanceof FormData ? {} : input
+            if (input instanceof FormData) {
+              for (const [field, value] of input.entries()) {
+                if (typeof value === 'string') {
+                  body[field] = value
+                  continue
+                }
+                const old = stored[field]
+                if (typeof old === 'string' && old) server.files.delete(`${name}/${id}/${old}`)
+                const filename = `${++server.fileCounter}_${value.name || 'blob'}`
+                server.files.set(`${name}/${id}/${filename}`, value)
+                body[field] = filename
+              }
+            }
             const incoming = { ...stored, ...clone(body) }
             const older =
               typeof body.updatedAt === 'string' &&

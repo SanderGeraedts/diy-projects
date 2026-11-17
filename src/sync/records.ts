@@ -5,7 +5,8 @@ import { PROJECT_STATUSES, type Entry, type Photo, type Project, type ProjectSta
 // too, so projectId, entryId and coverPhotoId mean the same everywhere. On the NAS an empty
 // text field is "", locally it's null (deletedAt) or absent (coverPhotoId).
 //
-// Photo *files* are T-0017: here a photo is only its record (place, time, size, tombstone).
+// A photo's *files* travel separately (T-0017, ./photos.ts): here a photo is its record
+// (place, time, size, tombstone); its files on this device are left as they are.
 
 /** A record as PocketBase returns it. `updated` is the server's own change time. */
 export interface ServerRecord {
@@ -104,6 +105,29 @@ export function photoFromServer(r: ServerRecord, local: Photo): Photo {
 }
 
 /**
+ * A photo another device added, as this device stores it once its copy and thumbnail are
+ * downloaded (T-0017, D-0015): never an original, and nothing to upload from here.
+ */
+export function downloadedPhoto(r: ServerRecord, copy: Blob, thumbnail: Blob): Photo {
+  const base: Photo = {
+    id: r.id,
+    projectId: '',
+    entryId: '',
+    takenAt: '',
+    blob: copy,
+    thumbnail,
+    original: null,
+    uploads: { original: 'none', copy: 'none', thumbnail: 'none' },
+    width: 0,
+    height: 0,
+    createdAt: '',
+    updatedAt: '',
+    deletedAt: null,
+  }
+  return photoFromServer(r, base)
+}
+
+/**
  * Last-write-wins (D-0002): true when `incoming` was edited strictly later than `local`.
  * An equal time is the same version (a record coming back after its own push).
  */
@@ -116,8 +140,9 @@ export function isNewer(incoming: string, local: string): boolean {
 }
 
 /**
- * The local record a server record becomes, or null when it can't be stored here yet: a
- * photo this device doesn't have has no files to show until T-0017 downloads them.
+ * The local record a server record becomes, or null when it can't be stored here this way:
+ * a photo this device doesn't have yet is stored only with its downloaded files
+ * (`downloadedPhoto`, T-0017).
  */
 export function fromServer(table: SyncedTable, r: ServerRecord, local: LocalRecord | undefined): LocalRecord | null {
   switch (table) {
