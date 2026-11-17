@@ -30,19 +30,27 @@ const SWATCH: Record<(typeof COLOR_TOKENS)[number], string> = {
 
 const T = '2026-11-16T12:00:00.000Z'
 
+const sampleBlob = new Blob([demoPhotoSvg('Voorbeeld', 28, 1)], { type: 'image/svg+xml' })
+
+// Shaped like the demo seed's photos: the drawing doubles as thumbnail, no original, never synced.
 const samplePhoto: Photo = {
   id: 'design-photo',
   projectId: 'design',
   entryId: 'design-entry',
   takenAt: T,
-  blob: new Blob([demoPhotoSvg('Voorbeeld', 28, 1)], { type: 'image/svg+xml' }),
+  blob: sampleBlob,
+  thumbnail: sampleBlob,
+  original: null,
+  uploads: { original: 'none', copy: 'none', thumbnail: 'none' },
   width: 1600,
   height: 1200,
   createdAt: T,
+  updatedAt: T,
+  deletedAt: null,
 }
 
 function sampleProject(title: string, status: ProjectStatus): Project {
-  return { id: title, title, description: '', status, tags: ['hout', 'tuin'], createdAt: T, updatedAt: T }
+  return { id: title, title, description: '', status, tags: ['hout', 'tuin'], createdAt: T, updatedAt: T, deletedAt: null }
 }
 
 export function DesignPage() {
