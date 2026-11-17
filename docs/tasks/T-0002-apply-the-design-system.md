@@ -8,7 +8,7 @@ depends_on: []             # builds on T-0001's merged scaffold; its PR is T-000
 decisions: [D-0004, D-0005, D-0006, D-0007, D-0011]
 raised_on: 2026-11-16
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/14"]
 ---
 
 # Goal
