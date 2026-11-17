@@ -2,7 +2,7 @@
 id: T-0023
 title: "Add the local guard: no agent merges or pushes to main"
 description: "Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths."
-status: Open
+status: Doing
 guarded: true
 depends_on: []
 decisions: [D-0017]
@@ -44,3 +44,4 @@ D-0017's local guard, while the repository is private:
   but guard it if `.git` is missing).
 
 # Log
+- 2026-11-17 claude-code/opus-5.5: Added `.claude/settings.json` (deny `gh pr merge`, `gh api` PR merge, `git push` to main incl. `HEAD:main`, force and `--no-verify` forms; Bash and PowerShell), `.githooks/pre-push` (refuses remote ref `refs/heads/main`, LF, executable), `prepare` script, `.claude/` and `.githooks/` in GUARDED_PATHS and CODEOWNERS, D-0012 -> D-0017 in `.github/`. typecheck clean, 50/50 unit tests (incl. `.claude/settings.json`, `.githooks/pre-push`), build ok. Hook logic tested by piping refs into `sh .githooks/pre-push`: main and deleting main refused (exit 1), feature branches, tags, `main-ish` pass (exit 0). pnpm runs `prepare` only on an install that does work, not an up-to-date no-op (checked with an echo script and `--force`). Remaining for Sander: the agent sandbox refused to set `core.hooksPath` (shared repo config) or pass it with `git -c`, so `git config core.hooksPath` after install, `git push --dry-run origin HEAD:main` through the hook, and `gh pr merge` refused in a Claude Code session are unverified end to end.
