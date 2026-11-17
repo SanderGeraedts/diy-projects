@@ -5,7 +5,7 @@ description: "Add an entry with a date and a note to a project, and edit its not
 status: Open
 guarded: false
 depends_on: [T-0004]
-decisions: [D-0002, D-0003, D-0004, D-0011]
+decisions: [D-0002, D-0003, D-0004, D-0020]
 raised_on: 2026-11-17
 done_on: ""
 result: []
@@ -21,7 +21,7 @@ An entry is a date, its photos and a note; a project is a timeline of entries, n
   (D-0003): adding to a day that has one opens that entry instead.
 - Editing an entry's note in place; saving updates `updatedAt` through the write API.
 - Notes are plain text with line breaks kept.
-- Dutch interface, D-0011's entry component.
+- Dutch interface, D-0020's entry component.
 
 # Done when
 
