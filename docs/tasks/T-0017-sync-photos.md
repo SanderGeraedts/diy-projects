@@ -8,7 +8,7 @@ depends_on: [T-0007, T-0016]
 decisions: [D-0002, D-0003, D-0005, D-0006, D-0014, D-0015]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: [https://github.com/SanderGeraedts/diy-projects/pull/35]
 ---
 
 # Goal
@@ -67,4 +67,6 @@ D-0015's three files per photo:
   says the engine removes them once the NAS has the tombstone, which this doesn't do);
   (4) a file the NAS refuses (400, e.g. an original over 40 MB) skips that photo, is retried
   every run and shown as the sync error; (5) v1 photos (`uploads: none`) are still not
-  uploaded (T-0003's open point). Checks: see the PR.
+  uploaded (T-0003's open point). Checks: typecheck clean; `pnpm test` 265 passed / 19
+  skipped; build OK; e2e 33 passed / 2 skipped; locally against PocketBase 0.40.6 auth 5/5,
+  sync 9/9, photo files 5/5. Draft PR #35 (base `t-0016-sync`).
