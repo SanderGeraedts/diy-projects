@@ -2,11 +2,11 @@
 id: Q-001
 title: "How should the guarded-path review be enforced while the repo is private on a free plan?"
 description: "GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard."
-status: Open
+status: Resolved
 raised_on: 2026-11-16
 raised_by: claude-code/opus-5.5
 blocks: []
-resolved_by: []
+resolved_by: [D-0017]
 tags: [process, safety]
 ---
 
@@ -43,4 +43,4 @@ on the rule in `AGENTS.md` alone.
 
 # Answer
 
-Open.
+Resolved on 2026-11-17 by D-0017 (option 1, extended): a local guard while the repository is private. Claude Code's project settings deny `gh pr merge`, the merge API and `git push` to `main`; a versioned pre-push hook refuses pushes to `main` for every agent on Sander's machines; `.claude/` and `.githooks/` become guarded paths. Branch protection takes over when the repository goes public (T-0021). Implemented in T-0023.

@@ -1,0 +1,44 @@
+---
+id: T-0015
+title: "Sign in to PocketBase with email and password"
+description: "The sign-in screen and token handling in src/auth/, production only: a 90-day token renewed on sync, an expired sign-in that only pauses sync, and a sign-out that syncs, warns, then clears the device."
+status: Open
+guarded: true
+depends_on: [T-0003, T-0013]
+decisions: [D-0002, D-0005, D-0006, D-0013]
+raised_on: 2026-11-17
+done_on: ""
+result: []
+---
+
+# Goal
+
+D-0013's sign-in:
+
+- **Sign in:** email and password against PocketBase's `users` collection, from a production
+  build with sync enabled only (`src/sync/config.ts`); previews and dev never show it
+  (D-0006). Fields marked up for Android's password manager (`autocomplete="username"` and
+  `"current-password"`).
+- **Token:** kept the way the PocketBase JS SDK keeps it; refreshed after each successful
+  sync. The 90-day lifetime is set on the NAS in T-0013's migrations (this task checks it).
+- **Expired or revoked:** the app keeps working; sync pauses and reports
+  "Opnieuw inloggen om te synchroniseren" (shown by T-0018); the outbox stays.
+- **Sign-out:** try to sync; if anything is still unsynced, warn with the count and ask
+  again; then clear the local database (records, photos, outbox) and the token.
+
+# Done when
+
+- `npm run typecheck`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- Tests against a throwaway PocketBase (local or CI, never the NAS, D-0006): sign in; a
+  wrong password; an expired token leaves local data editable and the outbox intact; sign-out
+  with unsynced changes needs a second confirmation and then leaves an empty database.
+- Sander signs in on the production app on his phone.
+- Sander reviews the PR (guarded).
+
+# Notes
+
+- Auth code lives in `src/auth/` (guarded); clearing the database goes through `src/db/`.
+- Add the PocketBase JS SDK here if nothing earlier did (D-0007).
+- If T-0013 didn't set the 90-day token lifetime, add it as a migration in `deploy/nas/`.
+
+# Log

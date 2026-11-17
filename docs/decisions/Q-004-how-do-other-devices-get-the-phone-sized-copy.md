@@ -2,11 +2,11 @@
 id: Q-004
 title: "How does a second device (the laptop, or a reinstalled phone) get the 2560 px copy of each photo?"
 description: "D-0003 has the phone make a 2560 px copy before sync and keeps only originals on the NAS; decide how any other device gets its offline copy without downloading every original."
-status: Open
+status: Resolved
 raised_on: 2026-11-17
 raised_by: claude-code/opus-5.5
 blocks: [T-0017]
-resolved_by: []
+resolved_by: [D-0015]
 tags: [photos, sync, storage]
 ---
 
@@ -34,4 +34,4 @@ over 10 MB at 50 MP, and travel through Funnel's relays (D-0005).
 
 # Answer
 
-Open.
+Resolved on 2026-11-17 by D-0015: the adding device uploads the original, its 2560 px WebP copy and a thumbnail; other devices download only the copy and thumbnail; the NAS does no image processing. (PocketBase-made copies were considered and rejected: JPEG output and NAS load.)
