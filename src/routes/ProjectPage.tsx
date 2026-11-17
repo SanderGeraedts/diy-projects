@@ -56,12 +56,19 @@ export function ProjectPage() {
               {(photos ?? [])
                 .filter((ph) => ph.entryId === e.id)
                 .map((ph) => (
-                  <PhotoImage
+                  <Link
                     key={ph.id}
-                    photo={ph}
-                    alt={`${project.title}, ${formatDate(e.date)}`}
-                    className="aspect-[4/3] h-auto w-full rounded-card object-cover"
-                  />
+                    to="/projects/$projectId/photos/$photoId"
+                    params={{ projectId, photoId: ph.id }}
+                    className="block"
+                  >
+                    <PhotoImage
+                      photo={ph}
+                      file="thumbnail"
+                      alt={`${project.title}, ${formatDate(e.date)}`}
+                      className="aspect-[4/3] h-auto w-full rounded-card object-cover"
+                    />
+                  </Link>
                 ))}
             </div>
           </li>

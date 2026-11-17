@@ -3,6 +3,7 @@ import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
 import { ProjectPage } from './routes/ProjectPage'
+import { PhotoViewer } from './viewer/PhotoViewer'
 
 const rootRoute = createRootRoute({ component: Layout, notFoundComponent: NotFound })
 
@@ -12,6 +13,13 @@ const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId',
   component: ProjectPage,
+})
+
+// T-0008: the full-screen photo viewer has its own URL, so back closes it and reload reopens it.
+const photoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/photos/$photoId',
+  component: PhotoViewer,
 })
 
 // D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
@@ -27,7 +35,7 @@ const designRoutes =
       ]
     : []
 
-const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, ...designRoutes])
+const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, photoRoute, ...designRoutes])
 
 export const router = createRouter({ routeTree })
 
