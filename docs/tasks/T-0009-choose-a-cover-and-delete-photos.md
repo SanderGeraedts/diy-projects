@@ -5,7 +5,7 @@ description: "Set any of a project's photos as its cover, and delete a photo as 
 status: Open
 guarded: false
 depends_on: [T-0003, T-0007, T-0008]
-decisions: [D-0002, D-0004, D-0011]
+decisions: [D-0002, D-0004, D-0020]
 raised_on: 2026-11-17
 done_on: ""
 result: []
@@ -17,7 +17,7 @@ result: []
   `coverPhotoId` through the write API.
 - "Verwijderen" asks for confirmation and calls T-0003's `deletePhoto` (a tombstone,
   D-0002). The photo disappears from the entry and the viewer; if it was the cover, the
-  project falls back to its newest remaining photo, or the no-photo tile (D-0011).
+  project falls back to its newest remaining photo, or the no-photo tile (D-0020).
 - An entry left without photos and without a note still shows its date with "Geen foto's
   meer".
 
