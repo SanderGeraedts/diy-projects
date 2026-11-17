@@ -26,11 +26,11 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 
 - [T-0013 Build the PocketBase image: schema, rules, history and the publish workflow](T-0013-build-the-pocketbase-image.md): The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image.
 - [T-0002 Apply the sanderg.nl-based design system](T-0002-apply-the-design-system.md): Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests.
-- [T-0023 Add the local guard: no agent merges or pushes to main](T-0023-add-the-local-merge-and-push-guard.md): Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths.
 - [T-0001 Scaffold the app, CI and the auto-merge gate](T-0001-scaffold-the-app-and-ci.md): An installable, empty React + Vite PWA with seeded demo data, deployed to Netlify with previews, and CI that runs checks and enforces the guarded-path auto-merge rule.
 
 ## Done
 
+- [T-0023 Add the local guard: no agent merges or pushes to main](T-0023-add-the-local-merge-and-push-guard.md): Claude Code permissions denying gh pr merge, the merge API and pushes to main, a versioned pre-push hook refusing pushes to main, and .claude/ and .githooks/ added to the guarded paths.
 - [T-0003 Prepare the local database for sync: change tracking, soft deletes, the outbox and a write API](T-0003-prepare-the-local-database-for-sync.md): Dexie schema v2 with updatedAt and tombstones on every record, an outbox of unsynced changes, photo originals kept until uploaded, persistent storage, and the one write API every screen uses.
 - [T-0006 Process photos on the device: date taken, the 2560 px copy and a thumbnail](T-0006-process-photos-on-the-device.md): A tested module that reads a photo's EXIF date taken and makes its 2560 px WebP copy and a thumbnail in a worker, leaving the original untouched.
 - [T-0024 Switch the project to pnpm](T-0024-switch-to-pnpm.md): Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated.
