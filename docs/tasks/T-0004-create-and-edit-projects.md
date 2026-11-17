@@ -2,13 +2,13 @@
 id: T-0004
 title: "Create and edit projects"
 description: "A form to add a project and edit its title, description, status and tags, through the local write API, working offline."
-status: Open
+status: Doing
 guarded: false
 depends_on: [T-0002, T-0003]
 decisions: [D-0002, D-0004, D-0020]
 raised_on: 2026-11-17
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/22"]
 ---
 
 # Goal
@@ -37,3 +37,5 @@ project has a title, description, status (`idea`, `in progress`, `paused`, `done
 - Keep form components reusable for entries (T-0005).
 
 # Log
+
+- 2026-11-17 claude-code/opus-5.5: Stacked on T-0002 (#14). `/projects/new` and `/projects/$projectId/edit` share one form (`src/routes/ProjectForm.tsx`): title (required), description, status, tags (chips; Enter/comma adds; trimmed, lower-cased, de-duplicated; suggestions from tags in use); writes only via `createProject`/`updateProject`. Reusable parts in `src/components/form.tsx` (for T-0005), tag helpers + unit tests in `src/components/tags.ts`, a Formulier section on `/design`. Checks: typecheck clean, `pnpm test` 101 passed, build ok, `test:e2e` 10 passed / 2 skipped incl. new `e2e/projects.spec.ts` (create, edit, reload; same offline). Open: (1) inputs, buttons and tag chips are new component styles; D-0020 asks for a decision for those, so Sander accepts or changes them on the preview; (2) the write API doesn't lower-case tags (the UI does); enforcing it there is a guarded `src/db/` change; (3) the overview doesn't filter tombstoned projects; (4) this task still cites D-0011 (replaced by D-0020). Remaining: Sander checks on the preview, on his Pixel.

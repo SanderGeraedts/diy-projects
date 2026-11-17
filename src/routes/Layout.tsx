@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { auth, useAuthState } from '../auth/session'
+import { SearchLink } from '../components/SearchLink'
 import { UpdateBar } from '../components/UpdateBar'
 import { deployContext, syncConfig } from '../sync/config'
 
@@ -24,7 +25,10 @@ export function Layout() {
           DIY projects
           <span aria-hidden="true" className="mt-0.5 block h-1 w-full bg-accent" />
         </Link>
-        <AccountLink />
+        <div className="flex items-center gap-4">
+          <SearchLink />
+          <AccountLink />
+        </div>
       </header>
       {deployContext !== 'production' && (
         <p className="m-0 bg-grey-lighter px-4 py-1.5 text-sm" role="status">

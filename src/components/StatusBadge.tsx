@@ -8,7 +8,7 @@ export const STATUS_LABELS: Record<ProjectStatus, string> = {
   done: 'klaar',
 }
 
-const STATUS_CLASSES: Record<ProjectStatus, string> = {
+export const STATUS_CLASSES: Record<ProjectStatus, string> = {
   idea: 'bg-status-idea-bg text-status-idea-text',
   'in progress': 'bg-status-in-progress-bg text-status-in-progress-text',
   paused: 'bg-status-paused-bg text-status-paused-text',

@@ -4,6 +4,7 @@ import { PhotoImage } from '../components/PhotoImage'
 import { STATUS_LABELS, StatusBadge } from '../components/StatusBadge'
 import { AccentHeading, ProjectCard, Tags } from '../components/ui'
 import { demoPhotoSvg } from '../seed/demo'
+import { DesignFormSample } from './DesignFormSample'
 
 // D-0020: the reference page of every token and component. Left out of production builds
 // (see router.tsx). Screenshot tests in e2e/design.spec.ts cover it in light and dark.
@@ -107,6 +108,8 @@ export function DesignPage() {
           <PhotoImage photo={samplePhoto} alt="Voorbeeldfoto" className="aspect-[4/3] w-full rounded-card object-cover" />
         </div>
       </section>
+
+      <DesignFormSample />
     </article>
   )
 }
