@@ -3,6 +3,7 @@ import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
 import { ProjectPage } from './routes/ProjectPage'
+import { SearchPage, validateSearchParams } from './routes/SearchPage'
 
 const rootRoute = createRootRoute({ component: Layout, notFoundComponent: NotFound })
 
@@ -12,6 +13,13 @@ const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId',
   component: ProjectPage,
+})
+
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/zoeken',
+  validateSearch: validateSearchParams,
+  component: SearchPage,
 })
 
 // D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
@@ -27,7 +35,7 @@ const designRoutes =
       ]
     : []
 
-const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, ...designRoutes])
+const routeTree = rootRoute.addChildren([overviewRoute, projectRoute, searchRoute, ...designRoutes])
 
 export const router = createRouter({ routeTree })
 

@@ -5,6 +5,7 @@ import { formatDate } from '../components/format'
 import { PhotoImage } from '../components/PhotoImage'
 import { StatusBadge } from '../components/StatusBadge'
 import { AccentHeading, Tags } from '../components/ui'
+import { useScrollToHash } from '../components/useScrollToHash'
 import { db } from '../db/db'
 
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
@@ -17,6 +18,7 @@ export function ProjectPage() {
     [projectId],
   )
   const photos = useLiveQuery(() => db.photos.where('projectId').equals(projectId).sortBy('takenAt'), [projectId])
+  useScrollToHash(!!project && entries !== undefined)
 
   if (project === undefined) return null
   if (project === null) {
@@ -47,7 +49,7 @@ export function ProjectPage() {
       </header>
       <ol className="timeline m-0 mt-8 list-none p-0">
         {(entries ?? []).map((e) => (
-          <li key={e.id} className="mb-8">
+          <li key={e.id} id={`entry-${e.id}`} className="mb-8 scroll-mt-20">
             <AccentHeading level={2}>
               <time dateTime={e.date}>{formatDate(e.date)}</time>
             </AccentHeading>
