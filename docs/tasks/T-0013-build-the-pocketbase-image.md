@@ -67,3 +67,4 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
   and publish but the smoke test is a TODO (superuser, two users, write and update a
   record, history row, stranger sees empty list, history unreadable); `docker build
   deploy/nas`; quote the run in the PR.
+- 2026-11-17 claude-code/opus-5.5: Pinned PocketBase to 0.40.6 (the version Reading List runs with the same migration APIs: authToken.duration, rateLimits). Both 0.30.0 and 0.40.6 exist on GHCR (manifest 200). Still not built or run.
