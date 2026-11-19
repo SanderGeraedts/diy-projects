@@ -8,7 +8,7 @@ depends_on: [T-0007, T-0016]
 decisions: [D-0002, D-0003, D-0005, D-0006, D-0014, D-0015]
 raised_on: 2026-11-17
 done_on: ""
-result: [https://github.com/SanderGeraedts/diy-projects/pull/35]
+result: [https://github.com/SanderGeraedts/diy-projects/pull/35, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
 # Goal
@@ -70,3 +70,4 @@ D-0015's three files per photo:
   uploaded (T-0003's open point). Checks: typecheck clean; `pnpm test` 265 passed / 19
   skipped; build OK; e2e 33 passed / 2 skipped; locally against PocketBase 0.40.6 auth 5/5,
   sync 9/9, photo files 5/5. Draft PR #35 (base `t-0016-sync`).
+- 2026-11-19 claude-code/opus-5.5: Merged in PR #37 (reviewed and merged by Sander); photo upload works in production. Remaining for Done: Sander adds 20 photos on mobile data, closes the app halfway, reopens it, and all of them arrive.

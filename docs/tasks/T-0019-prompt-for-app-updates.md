@@ -2,13 +2,13 @@
 id: T-0019
 title: "Offer app updates safely"
 description: "When a new version is ready, show 'Nieuwe versie beschikbaar' and switch to it on a tap, never in the middle of an import or sync."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0002]
 decisions: [D-0002, D-0007, D-0017]
 raised_on: 2026-11-17
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/21"]
+done_on: "2026-11-19"
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/21", "https://github.com/SanderGeraedts/diy-projects/pull/37"]
 ---
 
 # Goal
@@ -50,3 +50,4 @@ on an installed app can take days.
   Not decided, left as is: a page opened for the first time (not yet controlled by a service
   worker) gets no reload after "Bijwerken" until reopened; an app kept in view for hours
   doesn't check until it comes into view again.
+- 2026-11-19 claude-code/opus-5.5: Done. The guarded src/sw/ change was reviewed and merged by Sander in PR #37.

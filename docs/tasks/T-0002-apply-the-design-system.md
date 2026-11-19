@@ -2,13 +2,13 @@
 id: T-0002
 title: "Apply the sanderg.nl-based design system"
 description: "Replace T-0001's placeholder look with D-0011's design system in Tailwind: tokens, Poppins, the header, card, badge and entry components, the Dutch interface, the new icon, and a /design page with screenshot tests."
-status: Doing
+status: Done
 guarded: false
 depends_on: []             # builds on T-0001's merged scaffold; its PR is T-0001's gate test
 decisions: [D-0004, D-0005, D-0006, D-0007, D-0020]
 raised_on: 2026-11-16
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/14"]
+done_on: "2026-11-19"
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/14", "https://github.com/SanderGeraedts/diy-projects/pull/37"]
 ---
 
 # Goal
@@ -62,3 +62,4 @@ also T-0001's last check of the auto-merge gate.
 - 2026-11-17 claude-code/opus-5.5: Accent bars have square ends (no rounded corners), at Sander's request (D-0020).
 - 2026-11-17 claude-code/opus-5.5: CI failed on PR #14 after T-0003 merged (v2 schema: /design sample data lacked thumbnail, original, uploads, updatedAt, deletedAt). Merged main into the branch (no conflicts) and filled the sample data like the demo seed. Checks: typecheck clean, 91 tests passed, build ok, e2e 7 passed, 2 skipped.
 - 2026-11-17 claude-code/opus-5.5: Merged main (D-0020). CI now runs `pnpm run test:e2e --update-snapshots=missing` and always uploads `e2e/**/*-snapshots/**` as the `screenshot-baselines` artifact (guarded `.github/`); the design spec no longer skips a missing baseline on Linux. Linux baselines for `/design` light + dark made by CI run https://github.com/SanderGeraedts/diy-projects/actions/runs/44092806686 and committed in `e2e/design.spec.ts-snapshots/`. Production sync-off reasons in `src/sync/config.ts` are Dutch ("synchronisatie staat uit in …-builds", "geen PocketBase-adres ingesteld"; guarded `src/sync/`). App name stays "DIY projects". Checks: typecheck clean, `pnpm test` 91 passed, build ok, `test:e2e` 7 passed / 2 skipped locally (Windows); CI https://github.com/SanderGeraedts/diy-projects/actions/runs/44093111985 green, e2e 9 passed with both screenshots compared. Remaining: Sander checks the overview, a project page and `/design` on the Netlify preview on his Pixel, light and dark.
+- 2026-11-19 claude-code/opus-5.5: Done. Merged with the v1 integration, PR #37 (reviewed and merged by Sander); Sander used the design on his phone in production and asked for the text-width square bars (D-0020) after looking at it.
