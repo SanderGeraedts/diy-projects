@@ -2,11 +2,11 @@
 id: D-0017
 title: "Agents may auto-merge a green PR, except one that touches a guarded path; until the repo is public a local guard stops agents merging or pushing to main"
 description: "D-0012's auto-merge rule and question exception, with .claude/ and .githooks/ added to the guarded paths, and a local guard (Claude Code permissions and a versioned pre-push hook) that stops agents merging PRs or pushing to main while GitHub Free offers no branch protection; branch protection replaces it when the repo goes public."
-status: Accepted
+status: Replaced
 date: 2026-11-17
 decided_by: sander
 replaces: [D-0012]
-replaced_by: []
+replaced_by: [D-0028]
 resolves: [Q-001]
 tags: [process, safety]
 ---
