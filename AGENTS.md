@@ -17,15 +17,16 @@ recorded decisions and tasks.
 - **Decisions are the source of truth,** not chat history. A choice that would need a
   discussion to reverse becomes a decision record, in the same commit as the code.
 - **Never contradict an Accepted decision.** Stop and ask Sander.
-- **Guarded paths need Sander's review** (D-0017): `deploy/nas/`, `src/sync/`, `src/db/`,
-  `src/sw/`, `src/auth/`, `docs/decisions/`, `AGENTS.md`, `CLAUDE.md`, `.github/`,
-  `.claude/`, `.githooks/`. Keep such code in those folders. One exception: a PR that only
-  raises new open questions merges itself, so raise each in a PR of its own.
-- **Never merge a PR, push to `main`, or skip git hooks** (D-0017). The auto-merge workflow
-  and Sander merge.
+- **Every change goes through a PR; green PRs merge** (D-0028). No paths are guarded: the
+  auto-merge workflow merges green PRs into main, and you may `gh pr merge` a PR once all
+  its checks are green. Say plainly in the PR when it changes the merge workflow, `.claude/`
+  or `.githooks/`.
+- **Never push to `main` or skip git hooks** (D-0028), and never merge a red, pending or
+  draft PR.
 - **Never point anything but production at the real NAS** (D-0006).
 - **Manage the NAS only with `deploy/nas/admin/truenas.mjs`** (D-0027). Ask Sander in chat
-  before any `--confirmed` (destructive) call, and never print or commit the key.
+  before any `--confirmed` (destructive) call, take a PocketBase backup before merging a
+  schema change (D-0018), and never print or commit the key.
 - **Use pnpm** (D-0019): `pnpm install`, `pnpm run <script>`, `pnpm exec`; never `npm` or
   `npx`, and never commit a `package-lock.json`.
 - **Prove your work.** Run the task's check and report its actual output.

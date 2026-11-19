@@ -3,7 +3,7 @@ id: T-NNNN
 title: "What the task delivers, as an imperative"
 description: "One sentence, for the index."
 status: Open                # Open | Doing | Done | Dropped
-guarded: false              # true if it touches a guarded path (D-0009): Sander reviews the PR
+guarded: false              # no longer used (D-0028: no guarded paths)
 depends_on: []              # tasks that must be Done first
 decisions: []               # decisions this task must follow
 raised_on: YYYY-MM-DD
