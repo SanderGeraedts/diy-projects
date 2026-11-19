@@ -9,8 +9,19 @@ import PocketBase, { ClientResponseError, type RecordModel } from 'pocketbase'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createAuth } from '../auth/auth'
 import { openDb, type DiyDb } from '../db/db'
-import { addEntry, addPhotos, countUnsynced, createProject, deletePhoto, updateEntry, updateProject } from '../db/write'
+import {
+  addEntry,
+  addPhotos,
+  countUnsynced,
+  createProject,
+  deletePhoto,
+  deleteProject,
+  restoreProject,
+  updateEntry,
+  updateProject,
+} from '../db/write'
 import { createSyncEngine, type SyncEngine } from './engine'
+import { purgeOnNas } from './purge'
 
 const URL = process.env.POCKETBASE_TEST_URL ?? ''
 const SU_EMAIL = process.env.POCKETBASE_TEST_SUPERUSER_EMAIL ?? ''
@@ -310,5 +321,63 @@ describe.skipIf(!URL)('sync against a real PocketBase (T-0016)', { timeout: 120_
     await expect(other.pb.collection('projects').update(project.id, newer)).rejects.toSatisfy(refused)
     expect((await su.collection('projects').getOne(project.id)).title).toBe('Van A')
     expect(await history(project.id)).toHaveLength(0)
+  })
+
+  it('a restore on one device shows on another (T-0022)', async () => {
+    const { email } = await user()
+    const phone = await device(email)
+    const laptop = await device(email)
+    const project = await createProject({ title: 'Tuinbank' }, phone.db)
+    const entry = await addEntry({ projectId: project.id, date: '2026-11-17', note: 'Poten' }, phone.db)
+    const [p] = await addPhotos(entry.id, [photo(1)], phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+
+    await deleteProject(project.id, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect((await laptop.db.projects.get(project.id))?.deletedAt).not.toBeNull()
+    expect((await laptop.db.photos.get(p!.id))?.deletedAt).not.toBeNull()
+
+    expect(await restoreProject(project.id, phone.db)).toBe(1)
+    expect(await phone.sync()).toMatchObject({ lastError: null, pushed: 3 })
+    expect(await countUnsynced(phone.db)).toBe(0)
+    for (const [c, id] of [['projects', project.id], ['entries', entry.id], ['photos', p!.id]] as const) {
+      expect((await su.collection(c).getOne(id)).deletedAt).toBe('')
+    }
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect((await laptop.db.projects.get(project.id))?.deletedAt).toBeNull()
+    expect((await laptop.db.entries.get(entry.id))?.deletedAt).toBeNull()
+    expect((await laptop.db.photos.get(p!.id))?.deletedAt).toBeNull()
+    // Its copy is still on the laptop, so the photo shows again offline.
+    expect((await laptop.db.photos.get(p!.id))?.blob).toBeInstanceOf(Blob)
+  })
+
+  it('a guest or another account can neither see the bin nor delete from it for good (T-0022)', async () => {
+    const a = await user()
+    const b = await user()
+    const phone = await device(a.email)
+    const other = await device(b.email)
+    const project = await createProject({ title: 'In de prullenbak' }, phone.db)
+    await addEntry({ projectId: project.id, date: '2026-11-17', note: 'Weg' }, phone.db)
+    await deleteProject(project.id, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+
+    const guest = client()
+    for (const pb of [guest, other.pb]) {
+      for (const c of ['projects', 'entries', 'photos']) {
+        const listed = await pb.collection(c).getFullList({ filter: 'deletedAt != ""' })
+        expect(listed).toEqual([])
+      }
+      await expect(purgeOnNas(pb, 'project', project.id)).rejects.toBeInstanceOf(ClientResponseError)
+    }
+    const stored = await su.collection('projects').getOne(project.id)
+    expect(stored).toMatchObject({ title: 'In de prullenbak', purgedAt: '' })
+    // Only the owner, and only what is in the bin.
+    const live = await createProject({ title: 'Levend' }, phone.db)
+    await phone.sync()
+    await expect(purgeOnNas(phone.pb, 'project', live.id)).rejects.toMatchObject({ status: 400 })
+    await purgeOnNas(phone.pb, 'project', project.id)
+    expect((await su.collection('projects').getOne(project.id)).purgedAt).not.toBe('')
   })
 })
