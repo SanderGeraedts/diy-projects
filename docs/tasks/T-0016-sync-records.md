@@ -8,7 +8,7 @@ depends_on: [T-0003, T-0013, T-0015]
 decisions: [D-0002, D-0005, D-0006, D-0017]
 raised_on: 2026-11-17
 done_on: ""
-result: [https://github.com/SanderGeraedts/diy-projects/pull/30]
+result: [https://github.com/SanderGeraedts/diy-projects/pull/30, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
 # Goal
@@ -65,3 +65,4 @@ syncs photo *records* (and tombstones) but not their files.
   `sync.pocketbase.test.ts` 9/9 against PocketBase 0.40.6 locally. CI run 44098757341 green: `checks`, and
   `pocketbase-auth` with the sign-in tests 5/5 and the sync tests 9/9; `backend` smoke test
   green with the new migration and hook. Draft PR #30 (base `t-0015-sign-in`).
+- 2026-11-19 claude-code/opus-5.5: Merged in PR #37 (reviewed and merged by Sander); sync runs in production. Remaining for Done: Sander sees a project made on the phone appear on the laptop (use a personal laptop, not the managed work one).

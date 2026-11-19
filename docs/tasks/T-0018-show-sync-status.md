@@ -2,13 +2,13 @@
 id: T-0018
 title: "Show sync status: unsynced changes, last sync and storage warnings"
 description: "A small status in the header with the number of unsynced changes and photos, the last successful sync, errors, and a warning when the browser hasn't granted persistent storage."
-status: Doing
+status: Done
 guarded: false
 depends_on: [T-0016]
 decisions: [D-0002, D-0006, D-0020, D-0013]
 raised_on: 2026-11-17
-done_on: ""
-result: [https://github.com/SanderGeraedts/diy-projects/pull/33]
+done_on: "2026-11-19"
+result: [https://github.com/SanderGeraedts/diy-projects/pull/33, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
 # Goal
@@ -57,3 +57,4 @@ count must be visible (D-0002):
   Checks: typecheck clean, `pnpm test` 174 passed / 14 skipped, build OK, e2e 16 passed /
   2 skipped (screenshot tests, Linux only) on port 4718; a production build
   (`POCKETBASE_URL=https://pb.invalid`) contains the status and not the test route.
+- 2026-11-19 claude-code/opus-5.5: Done. Merged in PR #37 (reviewed and merged by Sander); the status shows in production on his phone ("It's working").

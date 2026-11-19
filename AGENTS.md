@@ -27,5 +27,9 @@ recorded decisions and tasks.
 - **Use pnpm** (D-0019): `pnpm install`, `pnpm run <script>`, `pnpm exec`; never `npm` or
   `npx`, and never commit a `package-lock.json`.
 - **Prove your work.** Run the task's check and report its actual output.
+- **Keep task status current** (D-0024): update the task's status, Log and `result` in the
+  same PR as the work (every task a PR carries), mark open post-merge checks `Remaining:`,
+  record Sander's confirmations right away, and regenerate the index with
+  `pnpm run tasks:index`; never edit it by hand.
 - **Personal repository** (D-0010): commit as `sandergeraedts@live.nl`, and push or use `gh`
   only as `SanderGeraedts`.

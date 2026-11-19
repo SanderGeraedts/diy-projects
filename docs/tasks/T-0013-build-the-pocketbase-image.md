@@ -2,13 +2,13 @@
 id: T-0013
 title: "Build the PocketBase image: schema, rules, history and the publish workflow"
 description: "The PocketBase backend in deploy/nas/: migrations for projects, entries, photos and history, owner-only rules, CORS, the photo size limit, a history hook, and a GitHub Actions workflow that checks the migrations and publishes the image."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0003]
 decisions: [D-0002, D-0003, D-0004, D-0005, D-0006, D-0010, D-0017, D-0013, D-0014, D-0015, D-0018]
 raised_on: 2026-11-17
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/17"]
+done_on: "2026-11-19"
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/17", "https://github.com/SanderGeraedts/diy-projects/pull/37"]
 ---
 
 # Goal
@@ -79,3 +79,4 @@ The backend as code, built and published by GitHub Actions; the NAS only pulls i
   https://github.com/SanderGeraedts/diy-projects/actions/runs/44092929449. `docker build`
   ran in CI only (no Docker locally). Remaining: Sander's review and, after the first
   publish, the GHCR package visibility (or a read token).
+- 2026-11-19 claude-code/opus-5.5: Done. Sander reviewed and merged the image (PR #17, then #37); the backend workflow published it to GHCR and it runs on the NAS (T-0014).

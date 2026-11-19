@@ -2,13 +2,13 @@
 id: T-0001
 title: "Scaffold the app, CI and the auto-merge gate"
 description: "An installable, empty React + Vite PWA with seeded demo data, deployed to Netlify with previews, and CI that runs checks and enforces the guarded-path auto-merge rule."
-status: Doing
+status: Done
 guarded: true
 depends_on: []
 decisions: [D-0006, D-0007, D-0009, D-0010]
 raised_on: 2026-11-16
-done_on: ""
-result: [https://github.com/SanderGeraedts/diy-projects/pull/1]
+done_on: "2026-11-19"
+result: [https://github.com/SanderGeraedts/diy-projects/pull/1, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
 # Goal
@@ -42,3 +42,4 @@ touches `.github/`, so it is guarded.
 - 2026-11-16 claude-code/opus-5.5: opened PR #1; CI `checks` passed in 54s. Waiting for Sander: Netlify site and preview check, review and merge, then the two test PRs for the gate.
 - 2026-11-16 claude-code/opus-5.5: PR #1 merged by Sander; projects.sanderg.nl added as the primary domain (Netlify DNS, existing *.sanderg.nl certificate). Guarded-path gate checked on PR #2 (touches docs/decisions/): CI green, the Auto-merge run labelled it needs-review and commented instead of merging. Netlify built deploy-preview-2. Still open: the unguarded half (T-0002 PR should merge itself) and Sander checking a preview on the Pixel.
 - 2026-11-17 claude-code/opus-5.5: Gate checked both ways. Unguarded: PR #13 (T-0006, src/photos/) and PR #10 (docs/tasks) merged themselves when green. Guarded: PRs #11 (src/db/) and #12 (.github/, .claude/, .githooks/) got `needs-review` and wait. Question-only PRs #4–#7 merged themselves (D-0017's exception). Netlify previews work (deploy-preview-9). Remaining for Done: Sander confirms.
+- 2026-11-19 claude-code/opus-5.5: Done. The gate has worked both ways since 2026-11-17 (guarded PRs labelled needs-review, unguarded and question-only PRs merged themselves), Netlify previews and production deploy on merge; Sander has used it throughout, which settles "Sander confirms".

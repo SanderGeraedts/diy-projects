@@ -2,13 +2,13 @@
 id: T-0015
 title: "Sign in to PocketBase with email and password"
 description: "The sign-in screen and token handling in src/auth/, production only: a 90-day token renewed on sync, an expired sign-in that only pauses sync, and a sign-out that syncs, warns, then clears the device."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0003, T-0013]
 decisions: [D-0002, D-0005, D-0006, D-0013]
 raised_on: 2026-11-17
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/27"]
+done_on: "2026-11-19"
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/27", "https://github.com/SanderGeraedts/diy-projects/pull/37"]
 ---
 
 # Goal
@@ -56,3 +56,4 @@ D-0013's sign-in:
   any 401, which turned a revoked sign-in into "signed out"; auth now remembers the account
   so it reads as `expired`. CI run 44095495434 green: `checks` (Linux screenshots 10/10)
   and `pocketbase-auth` 5/5. Draft PR #27.
+- 2026-11-19 claude-code/opus-5.5: Done. Reviewed and merged by Sander in PR #37; Sander created his account and signed in on his phone in production ("It's working").
