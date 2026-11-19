@@ -1,7 +1,7 @@
 // @vitest-environment node
 // Node, not jsdom: jsdom Blobs do not survive fake-indexeddb's structured clone.
 import Dexie from 'dexie'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openDb, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, upgradeToV2, type DiyDb } from './db'
 import {
   addEntry,
@@ -12,7 +12,12 @@ import {
   deleteEntry,
   deletePhoto,
   deleteProject,
+  forgetPurged,
   markPhotoFileUploaded,
+  purgeScope,
+  removePurged,
+  restoreEntry,
+  restoreProject,
   updateEntry,
   updateProject,
   ValidationError,
@@ -28,6 +33,7 @@ function freshDb(): DiyDb {
 }
 
 afterEach(async () => {
+  vi.useRealTimers()
   await db?.delete()
   db = undefined
 })
@@ -480,5 +486,167 @@ describe('deletes cascade (T-0010, D-0014)', () => {
     const rows = await rowsAfter(d, before)
     expect(rows).toHaveLength(1 + 3 + 1)
     expect(rows.at(-1)).toEqual(['projects', s.shed.id, 'put'])
+  })
+})
+
+describe('the bin (T-0022, D-0014)', () => {
+  /** Pins the clock, so each delete has its own time. Only Date is faked. */
+  function at(iso: string) {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(iso))
+  }
+
+  /**
+   * Shed: day1 (2 photos), day2 (3 photos), and day3 deleted on its own first (1 photo); one of
+   * day2's photos also deleted on its own first. Bench: one entry, one photo, untouched.
+   */
+  async function binned(d: DiyDb) {
+    at('2026-11-17T09:00:00.000Z')
+    const shed = await createProject({ title: 'Shed' }, d)
+    const day1 = await addEntry({ projectId: shed.id, date: '2026-11-16', note: 'Base' }, d)
+    const day2 = await addEntry({ projectId: shed.id, date: '2026-11-17', note: 'Roof' }, d)
+    const day3 = await addEntry({ projectId: shed.id, date: '2026-11-18', note: 'Door' }, d)
+    const day1Photos = await addPhotos(day1.id, [newPhoto(1), newPhoto(2)], d)
+    const day2Photos = await addPhotos(day2.id, [newPhoto(3), newPhoto(4), newPhoto(5)], d)
+    const day3Photos = await addPhotos(day3.id, [newPhoto(6)], d)
+    const bench = await createProject({ title: 'Bench' }, d)
+    const benchDay = await addEntry({ projectId: bench.id, date: '2026-11-17' }, d)
+    const benchPhotos = await addPhotos(benchDay.id, [newPhoto(7)], d)
+    at('2026-11-17T10:00:00.000Z')
+    await deletePhoto(day2Photos[0]!.id, d)
+    at('2026-11-17T11:00:00.000Z')
+    await deleteEntry(day3.id, d)
+    return { shed, day1, day2, day3, day1Photos, day2Photos, day3Photos, bench, benchDay, benchPhotos }
+  }
+
+  const liveIds = (rows: { id: string; deletedAt: string | null }[]) =>
+    rows
+      .filter((r) => r.deletedAt === null)
+      .map((r) => r.id)
+      .sort()
+  const live = async (d: DiyDb) => ({
+    projects: liveIds(await d.projects.toArray()),
+    entries: liveIds(await d.entries.toArray()),
+    photos: liveIds(await d.photos.toArray()),
+  })
+  const rowsAfter = async (d: DiyDb, before: number) =>
+    (await d.outbox.orderBy('id').toArray()).slice(before).map((r) => [r.table, r.recordId, r.op])
+
+  it('restoreProject brings back exactly what its delete took, one put row each', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    const before = await live(d)
+    at('2026-11-17T12:00:00.000Z')
+    await deleteProject(s.shed.id, d)
+    const queued = await d.outbox.count()
+
+    at('2026-11-17T13:00:00.000Z')
+    expect(await restoreProject(s.shed.id, d)).toBe(4)
+
+    // As before the project's delete: day3 and the photo deleted on their own stay in the bin.
+    expect(await live(d)).toEqual(before)
+    expect((await d.entries.get(s.day3.id))?.deletedAt).toBe('2026-11-17T11:00:00.000Z')
+    expect((await d.photos.get(s.day2Photos[0]!.id))?.deletedAt).toBe('2026-11-17T10:00:00.000Z')
+    expect(await d.projects.get(s.shed.id)).toMatchObject({ deletedAt: null, updatedAt: '2026-11-17T13:00:00.000Z' })
+    const rows = await rowsAfter(d, queued)
+    expect(rows).toHaveLength(2 + 4 + 1)
+    expect(rows.every(([, , op]) => op === 'put')).toBe(true)
+    expect(rows.at(-1)).toEqual(['projects', s.shed.id, 'put'])
+    // The blobs were never dropped, so the photos show again.
+    expect((await d.photos.get(s.day1Photos[0]!.id))?.blob).toBeInstanceOf(Blob)
+  })
+
+  it('restoreEntry brings back the entry and the photos its delete took', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    const queued = await d.outbox.count()
+    at('2026-11-17T13:00:00.000Z')
+    expect(await restoreEntry(s.day3.id, d)).toBe(1)
+    expect((await d.entries.get(s.day3.id))?.deletedAt).toBeNull()
+    expect((await d.photos.get(s.day3Photos[0]!.id))?.deletedAt).toBeNull()
+    expect(await rowsAfter(d, queued)).toEqual([
+      ['photos', s.day3Photos[0]!.id, 'put'],
+      ['entries', s.day3.id, 'put'],
+    ])
+  })
+
+  it('refuses to restore what is not in the bin, or an entry whose project is deleted', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    await expect(restoreProject(s.bench.id, d)).rejects.toThrow(ValidationError)
+    await expect(restoreEntry(s.day1.id, d)).rejects.toThrow(ValidationError)
+    await expect(restoreProject('nope', d)).rejects.toThrow(ValidationError)
+    at('2026-11-17T12:00:00.000Z')
+    await deleteProject(s.shed.id, d)
+    const queued = await d.outbox.count()
+    await expect(restoreEntry(s.day3.id, d)).rejects.toThrow('Restore the project first.')
+    expect(await d.outbox.count()).toBe(queued)
+  })
+
+  it('a failure halfway through a restore leaves everything in the bin and nothing queued', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    at('2026-11-17T12:00:00.000Z')
+    await deleteProject(s.shed.id, d)
+    const queued = await d.outbox.count()
+    const deleted = await live(d)
+    let calls = 0
+    d.outbox.hook('creating', () => {
+      if (++calls === 3) throw new Error('disk full')
+    })
+    await expect(restoreProject(s.shed.id, d)).rejects.toThrow('disk full')
+    expect(await live(d)).toEqual(deleted)
+    expect(await d.outbox.count()).toBe(queued)
+  })
+
+  it('purgeScope is everything in the project or entry, also what was deleted on its own', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    const scope = await purgeScope('project', s.shed.id, d)
+    expect(scope.projects).toEqual([s.shed.id])
+    expect(scope.entries.sort()).toEqual([s.day1.id, s.day2.id, s.day3.id].sort())
+    expect(scope.photos.sort()).toEqual([...s.day1Photos, ...s.day2Photos, ...s.day3Photos].map((p) => p.id).sort())
+    expect(await purgeScope('entry', s.day3.id, d)).toEqual({
+      projects: [],
+      entries: [s.day3.id],
+      photos: [s.day3Photos[0]!.id],
+    })
+  })
+
+  it('removePurged drops a binned project, all it holds and their outbox rows; the rest stays', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    at('2026-11-17T12:00:00.000Z')
+    await deleteProject(s.shed.id, d)
+    await removePurged('project', s.shed.id, d)
+    expect(await d.projects.toCollection().primaryKeys()).toEqual([s.bench.id])
+    expect(await d.entries.toCollection().primaryKeys()).toEqual([s.benchDay.id])
+    expect(await d.photos.toCollection().primaryKeys()).toEqual([s.benchPhotos[0]!.id])
+    const ids = new Set([s.bench.id, s.benchDay.id, s.benchPhotos[0]!.id])
+    expect((await d.outbox.toArray()).every((r) => ids.has(r.recordId))).toBe(true)
+  })
+
+  it('removePurged refuses a live item and leaves a missing one alone', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    await expect(removePurged('project', s.bench.id, d)).rejects.toThrow(ValidationError)
+    await expect(removePurged('entry', s.day1.id, d)).rejects.toThrow(ValidationError)
+    await removePurged('entry', 'gone-already', d)
+    await removePurged('entry', s.day3.id, d)
+    expect(await d.entries.get(s.day3.id)).toBeUndefined()
+    expect(await d.photos.get(s.day3Photos[0]!.id)).toBeUndefined()
+    expect(await d.projects.get(s.shed.id)).toMatchObject({ deletedAt: null })
+  })
+
+  it('forgetPurged drops one record and only its outbox rows', async () => {
+    const d = freshDb()
+    const s = await binned(d)
+    const photoId = s.day1Photos[0]!.id
+    expect(await d.outbox.where('[table+recordId]').equals(['photos', photoId]).count()).toBe(1)
+    const others = (await d.outbox.count()) - 1
+    await forgetPurged('photos', photoId, d)
+    expect(await d.photos.get(photoId)).toBeUndefined()
+    expect(await d.outbox.count()).toBe(others)
+    expect(await d.photos.get(s.day1Photos[1]!.id)).toBeDefined()
   })
 })

@@ -7,7 +7,6 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 ## Open
 
 - [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
-- [T-0022 Add the bin: restore or permanently delete deleted projects and entries (after v1)](T-0022-add-the-bin.md): A bin screen listing deleted projects and entries, with restore, and a permanent delete that removes the files and history from the NAS but keeps a marker that refuses late uploads.
 
 ## Doing
 
@@ -15,6 +14,7 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 - [T-0008 View photos full screen](T-0008-view-photos-full-screen.md): A full-screen photo viewer with swipe between an entry's photos and pinch zoom, sized for the open Pixel Fold.
 - [T-0016 Sync projects and entries with PocketBase](T-0016-sync-records.md): The sync engine in src/sync/: push the outbox, pull changes since the last sync, last-write-wins with history kept on the NAS, tested in CI against a throwaway PocketBase.
 - [T-0017 Sync photo files: upload the original, copy and thumbnail; other devices fetch copy and thumbnail](T-0017-sync-photos.md): Upload each photo's untouched original, its 2560 px copy and its thumbnail in the background, resuming after interruptions; drop the device's original once confirmed; other devices download only the copy and thumbnail.
+- [T-0022 Add the bin: restore or permanently delete deleted projects and entries (after v1)](T-0022-add-the-bin.md): A bin screen listing deleted projects and entries, with restore, and a permanent delete that removes the files and history from the NAS but keeps a marker that refuses late uploads.
 - [T-0026 Show public projects read-only to visitors who aren't signed in](T-0026-public-read-only-view.md): A per-project public switch (on by default, D-0025), PocketBase rules that let anyone read public projects, their entries and photo copies and thumbnails but never originals, and a read-only online view for visitors.
 
 ## Done

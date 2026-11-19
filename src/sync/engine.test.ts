@@ -10,13 +10,18 @@ import {
   clearLocalData,
   countUnsynced,
   createProject,
+  deleteEntry,
   deletePhoto,
+  deleteProject,
+  removePurged,
+  restoreProject,
   updateEntry,
   updateProject,
   type NewPhoto,
 } from '../db/write'
 import { isBusy } from '../sw/busy'
 import { createSyncEngine, type SyncEngine } from './engine'
+import { purgeOnNas } from './purge'
 import { FakePocketBase, fakeAuth, responseError } from './testing'
 
 let n = 0
@@ -788,5 +793,138 @@ describe('runs', () => {
     const project = await createProject({ title: 'Een' }, db)
     await vi.waitFor(() => expect(server.get('projects', project.id)).toBeDefined())
     await vi.waitFor(async () => expect(await countUnsynced(db)).toBe(0))
+  })
+})
+
+describe('the bin (T-0022, D-0014)', () => {
+  /** A project with an entry and two photos, synced from the phone and pulled by the laptop. */
+  async function shared(server: FakePocketBase) {
+    const phone = device(server)
+    const laptop = device(server)
+    at('2026-11-17T09:00:00.000Z')
+    const project = await createProject({ title: 'Tuinbank' }, phone.db)
+    const entry = await addEntry({ projectId: project.id, date: '2026-11-17', note: 'Poten' }, phone.db)
+    const photos = await addPhotos(entry.id, [photo(1), photo(2)], phone.db)
+    vi.useRealTimers()
+    await phone.sync()
+    await laptop.sync()
+    expect(await laptop.db.photos.count()).toBe(2)
+    return { phone, laptop, project, entry, photos }
+  }
+
+  const all = async (db: DiyDb) => ({
+    projects: await db.projects.count(),
+    entries: await db.entries.count(),
+    photos: await db.photos.count(),
+    outbox: await db.outbox.count(),
+  })
+
+  it('a restore on one device shows on another', async () => {
+    const server = new FakePocketBase()
+    const { phone, laptop, project, entry, photos } = await shared(server)
+    at('2026-11-17T10:00:00.000Z')
+    await deleteProject(project.id, phone.db)
+    vi.useRealTimers()
+    await phone.sync()
+    await laptop.sync()
+    expect((await laptop.db.projects.get(project.id))?.deletedAt).not.toBeNull()
+
+    at('2026-11-17T11:00:00.000Z')
+    await restoreProject(project.id, phone.db)
+    vi.useRealTimers()
+    await phone.sync()
+    expect(phone.engine.getStatus()).toMatchObject({ lastError: null, pushed: 4 })
+    await laptop.sync()
+    expect(laptop.engine.getStatus().lastError).toBeNull()
+    expect((await laptop.db.projects.get(project.id))?.deletedAt).toBeNull()
+    expect((await laptop.db.entries.get(entry.id))?.deletedAt).toBeNull()
+    for (const p of photos) expect((await laptop.db.photos.get(p.id))?.deletedAt).toBeNull()
+  })
+
+  it('a permanent delete on the NAS reaches the other device, which drops its copies', async () => {
+    const server = new FakePocketBase()
+    const { phone, laptop, project, photos } = await shared(server)
+    await deleteProject(project.id, phone.db)
+    await phone.sync()
+    await laptop.sync()
+
+    await purgeOnNas(phone.client, 'project', project.id)
+    await removePurged('project', project.id, phone.db)
+    for (const p of photos) expect(server.file('photos', p.id, 'copy')).toBeUndefined()
+    expect(server.get('photos', photos[0]!.id)).toMatchObject({ copy: '', original: '', thumbnail: '' })
+    expect(server.history.filter((h) => h.recordId === project.id)).toEqual([])
+
+    await laptop.sync()
+    expect(laptop.engine.getStatus()).toMatchObject({ lastError: null, pulled: 4 })
+    expect(await all(laptop.db)).toEqual({ projects: 0, entries: 0, photos: 0, outbox: 0 })
+    // The markers never come back as records, also not on the phone.
+    await phone.sync()
+    await laptop.sync()
+    expect(await all(phone.db)).toEqual({ projects: 0, entries: 0, photos: 0, outbox: 0 })
+    expect(await all(laptop.db)).toEqual({ projects: 0, entries: 0, photos: 0, outbox: 0 })
+  })
+
+  it('a late edit of a purged record is refused (410) and dropped, without blocking the queue', async () => {
+    const server = new FakePocketBase()
+    const { phone, laptop, project, entry } = await shared(server)
+    await deleteEntry(entry.id, phone.db)
+    await phone.sync()
+    // The laptop, offline, still edits the entry and adds a project.
+    await updateEntry(entry.id, { note: 'Late' }, laptop.db)
+    const other = await createProject({ title: 'Kast' }, laptop.db)
+    await purgeOnNas(phone.client, 'entry', entry.id)
+
+    await laptop.sync()
+    expect(laptop.engine.getStatus().lastError).toBeNull()
+    expect(await laptop.db.entries.get(entry.id)).toBeUndefined()
+    expect(await laptop.db.photos.count()).toBe(0)
+    expect(await countUnsynced(laptop.db)).toBe(0)
+    expect(server.get('entries', entry.id)).toMatchObject({ note: '' })
+    expect(server.get('projects', other.id)).toMatchObject({ title: 'Kast' })
+    expect(await laptop.db.projects.get(project.id)).toBeDefined()
+  })
+
+  it('a new photo under a purged entry is refused (410) and not created', async () => {
+    const server = new FakePocketBase()
+    const { phone, laptop, entry } = await shared(server)
+    // The laptop, offline, adds a photo to the entry the phone then deletes for good.
+    const [late] = await addPhotos(entry.id, [photo(3)], laptop.db)
+    await deleteEntry(entry.id, phone.db)
+    await phone.sync()
+    await purgeOnNas(phone.client, 'entry', entry.id)
+
+    await laptop.sync()
+    expect(laptop.engine.getStatus().lastError).toBeNull()
+    expect(server.get('photos', late!.id)).toBeUndefined()
+    expect(await laptop.db.photos.get(late!.id)).toBeUndefined()
+    expect(await countUnsynced(laptop.db)).toBe(0)
+  })
+
+  it('an upload of a photo purged in between is refused (410), not stored, and the photo dropped', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const project = await createProject({ title: 'Kast' }, phone.db)
+    const entry = await addEntry({ projectId: project.id, date: '2026-11-17' }, phone.db)
+    const [p] = await addPhotos(entry.id, [photo(1)], phone.db)
+    // Another device deletes the photo for good after this device's pull, before its upload.
+    server.interceptor = (op) => {
+      if (op !== 'upload') return
+      server.interceptor = null
+      server.put('photos', { ...server.get('photos', p!.id)!, deletedAt: '2026-11-17T12:00:00.000Z' })
+      server.purge('photos', p!.id)
+    }
+    await phone.sync()
+    expect(phone.engine.getStatus()).toMatchObject({ lastError: null, uploaded: 0 })
+    expect(await phone.db.photos.get(p!.id)).toBeUndefined()
+    expect(server.get('photos', p!.id)).toMatchObject({ copy: '', thumbnail: '', original: '' })
+    expect([...server.files.keys()].filter((k) => k.includes(p!.id))).toEqual([])
+  })
+
+  it('the NAS refuses to purge a live record', async () => {
+    const server = new FakePocketBase()
+    const { phone, project } = await shared(server)
+    await expect(purgeOnNas(phone.client, 'project', project.id)).rejects.toMatchObject({ status: 400 })
+    expect(server.get('projects', project.id)).toMatchObject({ title: 'Tuinbank' })
+    expect(server.get('projects', project.id)?.purgedAt).toBeUndefined()
   })
 })

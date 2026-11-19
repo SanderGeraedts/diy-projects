@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '@tanstack/react-router'
 import { validateOverviewSearch } from './filters'
 import { AddEntryPage } from './routes/AddEntry'
+import { BinPage } from './routes/Bin'
 import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
@@ -61,6 +62,13 @@ const searchRoute = createRoute({
   component: ownerOnly(SearchPage),
 })
 
+// T-0022 (D-0014): the bin, the owner's only; a visitor gets "Niet gevonden".
+const binRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/prullenbak',
+  component: ownerOnly(BinPage),
+})
+
 // D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at
 // build time, so in production this branch and the page's chunk are dropped.
 const designRoutes =
@@ -99,6 +107,7 @@ const routeTree = rootRoute.addChildren([
   addEntryRoute,
   photoRoute,
   searchRoute,
+  binRoute,
   ...designRoutes,
   ...accountRoutes,
 ])

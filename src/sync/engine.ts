@@ -1,7 +1,7 @@
 import { ClientResponseError } from 'pocketbase'
 import { REAUTH_MESSAGE } from '../auth/auth'
 import type { DiyDb, OutboxItem, SyncedTable } from '../db/db'
-import { markPhotoFileUploaded } from '../db/write'
+import { forgetPurged, markPhotoFileUploaded } from '../db/write'
 import { startBusy } from '../sw/busy'
 import {
   confirmedFiles,
@@ -15,7 +15,16 @@ import {
   type FileApi,
   type UploadStep,
 } from './photos'
-import { downloadedPhoto, fromServer, isNewer, SYNCED_TABLES, toServer, type LocalRecord, type ServerRecord } from './records'
+import {
+  downloadedPhoto,
+  fromServer,
+  isNewer,
+  isPurged,
+  SYNCED_TABLES,
+  toServer,
+  type LocalRecord,
+  type ServerRecord,
+} from './records'
 
 // T-0016: the sync engine (D-0002). PocketBase on the NAS is the master; each run
 //
@@ -33,6 +42,11 @@ import { downloadedPhoto, fromServer, isNewer, SYNCED_TABLES, toServer, type Loc
 //    only when all three are confirmed. A tombstoned photo uploads nothing more (D-0014).
 //    Photos from other devices are downloaded during the pull: copy and thumbnail only.
 // 4. renews the sign-in (D-0013).
+//
+// The bin (T-0022, D-0014): a record the NAS deleted for good stays there as a marker with
+// `purgedAt` (deploy/nas/pb_hooks/bin.pb.js). A marker that comes in through a pull, or a
+// push or upload the NAS answers with 410 Gone, drops this device's copy of that record and
+// its outbox rows: the NAS refuses those changes for good, so they would block the queue.
 //
 // Last-write-wins itself is decided on the NAS (deploy/nas/pb_hooks/last_write_wins.pb.js):
 // a push older than the stored record is kept in `history` and answered with the stored
@@ -148,6 +162,11 @@ class SignInRefused extends Error {
   constructor() {
     super('sync paused: the sign-in was refused')
   }
+}
+
+/** The NAS deleted the record for good (T-0022): it refuses every later change to it. */
+function isGone(err: unknown): boolean {
+  return err instanceof ClientResponseError && err.status === 410
 }
 
 /** The NAS refused the sign-in: pause, keep the outbox (D-0013). */
@@ -299,7 +318,23 @@ export function createSyncEngine(options: SyncEngineOptions) {
         continue
       }
 
-      const stored = await upsert(head.table, record)
+      let stored: ServerRecord | null
+      try {
+        stored = await upsert(head.table, record)
+      } catch (err) {
+        if (!isGone(err)) throw err
+        stored = null
+      }
+
+      if (!stored || isPurged(stored)) {
+        // Deleted for good on the NAS (T-0022): drop the record here, with every row for it.
+        await db.transaction('rw', db.outbox, table, db.syncState, async () => {
+          await checkEpoch(epoch)
+          await forgetPurged(head.table, head.recordId, db)
+        })
+        counts.pushed += rowIds.length
+        continue
+      }
 
       // Confirmed: remove exactly the rows this push covered, and take over the NAS's
       // version if it won (an older push, kept in history on the NAS).
@@ -342,6 +377,14 @@ export function createSyncEngine(options: SyncEngineOptions) {
       await db.transaction('rw', db.outbox, table, db.syncState, async () => {
         await checkEpoch(epoch)
         for (const remote of items) {
+          if (isPurged(remote)) {
+            // Deleted for good on the NAS (T-0022): drop this device's copy, if it has one.
+            if (await table.get(remote.id)) {
+              await forgetPurged(tableName, remote.id, db)
+              counts.pulled++
+            }
+            continue
+          }
           const pending = await db.outbox.where('[table+recordId]').equals([tableName, remote.id]).count()
           if (pending > 0) continue // the push settles it
           const local = await table.get(remote.id)
@@ -407,6 +450,13 @@ export function createSyncEngine(options: SyncEngineOptions) {
     }
   }
 
+  async function dropPurgedPhoto(id: string, epoch: string): Promise<void> {
+    await db.transaction('rw', db.photos, db.outbox, db.syncState, async () => {
+      await checkEpoch(epoch)
+      await forgetPurged('photos', id, db)
+    })
+  }
+
   /** The ids of photos with a pending upload for `step`, oldest first. */
   async function pendingUploads(step: UploadStep): Promise<string[]> {
     const photos = await db.photos.filter((p) => nextUpload(p) === step).toArray()
@@ -437,12 +487,21 @@ export function createSyncEngine(options: SyncEngineOptions) {
         try {
           stored = await api.update(id, uploadBody(photo, step), requestOptions)
         } catch (err) {
+          if (isGone(err)) {
+            // Deleted for good on another device (T-0022): the NAS refuses the late upload.
+            await dropPurgedPhoto(id, epoch)
+            continue
+          }
           if (err instanceof ClientResponseError && err.status === 400) {
             console.warn(`sync: the NAS refused ${step} of photo ${id}`, err)
             refused ??= err
             continue
           }
           throw err
+        }
+        if (isPurged(stored)) {
+          await dropPurgedPhoto(id, epoch)
+          continue
         }
         const confirmed = confirmedFiles(stored, files)
         await db.transaction('rw', db.photos, db.syncState, async () => {

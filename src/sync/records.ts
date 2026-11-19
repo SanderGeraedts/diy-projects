@@ -131,6 +131,14 @@ export function downloadedPhoto(r: ServerRecord, copy: Blob, thumbnail: Blob): P
 }
 
 /**
+ * A marker of a record the NAS deleted for good (T-0022, deploy/nas/pb_hooks/bin.pb.js):
+ * no content, no files, only `purgedAt`. A device drops its own copy when it sees one.
+ */
+export function isPurged(r: ServerRecord): boolean {
+  return typeof r.purgedAt === 'string' && r.purgedAt !== ''
+}
+
+/**
  * Last-write-wins (D-0002): true when `incoming` was edited strictly later than `local`.
  * An equal time is the same version (a record coming back after its own push).
  */
