@@ -10,9 +10,20 @@ import PocketBase, { ClientResponseError } from 'pocketbase'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createAuth } from '../auth/auth'
 import { openDb, type DiyDb } from '../db/db'
-import { addEntry, addPhotos, createProject, deletePhoto, updateProject } from '../db/write'
+import {
+  addEntry,
+  addPhotos,
+  createProject,
+  deleteEntry,
+  deletePhoto,
+  deleteProject,
+  removePurged,
+  updateProject,
+} from '../db/write'
 import { createPocketBaseSource, visitorClient } from '../public/source'
 import { createSyncEngine, type SyncEngine } from './engine'
+import { uploadBody } from './photos'
+import { purgeOnNas } from './purge'
 
 const URL = process.env.POCKETBASE_TEST_URL ?? ''
 const SU_EMAIL = process.env.POCKETBASE_TEST_SUPERUSER_EMAIL ?? ''
@@ -332,5 +343,107 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     expect(await phone.sync()).toMatchObject({ lastError: null })
     expect(await createPocketBaseSource(visitor).project(entry.projectId)).toBeNull()
     expect((await fetch(seen!.copyUrl)).status).toBe(404)
+  })
+
+  it('a permanent delete removes the files on the NAS; the other device drops its copies (T-0022)', async () => {
+    const email = await user()
+    const phone = await device(email)
+    const entry = await entryOn(phone.db)
+    const photos = await addPhotos(entry.id, [photo(9), photo(10)], phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null, uploaded: 6 })
+    const laptop = await device(email)
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect(await laptop.db.photos.count()).toBe(2)
+
+    await deleteProject(entry.projectId, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    // Before: every file is there for the owner.
+    const before = await Promise.all(photos.map((p) => su.collection('photos').getOne(p.id)))
+    const token = await su.files.getToken()
+    const urls = before.flatMap((r) => [r.original, r.copy, r.thumbnail].map((f) => su.files.getURL(r, f, { token })))
+    // Read each body to its end, so no download still holds a file open.
+    const status = async (url: string) => {
+      const response = await fetch(url)
+      await response.arrayBuffer()
+      return response.status
+    }
+    for (const url of urls) expect(await status(url)).toBe(200)
+
+    await purgeOnNas(phone.pb, 'project', entry.projectId)
+    await removePurged('project', entry.projectId, phone.db)
+
+    // The NAS removed all three files of each photo, and the records' history; markers stay.
+    for (const url of urls) expect(await status(url)).toBe(404)
+    for (const p of photos) {
+      const marker = await su.collection('photos').getOne(p.id)
+      expect([marker.original, marker.copy, marker.thumbnail]).toEqual(['', '', ''])
+      expect(marker.purgedAt).not.toBe('')
+    }
+    const project = await su.collection('projects').getOne(entry.projectId)
+    expect(project).toMatchObject({ title: '', description: '' })
+    expect(project.purgedAt).not.toBe('')
+    const history = await su.collection('history').getFullList({
+      filter: su.filter('recordId = {:p} || recordId = {:e}', { p: entry.projectId, e: entry.id }),
+    })
+    expect(history).toEqual([])
+
+    // The markers reach the laptop, which drops its copies.
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect(await laptop.db.photos.count()).toBe(0)
+    expect(await laptop.db.entries.count()).toBe(0)
+    expect(await laptop.db.projects.count()).toBe(0)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await phone.db.projects.count()).toBe(0)
+  })
+
+  it('an upload of a purged photo from a second device is refused and doesn’t re-create it (T-0022)', async () => {
+    const email = await user()
+    const phone = await device(email)
+    const entry = await entryOn(phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    const laptop = await device(email)
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+
+    // The laptop adds a photo; its record reaches the NAS, its files don't yet.
+    const [late] = await addPhotos(entry.id, [photo(11)], laptop.db)
+    const passOn = laptop.pb.beforeSend!
+    laptop.pb.beforeSend = (url, options) => {
+      if (options.body instanceof FormData) throw new TypeError('Failed to fetch')
+      return passOn(url, options)
+    }
+    expect((await laptop.sync()).lastError).not.toBeNull()
+    expect((await su.collection('photos').getOne(late!.id)).copy).toBe('')
+
+    // Meanwhile the phone deletes the entry and then deletes it for good.
+    await deleteEntry(entry.id, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    await purgeOnNas(phone.pb, 'entry', entry.id)
+    expect((await su.collection('photos').getOne(late!.id)).purgedAt).not.toBe('')
+
+    // The laptop's late upload, and a re-create under the same id, are refused (410).
+    laptop.pb.beforeSend = passOn
+    const local = (await laptop.db.photos.get(late!.id))!
+    const refused = laptop.pb.collection('photos').update(late!.id, uploadBody(local, 'copy+thumbnail'))
+    await expect(refused).rejects.toMatchObject({ status: 410 })
+    const recreate = laptop.pb.collection('photos').create({
+      id: late!.id,
+      owner: laptop.pb.authStore.record!.id,
+      projectId: entry.projectId,
+      entryId: entry.id,
+      createdAt: local.createdAt,
+      updatedAt: new Date().toISOString(),
+      deletedAt: '',
+    })
+    await expect(recreate).rejects.toMatchObject({ status: 410 })
+    const marker = await su.collection('photos').getOne(late!.id)
+    expect([marker.original, marker.copy, marker.thumbnail, marker.deletedAt === '']).toEqual(['', '', '', false])
+
+    // Its own sync then drops the photo instead of retrying it forever.
+    expect(await laptop.sync()).toMatchObject({ lastError: null, uploaded: 0 })
+    expect(await laptop.db.photos.get(late!.id)).toBeUndefined()
+    expect(await laptop.db.entries.get(entry.id)).toBeUndefined()
+    expect(await laptop.db.outbox.count()).toBe(0)
+    expect((await su.collection('photos').getOne(late!.id)).copy).toBe('')
   })
 })

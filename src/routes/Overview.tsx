@@ -8,6 +8,7 @@ import { db, type Project } from '../db/db'
 import { filterProjects, tagsInUse, type OverviewFilters } from '../filters'
 import { usePublic, useVisitor } from '../public/mode'
 import { Unreachable } from '../public/ui'
+import { BinLink } from './Bin'
 import { NewProjectLink } from './ProjectLinks'
 
 /** T-0026: the owner's overview from the device, a visitor's from the NAS (D-0025). */
@@ -60,6 +61,7 @@ function OverviewView({
       <section>
         <p className="text-grey italic">Nog geen projecten.</p>
         {!readOnly && <NewProjectLink />}
+        {!readOnly && <BinLink />}
       </section>
     )
 
@@ -82,6 +84,8 @@ function OverviewView({
           </li>
         ))}
       </ul>
+      {/* T-0022: the bin, the owner's only. */}
+      {!readOnly && <BinLink />}
     </section>
   )
 }

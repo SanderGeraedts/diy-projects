@@ -325,6 +325,112 @@ expect "$(req PATCH "/api/collections/projects/records/$PUB" "$A" "{\"public\":f
 refused "$(file "$PUB_F" "$(jq -r .copy <<<"$pub_f")")" "guest loads a switched-off project's copy"
 ok "switching a project off hides it from guests, files included"
 
+# --- T-0022 (D-0014): the bin. Restore is a plain update (deletedAt back to ""), covered by
+# src/sync/sync.pocketbase.test.ts; the permanent delete runs here, in pb_hooks/bin.pb.js. ---
+
+PHOTOS_ID=$(jq -r .id <<<"$photos")
+on_disk() { # on_disk PHOTO_ID: the photo's files in the NAS's storage folder (without the .attrs sidecars)
+  docker exec pb sh -c "ls /pb_data/storage/$PHOTOS_ID/$1 2>/dev/null || true" | grep -v -e '^thumbs_' -e '\.attrs$' || true
+}
+tomb() { # tomb COLLECTION ID: the owner tombstones a record, as the app's delete does
+  expect "$(req PATCH "/api/collections/$1/records/$2" "$A" "{\"deletedAt\":\"$LATER\",\"updatedAt\":\"$LATER\"}")" 200 "tombstone $1 $2"
+}
+BIN=$(mk projects "$(pproject Binned true)")
+BIN_E=$(mk entries "$(pentry "$BIN")")
+BIN_F=$(mk photos "$(pphoto "$BIN" "$BIN_E")")
+bin_f=$(upload "$BIN_F")
+KEEP=$(mk projects "$(pproject Kept true)")
+KEEP_E=$(mk entries "$(pentry "$KEEP")")
+KEEP_F=$(mk photos "$(pphoto "$KEEP" "$KEEP_E")")
+keep_f=$(upload "$KEEP_F")
+# Edits, so the project and the entry have history rows.
+expect "$(req PATCH "/api/collections/projects/records/$BIN" "$A" "{\"title\":\"Binned, renamed\",\"updatedAt\":\"$LATER\"}")" 200 "rename the project"
+expect "$(req PATCH "/api/collections/entries/records/$BIN_E" "$A" "{\"note\":\"Secret note\",\"updatedAt\":\"$LATER\"}")" 200 "edit the entry"
+[ "$(on_disk "$BIN_F" | wc -l)" = 3 ] || fail "the photo's three files aren't on disk: $(on_disk "$BIN_F")"
+ok "a project with an entry, a photo with three files on disk, and history rows"
+
+# Only what is in the bin can be deleted for good.
+expect "$(req DELETE "/api/collections/projects/records/$BIN" "$A")" 400 "delete a live project for good"
+[ "$(body "$(req GET "/api/collections/projects/records/$BIN" "$A")" | jq -r .purgedAt)" = "" ] || fail "a live project was purged"
+ok "a live project can't be deleted for good (400)"
+
+tomb photos "$BIN_F"
+tomb entries "$BIN_E"
+tomb projects "$BIN"
+
+# A guest or another account can't see the bin or reach the permanent delete.
+for f in 'deletedAt!=""' 'purgedAt!=""'; do
+  r=$(req GET "/api/collections/projects/records?filter=($f)")
+  [ "$(ids "$r")" = "[]" ] || fail "a guest lists the bin ($f): $(ids "$r")"
+  r=$(req GET "/api/collections/projects/records?filter=($f)" "$S")
+  [ "$(ids "$r")" = "[]" ] || fail "another account lists the bin ($f): $(ids "$r")"
+done
+for who in "" "$S"; do
+  refused "$(req DELETE "/api/collections/projects/records/$BIN" "$who")" "delete the binned project for good, not as the owner"
+  refused "$(req DELETE "/api/collections/entries/records/$BIN_E" "$who")" "delete the binned entry for good, not as the owner"
+  refused "$(req DELETE "/api/collections/photos/records/$BIN_F" "$who")" "delete the binned photo for good, not as the owner"
+done
+[ "$(on_disk "$BIN_F" | wc -l)" = 3 ] || fail "a refused delete removed files"
+[ "$(body "$(req GET "/api/collections/projects/records/$BIN" "$A")" | jq -r .purgedAt)" = "" ] || fail "a refused delete purged the project"
+ok "a guest and another account can't list the bin or delete from it"
+
+# The owner deletes the project for good: everything in it goes, a marker stays.
+expect "$(req DELETE "/api/collections/projects/records/$BIN" "$A")" 204 "the owner deletes the binned project for good"
+[ -z "$(on_disk "$BIN_F")" ] || fail "the purged photo's files are still on disk: $(on_disk "$BIN_F")"
+for f in original copy thumbnail; do
+  refused "$(file "$BIN_F" "$(jq -r ".$f" <<<"$bin_f")" "$A_FT")" "the owner loads the purged $f"
+done
+for c_id in "projects $BIN" "entries $BIN_E" "photos $BIN_F"; do
+  set -- $c_id
+  m=$(body "$(req GET "/api/collections/$1/records/$2" "$A")")
+  [ -n "$(jq -r .purgedAt <<<"$m")" ] || fail "no marker for $1 $2: $m"
+  [ "$(jq -r .deletedAt <<<"$m")" != "" ] || fail "the marker for $1 $2 isn't tombstoned"
+done
+m=$(body "$(req GET "/api/collections/projects/records/$BIN" "$A")")
+[ "$(jq -c '[.title,.description,.tags,.public]' <<<"$m")" = '["","",[],false]' ] || fail "the project marker keeps content: $m"
+[ "$(body "$(req GET "/api/collections/entries/records/$BIN_E" "$A")" | jq -r .note)" = "" ] || fail "the entry marker keeps its note"
+m=$(body "$(req GET "/api/collections/photos/records/$BIN_F" "$A")")
+[ "$(jq -c '[.original,.copy,.thumbnail]' <<<"$m")" = '["","",""]' ] || fail "the photo marker keeps files: $m"
+for id in "$BIN" "$BIN_E" "$BIN_F"; do
+  r=$(req GET "/api/collections/history/records?filter=(recordId='$id')" "$SU")
+  [ "$(body "$r" | jq '.items | length')" = 0 ] || fail "history of $id is still there: $(body "$r")"
+done
+[ "$(on_disk "$KEEP_F" | wc -l)" = 3 ] || fail "another project's photo lost files"
+expect "$(file "$KEEP_F" "$(jq -r .copy <<<"$keep_f")" "$A_FT")" 200 "another project's copy still loads"
+ok "deleted for good: files gone from disk, history gone, a marker per record; the rest untouched"
+
+# A marker refuses a late upload, a late edit and a re-create from another device: 410.
+code=$(curl -sS -o /tmp/body -w '%{http_code}' -X PATCH -H "Authorization: $A" \
+  -F 'original=@/tmp/original.jpg;type=image/jpeg' -F 'copy=@/tmp/copy.webp;type=image/webp' \
+  -F 'thumbnail=@/tmp/thumbnail.webp;type=image/webp' "$B/api/collections/photos/records/$BIN_F")
+[ "$code" = 410 ] || fail "a late upload of a purged photo: expected 410, got $code $(cat /tmp/body)"
+[ -z "$(on_disk "$BIN_F")" ] || fail "a late upload put files back on disk"
+[ "$(body "$(req GET "/api/collections/photos/records/$BIN_F" "$A")" | jq -r .copy)" = "" ] || fail "a late upload set a file"
+expect "$(req PATCH "/api/collections/projects/records/$BIN" "$A" '{"title":"Back","deletedAt":"","updatedAt":"2027-01-01T00:00:00.000Z"}')" 410 "a late edit of a purged project"
+expect "$(req PATCH "/api/collections/entries/records/$BIN_E" "$A" '{"note":"Back","updatedAt":"2027-01-01T00:00:00.000Z"}')" 410 "a late edit of a purged entry"
+expect "$(req POST /api/collections/photos/records "$A" "$(pphoto "$BIN" "$BIN_E" | jq -c --arg id "$BIN_F" '. + {id: $id}')")" 410 "re-create the purged photo"
+expect "$(req POST /api/collections/photos/records "$A" "$(pphoto "$BIN" "$BIN_E")")" 410 "a new photo in the purged entry"
+expect "$(req POST /api/collections/entries/records "$A" "$(pentry "$BIN")")" 410 "a new entry in the purged project"
+[ "$(ids "$(req GET "/api/collections/photos/records?filter=(entryId='$BIN_E')" "$A")")" = "[\"$BIN_F\"]" ] || fail "a purged entry got a new photo"
+[ "$(body "$(req GET "/api/collections/projects/records/$BIN" "$A")" | jq -r .title)" = "" ] || fail "a late edit came through"
+expect "$(req DELETE "/api/collections/projects/records/$BIN" "$A")" 204 "deleting a purged project again"
+refused "$(req PATCH "/api/collections/projects/records/$KEEP" "$A" "{\"purgedAt\":\"$LATER\"}")" "the owner sets purgedAt"
+ok "a purged record refuses a late upload, edit or re-create (410)"
+
+# An entry on its own: it and its photos go, its project stays.
+ALONE=$(mk entries "$(pentry "$KEEP")")
+ALONE_F=$(mk photos "$(pphoto "$KEEP" "$ALONE")")
+upload "$ALONE_F" >/dev/null
+tomb photos "$ALONE_F"
+tomb entries "$ALONE"
+expect "$(req DELETE "/api/collections/entries/records/$ALONE" "$A")" 204 "the owner deletes a binned entry for good"
+[ -z "$(on_disk "$ALONE_F")" ] || fail "the purged entry's photo files are still on disk"
+[ -n "$(body "$(req GET "/api/collections/photos/records/$ALONE_F" "$A")" | jq -r .purgedAt)" ] || fail "no marker for the entry's photo"
+m=$(body "$(req GET "/api/collections/projects/records/$KEEP" "$A")")
+[ "$(jq -r '.purgedAt + "|" + .deletedAt + "|" + .title' <<<"$m")" = "||Kept" ] || fail "the entry's project changed: $m"
+[ "$(on_disk "$KEEP_F" | wc -l)" = 3 ] || fail "the project's other photo lost files"
+ok "an entry deleted for good takes its photos, not its project"
+
 # CORS: only the app's origin gets an Access-Control-Allow-Origin header (D-0005).
 curl -sS -i -H "Origin: $APP" "$B/api/health" | grep -i "^access-control-allow-origin: $APP" >/dev/null ||
   fail "no CORS header for $APP"

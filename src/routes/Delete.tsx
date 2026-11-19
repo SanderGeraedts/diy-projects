@@ -7,18 +7,20 @@ import type { Entry, Project } from '../db/db'
 import { deleteEntry, deleteProject } from '../db/write'
 
 // T-0010 (D-0014): "Verwijderen" on an entry or a project. The delete itself (a tombstone that
-// cascades to the photos) lives in the write API; these only ask first and call it. There is
-// no restore in v1: the bin comes after v1 (T-0022).
+// cascades to the photos) lives in the write API; these only ask first and call it. A deleted
+// project or entry goes to the bin ("Prullenbak", T-0022), where it can be restored.
 
 /** Asks before something is deleted. Escape or Annuleren keeps it. */
-function ConfirmDialog({
+export function ConfirmDialog({
   question,
+  confirmLabel = 'Verwijderen',
   busy,
   error,
   onConfirm,
   onCancel,
 }: {
   question: string
+  confirmLabel?: string
   busy: boolean
   error: string | null
   onConfirm: () => void
@@ -46,7 +48,7 @@ function ConfirmDialog({
         )}
         <div className="mt-4 flex flex-wrap gap-3">
           <Button disabled={busy} onClick={onConfirm}>
-            Verwijderen
+            {confirmLabel}
           </Button>
           <Button autoFocus variant="secondary" onClick={onCancel}>
             Annuleren

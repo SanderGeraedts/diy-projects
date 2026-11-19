@@ -141,6 +141,8 @@ describe('visitor mode in production (T-0026)', () => {
     expect(await screen.findByRole('heading', { name: 'Tuinbank' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Nieuw project/ })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Zoeken' })).toBeNull()
+    // T-0022: the bin is the owner's only.
+    expect(screen.queryByRole('link', { name: 'Prullenbak' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Inloggen' })).toHaveAttribute('href', '/account')
     // The card's cover is the thumbnail, from the NAS by address.
     const cover = main().querySelector('img')!
@@ -182,12 +184,13 @@ describe('visitor mode in production (T-0026)', () => {
     expect(await screen.findByRole('heading', { name: 'Project niet gevonden' })).toBeInTheDocument()
   })
 
-  it.each(['/projects/new', '/projects/p1/edit', '/projects/p1/entries/new', '/zoeken'])(
+  it.each(['/projects/new', '/projects/p1/edit', '/projects/p1/entries/new', '/zoeken', '/prullenbak'])(
     'has no owner page at %s',
     async (path) => {
       await show(path)
       expect(await screen.findByRole('heading', { name: 'Niet gevonden' })).toBeInTheDocument()
       expect(main().querySelector('input, textarea, select, form')).toBeNull()
+      expect(within(main()).queryAllByRole('button')).toEqual([])
     },
   )
 
