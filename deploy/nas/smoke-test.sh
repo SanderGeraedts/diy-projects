@@ -60,10 +60,14 @@ photos=$(body "$(req GET /api/collections/photos "$SU")")
 for f in copy thumbnail; do
   [ "$(jq -r ".fields[] | select(.name==\"$f\") | .type" <<<"$photos")" = file ] || fail "photos.$f is not a file field"
 done
-# T-0017: photo files need a file token, like their owner-only records (D-0005).
-for f in original copy thumbnail; do
-  [ "$(jq -r ".fields[] | select(.name==\"$f\") | .protected" <<<"$photos")" = true ] || fail "photos.$f is not protected"
+# T-0017: the original needs a file token. T-0026: the copy and thumbnail don't, so visitors
+# can load them; pb_hooks/photo_files.pb.js decides who gets them (tested below).
+[ "$(jq -r '.fields[] | select(.name=="original") | .protected' <<<"$photos")" = true ] || fail "photos.original is not protected"
+for f in copy thumbnail; do
+  [ "$(jq -r ".fields[] | select(.name==\"$f\") | .protected" <<<"$photos")" = false ] || fail "photos.$f is still protected"
 done
+# T-0026 (D-0025): the public switch.
+[ "$(jq -r '.fields[] | select(.name=="public") | .type' <<<"$projects")" = bool ] || fail "projects.public is not a bool"
 history=$(body "$(req GET /api/collections/history "$SU")")
 [ "$(jq -c '[.listRule,.viewRule,.createRule,.updateRule,.deleteRule]' <<<"$history")" = '[null,null,null,null,null]' ] ||
   fail "history is not admin-only"
@@ -147,6 +151,179 @@ fi
 r=$(req POST /api/collections/history/records "$A" "{\"sourceCollection\":\"projects\",\"recordId\":\"$P\"}")
 [ "$(status "$r")" != 200 ] || fail "a user can write history"
 ok "history unreadable and unwritable by a user"
+
+# --- T-0026 (D-0023, D-0025): what a guest (not signed in) may read, and nothing else. ---
+
+# file RECORD_ID FILENAME [TOKEN]: downloads a photo file; prints "<status>\n<body>".
+file() {
+  local url="$B/api/files/photos/$1/$2" code
+  [ -n "${3:-}" ] && url="$url?token=$3"
+  for _ in 1 2 3 4 5; do
+    code=$(curl -sS -o /tmp/file -w '%{http_code}' "$url")
+    [ "$code" != 429 ] && break
+    sleep 3
+  done
+  echo "$code"
+  cat /tmp/file
+}
+refused() { # refused RESPONSE WHAT: anything but a 2xx
+  case "$(status "$1")" in 2*) fail "$2: got $(status "$1"): $(body "$1")" ;; esac
+}
+mk() { # mk COLLECTION JSON: created by the owner; prints the id
+  local r
+  r=$(req POST "/api/collections/$1/records" "$A" "$2")
+  expect "$r" 200 "owner creates in $1"
+  body "$r" | jq -r .id
+}
+pproject() { # pproject TITLE PUBLIC [DELETED_AT]
+  echo "{\"owner\":\"$A_ID\",\"title\":\"$1\",\"description\":\"\",\"status\":\"idea\",\"tags\":[],\"public\":$2,\"deletedAt\":\"${3:-}\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"}"
+}
+pentry() { # pentry PROJECT [DELETED_AT]
+  echo "{\"owner\":\"$A_ID\",\"projectId\":\"$1\",\"date\":\"2026-11-18\",\"note\":\"Note\",\"deletedAt\":\"${2:-}\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"}"
+}
+pphoto() { # pphoto PROJECT ENTRY [DELETED_AT]
+  echo "{\"owner\":\"$A_ID\",\"projectId\":\"$1\",\"entryId\":\"$2\",\"takenAt\":\"$NOW\",\"width\":4,\"height\":3,\"deletedAt\":\"${3:-}\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"}"
+}
+printf 'original bytes' >/tmp/original.jpg
+printf 'copy bytes' >/tmp/copy.webp
+printf 'thumbnail bytes' >/tmp/thumbnail.webp
+upload() { # upload PHOTO_ID: the owner uploads all three files; prints the record
+  local code
+  for _ in 1 2 3 4 5; do
+    code=$(curl -sS -o /tmp/body -w '%{http_code}' -X PATCH -H "Authorization: $A" \
+      -F 'original=@/tmp/original.jpg;type=image/jpeg' -F 'copy=@/tmp/copy.webp;type=image/webp' \
+      -F 'thumbnail=@/tmp/thumbnail.webp;type=image/webp' "$B/api/collections/photos/records/$1")
+    [ "$code" != 429 ] && break
+    sleep 3
+  done
+  [ "$code" = 200 ] || fail "upload the files of $1: $code $(cat /tmp/body)"
+  cat /tmp/body
+}
+
+# A public project, a private one and a tombstoned public one; live and tombstoned entries
+# and photos. The project made above without `public` is private (a bool's zero value).
+PUB=$(mk projects "$(pproject Public true)")
+PRIV=$(mk projects "$(pproject Private false)")
+GONE=$(mk projects "$(pproject Deleted true "$NOW")")
+PUB_E=$(mk entries "$(pentry "$PUB")")
+PUB_E_GONE=$(mk entries "$(pentry "$PUB" "$NOW")")
+PRIV_E=$(mk entries "$(pentry "$PRIV")")
+GONE_E=$(mk entries "$(pentry "$GONE")")
+PUB_F=$(mk photos "$(pphoto "$PUB" "$PUB_E")")
+PUB_F_GONE=$(mk photos "$(pphoto "$PUB" "$PUB_E" "$NOW")")
+PRIV_F=$(mk photos "$(pphoto "$PRIV" "$PRIV_E")")
+GONE_F=$(mk photos "$(pphoto "$GONE" "$GONE_E")")
+pub_f=$(upload "$PUB_F")
+pub_f_gone=$(upload "$PUB_F_GONE")
+priv_f=$(upload "$PRIV_F")
+gone_f=$(upload "$GONE_F")
+ok "public, private and tombstoned projects, entries and photos with files"
+
+# A guest lists exactly the public, live records; a filter can't widen that.
+ids() { body "$1" | jq -c '[.items[].id] | sort'; }
+r=$(req GET /api/collections/projects/records)
+expect "$r" 200 "guest lists projects"
+[ "$(ids "$r")" = "[\"$PUB\"]" ] || fail "guest's projects: $(ids "$r"), expected only $PUB"
+r=$(req GET "/api/collections/projects/records?filter=(public=false||deletedAt!='')")
+[ "$(ids "$r")" = "[]" ] || fail "a guest's filter widened the list: $(ids "$r")"
+r=$(req GET /api/collections/entries/records)
+expect "$r" 200 "guest lists entries"
+[ "$(ids "$r")" = "[\"$PUB_E\"]" ] || fail "guest's entries: $(ids "$r"), expected only $PUB_E"
+r=$(req GET /api/collections/photos/records)
+expect "$r" 200 "guest lists photos"
+[ "$(ids "$r")" = "[\"$PUB_F\"]" ] || fail "guest's photos: $(ids "$r"), expected only $PUB_F"
+expect "$(req GET "/api/collections/projects/records/$PUB")" 200 "guest views the public project"
+expect "$(req GET "/api/collections/entries/records/$PUB_E")" 200 "guest views the public entry"
+expect "$(req GET "/api/collections/photos/records/$PUB_F")" 200 "guest views the public photo"
+ok "guest sees the public project, its entry and its photo record"
+
+for c_id in "projects $P" "projects $PRIV" "projects $GONE" "entries $E" "entries $PRIV_E" "entries $GONE_E" \
+  "entries $PUB_E_GONE" "photos $PRIV_F" "photos $GONE_F" "photos $PUB_F_GONE"; do
+  set -- $c_id
+  expect "$(req GET "/api/collections/$1/records/$2")" 404 "guest views $1 $2"
+done
+ok "guest gets nothing of a private project, a tombstoned project or tombstoned entries and photos"
+
+# history: admin only, also for a guest.
+HID=$(body "$(req GET "/api/collections/history/records?perPage=1" "$SU")" | jq -r '.items[0].id')
+[ -n "$HID" ] && [ "$HID" != null ] || fail "no history row to test with"
+r=$(req GET /api/collections/history/records)
+if [ "$(status "$r")" = 200 ]; then
+  [ "$(body "$r" | jq '.items | length')" = 0 ] || fail "a guest can list history"
+fi
+refused "$(req GET "/api/collections/history/records/$HID")" "guest views a history row"
+ok "guest can't read history"
+
+# Files: a guest loads the public photo's copy and thumbnail, byte for byte.
+r=$(file "$PUB_F" "$(jq -r .copy <<<"$pub_f")")
+expect "$r" 200 "guest loads the public copy"
+[ "$(body "$r")" = 'copy bytes' ] || fail "the public copy's bytes differ"
+r=$(file "$PUB_F" "$(jq -r .thumbnail <<<"$pub_f")")
+expect "$r" 200 "guest loads the public thumbnail"
+[ "$(body "$r")" = 'thumbnail bytes' ] || fail "the public thumbnail's bytes differ"
+ok "guest loads the public photo's copy and thumbnail"
+
+# No original for anyone but the owner: not a guest, not another account with a file token.
+ftoken() { # ftoken AUTH_TOKEN
+  local r
+  r=$(req POST /api/files/token "$1")
+  expect "$r" 200 "file token"
+  body "$r" | jq -r .token
+}
+A_FT=$(ftoken "$A")
+S_FT=$(ftoken "$S")
+for rec in "$PUB_F $pub_f" "$PRIV_F $priv_f" "$GONE_F $gone_f" "$PUB_F_GONE $pub_f_gone"; do
+  id=${rec%% *}
+  json=${rec#* }
+  name=$(jq -r .original <<<"$json")
+  refused "$(file "$id" "$name")" "guest loads the original of $id"
+  refused "$(file "$id" "$name" "$S_FT")" "another account loads the original of $id"
+done
+r=$(file "$PUB_F" "$(jq -r .original <<<"$pub_f")" "$A_FT")
+expect "$r" 200 "owner loads the public photo's original"
+[ "$(body "$r")" = 'original bytes' ] || fail "the original's bytes differ"
+ok "no original for a guest or another account, also not of a public photo; the owner gets it"
+
+# Copies and thumbnails of private or tombstoned photos: not even with the address.
+for rec in "$PRIV_F $priv_f" "$GONE_F $gone_f" "$PUB_F_GONE $pub_f_gone"; do
+  id=${rec%% *}
+  json=${rec#* }
+  for f in copy thumbnail; do
+    refused "$(file "$id" "$(jq -r ".$f" <<<"$json")")" "guest loads the $f of $id"
+  done
+done
+expect "$(file "$PRIV_F" "$(jq -r .copy <<<"$priv_f")" "$A_FT")" 200 "owner loads a private copy"
+ok "guest can't load a private or tombstoned photo's copy or thumbnail; the owner can"
+
+# A guest can't create or change anything, and neither can another account.
+LATER=2026-11-18T12:00:00.000Z
+refused "$(req POST /api/collections/projects/records "" "$(pproject Walk-in true)")" "guest creates a project"
+refused "$(req POST /api/collections/entries/records "" "$(pentry "$PUB")")" "guest creates an entry"
+refused "$(req POST /api/collections/photos/records "" "$(pphoto "$PUB" "$PUB_E")")" "guest creates a photo"
+for who in "" "$S"; do
+  refused "$(req PATCH "/api/collections/projects/records/$PUB" "$who" "{\"title\":\"Hijacked\",\"updatedAt\":\"$LATER\"}")" "update the public project"
+  refused "$(req PATCH "/api/collections/entries/records/$PUB_E" "$who" "{\"note\":\"Hijacked\",\"updatedAt\":\"$LATER\"}")" "update the public entry"
+  refused "$(req PATCH "/api/collections/photos/records/$PUB_F" "$who" "{\"deletedAt\":\"$LATER\",\"updatedAt\":\"$LATER\"}")" "update the public photo"
+  refused "$(req DELETE "/api/collections/projects/records/$PUB" "$who")" "delete the public project"
+  refused "$(req DELETE "/api/collections/entries/records/$PUB_E" "$who")" "delete the public entry"
+  refused "$(req DELETE "/api/collections/photos/records/$PUB_F" "$who")" "delete the public photo"
+done
+code=$(curl -sS -o /tmp/body -w '%{http_code}' -X PATCH -F 'copy=@/tmp/original.jpg;type=image/jpeg' \
+  "$B/api/collections/photos/records/$PUB_F")
+case "$code" in 2*) fail "guest replaced the public photo's copy" ;; esac
+r=$(req GET "/api/collections/projects/records/$PUB" "$A")
+[ "$(body "$r" | jq -r .title)" = Public ] || fail "the public project changed: $(body "$r")"
+[ "$(body "$(req GET "/api/collections/photos/records/$PUB_F" "$A")" | jq -r .deletedAt)" = "" ] || fail "the public photo was tombstoned"
+[ "$(body "$(file "$PUB_F" "$(jq -r .copy <<<"$pub_f")")")" = 'copy bytes' ] || fail "the public copy changed"
+ok "guest and another account can't create, update or delete"
+
+# Switching a project off hides it, its entries and its photos' files from guests at once.
+expect "$(req PATCH "/api/collections/projects/records/$PUB" "$A" "{\"public\":false,\"updatedAt\":\"$LATER\"}")" 200 "owner switches the project off"
+[ "$(ids "$(req GET /api/collections/projects/records)")" = "[]" ] || fail "a switched-off project still lists"
+[ "$(ids "$(req GET /api/collections/entries/records)")" = "[]" ] || fail "a switched-off project's entries still list"
+[ "$(ids "$(req GET /api/collections/photos/records)")" = "[]" ] || fail "a switched-off project's photos still list"
+refused "$(file "$PUB_F" "$(jq -r .copy <<<"$pub_f")")" "guest loads a switched-off project's copy"
+ok "switching a project off hides it from guests, files included"
 
 # CORS: only the app's origin gets an Access-Control-Allow-Origin header (D-0005).
 curl -sS -i -H "Origin: $APP" "$B/api/health" | grep -i "^access-control-allow-origin: $APP" >/dev/null ||

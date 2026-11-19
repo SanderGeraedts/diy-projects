@@ -21,6 +21,11 @@ export interface Project {
   status: ProjectStatus
   tags: string[]
   coverPhotoId?: string
+  /**
+   * Shown to visitors who aren't signed in (D-0025, T-0026). On by default, for new projects
+   * and for the ones that existed before v4.
+   */
+  public: boolean
   createdAt: string
   /** ISO time of the last edit, used for last-write-wins (D-0002). */
   updatedAt: string
@@ -127,6 +132,9 @@ export const SCHEMA_V3 = {
   syncState: 'key',
 } as const
 
+/** v4 (T-0026) adds `public` to projects; no new index, so the stores stay as in v3. */
+export const SCHEMA_V4 = SCHEMA_V3
+
 /** v1 → v2: add tombstones, `updatedAt` on photos, and the photo file fields. Keeps all data. */
 export async function upgradeToV2(tx: Transaction): Promise<void> {
   await tx
@@ -156,11 +164,26 @@ export async function upgradeToV2(tx: Transaction): Promise<void> {
     })
 }
 
+/**
+ * v3 → v4: every existing project becomes public (D-0025: the switch is on by default, also
+ * for the projects that exist when it ships). Keeps all data and adds no outbox rows: the
+ * NAS's own migration sets the same value on its records.
+ */
+export async function upgradeToV4(tx: Transaction): Promise<void> {
+  await tx
+    .table('projects')
+    .toCollection()
+    .modify((p: Partial<Project>) => {
+      if (p.public === undefined) p.public = true
+    })
+}
+
 export function openDb(name = 'diy-projects'): DiyDb {
   const db = new Dexie(name) as DiyDb
   db.version(1).stores(SCHEMA_V1)
   db.version(2).stores(SCHEMA_V2).upgrade(upgradeToV2)
   db.version(3).stores(SCHEMA_V3)
+  db.version(4).stores(SCHEMA_V4).upgrade(upgradeToV4)
   return db
 }
 

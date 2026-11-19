@@ -170,6 +170,15 @@ Migrations (`deploy/nas/pb_migrations/<unix time>_<what>.js`):
   - `createRule`: `@request.auth.id != "" && owner = @request.auth.id`
   - `updateRule`: `owner = @request.auth.id && (@request.body.owner:isset = false ||
     @request.body.owner = @request.auth.id)`
+- Public reads (T-0026, D-0023): `listRule`/`viewRule` become
+  `owner = @request.auth.id || (public = true && deletedAt = "")` on projects; entries and
+  photos join their project with `@collection.projects.… ?= …` (their `projectId` is text,
+  and `?=` keeps the conditions on one project row). Writes stay owner-only.
+- Protected file fields are served only with a file token *and* a passing view rule. Once
+  the view rule lets anyone see a record, protection alone no longer keeps a file
+  owner-only; `pb_hooks/photo_files.pb.js` (`onFileDownloadRequest`) decides who gets the
+  original (the owner) and the unprotected copy and thumbnail (the owner, or anyone while
+  the photo is public).
 - `users.createRule = null` closes sign-up (D-0005); accounts are made with the superuser
   in the admin screen (D-0013). `users.authToken.duration` sets the sign-in lifetime
   (D-0013: 90 days).

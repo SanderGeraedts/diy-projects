@@ -330,6 +330,10 @@ export function createSyncEngine(options: SyncEngineOptions) {
       if (after) {
         filter = `(updated > ${quote(after.updated)} || (updated = ${quote(after.updated)} && id > ${quote(after.id)}))`
       }
+      // T-0026: anyone may read public projects now (D-0023); this device keeps only its
+      // owner's own records.
+      const owner = client.authStore.record?.id
+      if (owner) filter = filter ? `owner = ${quote(owner)} && ${filter}` : `owner = ${quote(owner)}`
       const page = await api.getList(1, pageSize, { filter, sort: 'updated,id', skipTotal: true, ...requestOptions })
       const items = page.items
       if (items.length === 0) return

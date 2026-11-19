@@ -10,6 +10,9 @@ import type { ServerRecord } from './records'
 // last-write-wins hook (an older `updatedAt` is kept in history and the stored record is
 // returned unchanged). Requests can be made to fail.
 //
+// Reads (T-0026): like deploy/nas's rules, a list also returns other owners' public projects
+// that aren't tombstoned, and their live entries and photos; the engine asks for its own.
+//
 // Files (T-0017): a multipart update stores each file under a new name, as PocketBase does
 // (replacing the field's earlier file), and protected downloads need a file token.
 
@@ -102,6 +105,13 @@ export class FakePocketBase {
     if (err) throw err
   }
 
+  /** Readable by anyone, as the T-0026 list rules have it (deploy/nas/pb_migrations/). */
+  isPublic(collection: string, record: ServerRecord): boolean {
+    if (record.deletedAt) return false
+    const project = collection === 'projects' ? record : this.records.get('projects')?.get(String(record.projectId))
+    return !!project && project.public === true && !project.deletedAt
+  }
+
   /** A client signed in as `userId`. Set `signedIn = false` on it to make every request a 401. */
   client(userId = 'u1'): SyncClient & { signedIn: boolean } {
     const server = this
@@ -130,7 +140,9 @@ export class FakePocketBase {
           async getList(_page, perPage, options = {}) {
             guard('getList')
             const filter = String(options.filter ?? '')
-            const visible = [...server.table(name).values()].filter((r) => r.owner === userId && matches(r, filter))
+            const visible = [...server.table(name).values()].filter(
+              (r) => (r.owner === userId || server.isPublic(name, r)) && matches(r, filter),
+            )
             visible.sort((a, b) => (a.updated === b.updated ? cmp(a.id, b.id) : cmp(a.updated, b.updated)))
             return { items: visible.slice(0, perPage).map(clone) }
           },
@@ -193,6 +205,9 @@ const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 /** The two filter forms the engine sends (and no filter). */
 function matches(record: ServerRecord, filter: string): boolean {
+  // T-0026: the engine asks for its owner's records only.
+  const owner = /^owner = "([^"]*)"(?: && (.*))?$/.exec(filter)
+  if (owner) return record.owner === owner[1] && matches(record, owner[2] ?? '')
   if (filter === '') return true
   const since = /^updated >= "([^"]*)"$/.exec(filter)
   if (since) return record.updated >= since[1]!

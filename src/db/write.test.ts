@@ -2,7 +2,7 @@
 // Node, not jsdom: jsdom Blobs do not survive fake-indexeddb's structured clone.
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it } from 'vitest'
-import { openDb, SCHEMA_V1, SCHEMA_V2, upgradeToV2, type DiyDb } from './db'
+import { openDb, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, upgradeToV2, type DiyDb } from './db'
 import {
   addEntry,
   addPhotos,
@@ -71,7 +71,7 @@ describe('schema v1 → v2', () => {
 
     db = openDb(name)
     await db.open()
-    expect(db.verno).toBe(3)
+    expect(db.verno).toBe(4)
     expect(await db.projects.count()).toBe(1)
     expect(await db.entries.count()).toBe(1)
     expect(await db.photos.count()).toBe(2)
@@ -101,10 +101,60 @@ describe('schema v2 → v3 (T-0016)', () => {
 
     db = openDb(name)
     await db.open()
-    expect(db.verno).toBe(3)
+    expect(db.verno).toBe(4)
     expect(await db.projects.get('p1')).toMatchObject({ title: 'Old' })
     expect(await db.outbox.toArray()).toMatchObject([{ id: 1, table: 'projects', recordId: 'p1', op: 'put' }])
     expect(await db.syncState.count()).toBe(0)
+  })
+})
+
+describe('schema v3 → v4 (T-0026)', () => {
+  it('makes every existing project public (D-0025), keeping records and the outbox, adding no rows', async () => {
+    const name = `upgrade-test-${++counter}`
+    const v3 = new Dexie(name)
+    v3.version(1).stores(SCHEMA_V1)
+    v3.version(2).stores(SCHEMA_V2).upgrade(upgradeToV2)
+    v3.version(3).stores(SCHEMA_V3)
+    const base = { description: '', status: 'idea', tags: [], createdAt: '2026-01-01T00:00:00.000Z' }
+    await v3.table('projects').bulkAdd([
+      { ...base, id: 'p1', title: 'Alive', updatedAt: '2026-01-02T00:00:00.000Z', deletedAt: null },
+      { ...base, id: 'p2', title: 'Deleted', updatedAt: '2026-01-03T00:00:00.000Z', deletedAt: '2026-01-03T00:00:00.000Z' },
+    ])
+    await v3.table('outbox').add({ table: 'projects', recordId: 'p1', op: 'put', queuedAt: '2026-01-02T00:00:00.000Z' })
+    await v3.table('syncState').put({ key: 'cursor:projects', value: '2026-01-02 00:00:00.000Z' })
+    v3.close()
+
+    db = openDb(name)
+    await db.open()
+    expect(db.verno).toBe(4)
+    expect(await db.projects.get('p1')).toMatchObject({ title: 'Alive', public: true, updatedAt: '2026-01-02T00:00:00.000Z' })
+    expect(await db.projects.get('p2')).toMatchObject({ title: 'Deleted', public: true, deletedAt: '2026-01-03T00:00:00.000Z' })
+    expect(await db.outbox.toArray()).toMatchObject([{ id: 1, table: 'projects', recordId: 'p1', op: 'put' }])
+    expect(await db.syncState.get('cursor:projects')).toMatchObject({ value: '2026-01-02 00:00:00.000Z' })
+  })
+})
+
+describe('public switch (T-0026, D-0025)', () => {
+  it('starts on for a new project unless switched off', async () => {
+    const d = freshDb()
+    expect((await createProject({ title: 'Shed' }, d)).public).toBe(true)
+    expect((await createProject({ title: 'Private', public: false }, d)).public).toBe(false)
+  })
+
+  it('switches off and on like any other field, with an outbox row each time', async () => {
+    const d = freshDb()
+    const project = await createProject({ title: 'Shed' }, d)
+    expect((await updateProject(project.id, { public: false }, d)).public).toBe(false)
+    expect((await d.projects.get(project.id))?.public).toBe(false)
+    expect((await updateProject(project.id, { public: true }, d)).public).toBe(true)
+    expect(await d.outbox.count()).toBe(3)
+  })
+
+  it('refuses anything but true or false', async () => {
+    const d = freshDb()
+    const project = await createProject({ title: 'Shed' }, d)
+    await expect(updateProject(project.id, { public: 'yes' as unknown as boolean }, d)).rejects.toThrow(ValidationError)
+    await expect(createProject({ title: 'X', public: 1 as unknown as boolean }, d)).rejects.toThrow(ValidationError)
   })
 })
 

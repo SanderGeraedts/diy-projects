@@ -3,6 +3,7 @@ import { auth, useAuthState } from '../auth/session'
 import { SearchLink } from '../components/SearchLink'
 import { SyncStatusBar } from '../components/SyncStatus'
 import { UpdateBar } from '../components/UpdateBar'
+import { useVisitor } from '../public/mode'
 import { deployContext, syncConfig } from '../sync/config'
 
 const ACCOUNT_LINK = { 'signed-out': 'Inloggen', expired: 'Opnieuw inloggen', 'signed-in': 'Account' } as const
@@ -19,6 +20,9 @@ function AccountLink() {
 }
 
 export function Layout() {
+  // T-0026: a visitor gets no search (it reads the device's copy) and no sync status; the
+  // sign-in link stays (D-0025).
+  const visitor = useVisitor()
   return (
     <>
       <header className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-bg px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
@@ -27,12 +31,12 @@ export function Layout() {
           <span aria-hidden="true" className="mt-0.5 block h-1 w-full bg-accent" />
         </Link>
         <div className="flex items-center gap-4">
-          <SearchLink />
+          {!visitor && <SearchLink />}
           <AccountLink />
         </div>
       </header>
       {/* T-0018: only where sync runs; previews and dev show the demo banner (D-0006). */}
-      <SyncStatusBar />
+      {!visitor && <SyncStatusBar />}
       {deployContext !== 'production' && (
         <p className="m-0 bg-grey-lighter px-4 py-1.5 text-sm" role="status">
           Demodata · synchronisatie staat uit ({deployContext})

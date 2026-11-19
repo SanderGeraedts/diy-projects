@@ -10,7 +10,8 @@ import PocketBase, { ClientResponseError } from 'pocketbase'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createAuth } from '../auth/auth'
 import { openDb, type DiyDb } from '../db/db'
-import { addEntry, addPhotos, createProject, deletePhoto } from '../db/write'
+import { addEntry, addPhotos, createProject, deletePhoto, updateProject } from '../db/write'
+import { createPocketBaseSource, visitorClient } from '../public/source'
 import { createSyncEngine, type SyncEngine } from './engine'
 
 const URL = process.env.POCKETBASE_TEST_URL ?? ''
@@ -294,5 +295,37 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     await laptop.sync()
     expect(await laptop.db.photos.get(gone!.id)).toBeUndefined()
     expect(await laptop.db.photos.get(kept!.id)).toBeDefined()
+  })
+  it('a visitor reads a public project online: copy and thumbnail load, the original never (T-0026)', async () => {
+    const email = await user()
+    const phone = await device(email)
+    const entry = await entryOn(phone.db)
+    const [p] = await addPhotos(entry.id, [photo(7)], phone.db)
+    const hidden = await createProject({ title: 'Privé', public: false }, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null, uploaded: 3 })
+
+    const visitor = visitorClient(URL)
+    expect(visitor.authStore.token).toBe('')
+    const source = createPocketBaseSource(visitor)
+    const overview = await source.overview()
+    expect(overview.projects.map((x) => x.id)).toContain(entry.projectId)
+    expect(overview.projects.map((x) => x.id)).not.toContain(hidden.id)
+    expect(await source.project(hidden.id)).toBeNull()
+
+    const shown = (await source.project(entry.projectId))!
+    expect(shown.entries.map((e) => e.id)).toEqual([entry.id])
+    expect(shown.photos.map((x) => x.id)).toEqual([p!.id])
+    const [seen] = shown.photos
+    expect(seen!.copyUrl).not.toMatch(/token=/)
+    expect(await sha256(await (await fetch(seen!.copyUrl)).blob())).toBe(await sha256(photo(7).copy))
+    expect(await sha256(await (await fetch(seen!.thumbnailUrl)).blob())).toBe(await sha256(photo(7).thumbnail))
+    const record = await su.collection('photos').getOne(p!.id)
+    expect((await fetch(visitor.files.getURL(record, record.original))).status).toBe(404)
+
+    // Switched off: gone for visitors, files included (a fresh source: no cache).
+    await updateProject(entry.projectId, { public: false }, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await createPocketBaseSource(visitor).project(entry.projectId)).toBeNull()
+    expect((await fetch(seen!.copyUrl)).status).toBe(404)
   })
 })

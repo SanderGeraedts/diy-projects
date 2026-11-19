@@ -138,6 +138,7 @@ export function buildDemoData(): DemoData {
       status: p.status,
       tags: p.tags,
       coverPhotoId,
+      public: true,
       createdAt: SEED_TIME,
       updatedAt: SEED_TIME,
       deletedAt: null,

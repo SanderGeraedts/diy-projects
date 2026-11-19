@@ -36,6 +36,7 @@ export function toServer(table: SyncedTable, record: LocalRecord): Record<string
         status: p.status,
         tags: p.tags,
         coverPhotoId: p.coverPhotoId ?? '',
+        public: p.public,
         ...common,
       }
     }
@@ -65,6 +66,8 @@ export function projectFromServer(r: ServerRecord): Project {
     description: text(r.description),
     status,
     tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === 'string') : [],
+    // D-0025: on by default; a NAS from before T-0026's migration has no such field.
+    public: typeof r.public === 'boolean' ? r.public : true,
     createdAt: text(r.createdAt),
     updatedAt: text(r.updatedAt),
     deletedAt: orNull(r.deletedAt),

@@ -9,12 +9,14 @@ import { createProject, updateProject } from '../db/write'
 
 // T-0004: one form to start a project and to edit its title, description, status and tags.
 // Writes go through the write API (T-0003); reads are plain Dexie queries.
+// T-0026: and its public switch, on by default (D-0025).
 
 export interface ProjectFields {
   title: string
   description: string
   status: ProjectStatus
   tags: string[]
+  public: boolean
 }
 
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
@@ -44,6 +46,7 @@ export function ProjectForm({
   const [description, setDescription] = useState(initial.description)
   const [status, setStatus] = useState<ProjectStatus>(initial.status)
   const [tags, setTags] = useState<string[]>(initial.tags)
+  const [isPublic, setIsPublic] = useState(initial.public)
   const [tagDraft, setTagDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -58,7 +61,13 @@ export function ProjectForm({
     setError(null)
     setSaving(true)
     try {
-      await onSave({ title: title.trim(), description, status, tags: normalizeTags([...tags, tagDraft]) })
+      await onSave({
+        title: title.trim(),
+        description,
+        status,
+        tags: normalizeTags([...tags, tagDraft]),
+        public: isPublic,
+      })
     } catch (err) {
       console.error(err)
       setError('Opslaan is niet gelukt. Probeer het opnieuw.')
@@ -100,6 +109,25 @@ export function ProjectForm({
           inUse={inUse}
         />
       </Field>
+      <div className="mb-5">
+        <label htmlFor="project-public" className="flex items-center gap-3 font-semibold">
+          <input
+            id="project-public"
+            type="checkbox"
+            role="switch"
+            className="h-5 w-5 accent-accent"
+            checked={isPublic}
+            onChange={(e) => setIsPublic(e.target.checked)}
+            aria-describedby="project-public-hint"
+          />
+          Openbaar
+        </label>
+        <p id="project-public-hint" className="mt-1 mb-0 text-sm text-grey italic">
+          {isPublic
+            ? "Iedereen kan dit project zien, met de notities en foto's, ook zonder in te loggen."
+            : 'Alleen jij ziet dit project.'}
+        </p>
+      </div>
       {error && (
         <p role="alert" className="mb-4 font-semibold">
           {error}
@@ -126,7 +154,7 @@ export function NewProjectPage() {
       </Link>
       <AccentHeading>Nieuw project</AccentHeading>
       <ProjectForm
-        initial={{ title: '', description: '', status: 'idea', tags: [] }}
+        initial={{ title: '', description: '', status: 'idea', tags: [], public: true }}
         submitLabel="Opslaan"
         onCancel={() => void navigate({ to: '/' })}
         onSave={async (fields) => {
