@@ -301,11 +301,13 @@ describe.skipIf(!URL)('sync against a real PocketBase (T-0016)', { timeout: 120_
     const other = await device(b.email)
     const project = await createProject({ title: 'Van A' }, phone.db)
     await phone.sync()
-    // An older version from another user: refused, not answered with A's record.
+    // An older version from another user: refused, not answered with A's record. The project
+    // is public (D-0025), so the other user may read it (403) but never change it.
+    const refused = (err: unknown) => err instanceof ClientResponseError && [403, 404].includes(err.status)
     const older = { title: 'Overschreven', updatedAt: '2000-01-01T00:00:00.000Z' }
-    await expect(other.pb.collection('projects').update(project.id, older)).rejects.toMatchObject({ status: 404 })
+    await expect(other.pb.collection('projects').update(project.id, older)).rejects.toSatisfy(refused)
     const newer = { title: 'Overschreven', updatedAt: '2100-01-01T00:00:00.000Z' }
-    await expect(other.pb.collection('projects').update(project.id, newer)).rejects.toMatchObject({ status: 404 })
+    await expect(other.pb.collection('projects').update(project.id, newer)).rejects.toSatisfy(refused)
     expect((await su.collection('projects').getOne(project.id)).title).toBe('Van A')
     expect(await history(project.id)).toHaveLength(0)
   })

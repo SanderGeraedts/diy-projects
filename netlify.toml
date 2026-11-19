@@ -19,8 +19,9 @@
   for = "/*"
   [headers.values]
     # D-0005: the sign-in token lives in the browser, so keep this strict.
-    # connect-src allows any *.ts.net so the tailnet name stays out of the repo.
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' https://*.ts.net; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    # connect-src allows any *.ts.net so the tailnet name stays out of the repo; img-src too,
+    # for visitors, who load public photos' copies and thumbnails from the NAS (T-0026).
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https://*.ts.net; connect-src 'self' https://*.ts.net; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "no-referrer"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"

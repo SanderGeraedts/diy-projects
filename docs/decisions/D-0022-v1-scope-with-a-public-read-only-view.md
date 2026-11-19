@@ -2,11 +2,11 @@
 id: D-0022
 title: "v1 is projects with status, tags and a public switch, dated photo entries, offline search, and a read-only public view"
 description: "D-0004's scope plus one addition: each project has a public switch (off by default), and visitors who aren't signed in see the public projects read-only, online, with photo copies and thumbnails but never originals; materials, costs, checklists, share links and multiple users stay out of v1."
-status: Accepted
+status: Replaced
 date: 2026-11-19
 decided_by: sander
 replaces: [D-0004]
-replaced_by: []
+replaced_by: [D-0025]
 resolves: []
 tags: [scope]
 ---

@@ -10,7 +10,8 @@ import PocketBase, { ClientResponseError } from 'pocketbase'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createAuth } from '../auth/auth'
 import { openDb, type DiyDb } from '../db/db'
-import { addEntry, addPhotos, createProject, deletePhoto } from '../db/write'
+import { addEntry, addPhotos, createProject, deletePhoto, updateProject } from '../db/write'
+import { createPocketBaseSource, visitorClient } from '../public/source'
 import { createSyncEngine, type SyncEngine } from './engine'
 
 const URL = process.env.POCKETBASE_TEST_URL ?? ''
@@ -264,14 +265,18 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
   it('protects the files: no token or another user’s token gets nothing', async () => {
     const email = await user()
     const phone = await device(email)
-    const entry = await entryOn(phone.db)
+    // T-0026: a private project's photos; a public one's copy and thumbnail are for anyone.
+    const project = await createProject({ title: 'Werkbank', public: false }, phone.db)
+    const entry = await addEntry({ projectId: project.id, date: '2026-11-17' }, phone.db)
     const [p] = await addPhotos(entry.id, [photo(6)], phone.db)
     await phone.sync()
     const record = await su.collection('photos').getOne(p!.id)
-    expect((await fetch(su.files.getURL(record, record.copy))).status).not.toBe(200)
     const stranger = await device(await user())
     const token = await stranger.pb.files.getToken()
-    expect((await fetch(su.files.getURL(record, record.copy, { token }))).status).not.toBe(200)
+    for (const file of [record.original, record.copy, record.thumbnail]) {
+      expect((await fetch(su.files.getURL(record, file))).status).not.toBe(200)
+      expect((await fetch(su.files.getURL(record, file, { token }))).status).not.toBe(200)
+    }
   })
 
   it('never sends a photo deleted before its upload', async () => {
@@ -294,5 +299,38 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     await laptop.sync()
     expect(await laptop.db.photos.get(gone!.id)).toBeUndefined()
     expect(await laptop.db.photos.get(kept!.id)).toBeDefined()
+  })
+
+  it('a visitor reads a public project online: copy and thumbnail load, the original never (T-0026)', async () => {
+    const email = await user()
+    const phone = await device(email)
+    const entry = await entryOn(phone.db)
+    const [p] = await addPhotos(entry.id, [photo(7)], phone.db)
+    const hidden = await createProject({ title: 'Privé', public: false }, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null, uploaded: 3 })
+
+    const visitor = visitorClient(URL)
+    expect(visitor.authStore.token).toBe('')
+    const source = createPocketBaseSource(visitor)
+    const overview = await source.overview()
+    expect(overview.projects.map((x) => x.id)).toContain(entry.projectId)
+    expect(overview.projects.map((x) => x.id)).not.toContain(hidden.id)
+    expect(await source.project(hidden.id)).toBeNull()
+
+    const shown = (await source.project(entry.projectId))!
+    expect(shown.entries.map((e) => e.id)).toEqual([entry.id])
+    expect(shown.photos.map((x) => x.id)).toEqual([p!.id])
+    const [seen] = shown.photos
+    expect(seen!.copyUrl).not.toMatch(/token=/)
+    expect(await sha256(await (await fetch(seen!.copyUrl)).blob())).toBe(await sha256(photo(7).copy))
+    expect(await sha256(await (await fetch(seen!.thumbnailUrl)).blob())).toBe(await sha256(photo(7).thumbnail))
+    const record = await su.collection('photos').getOne(p!.id)
+    expect((await fetch(visitor.files.getURL(record, record.original))).status).toBe(404)
+
+    // Switched off: gone for visitors, files included (a fresh source: no cache).
+    await updateProject(entry.projectId, { public: false }, phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await createPocketBaseSource(visitor).project(entry.projectId)).toBeNull()
+    expect((await fetch(seen!.copyUrl)).status).toBe(404)
   })
 })

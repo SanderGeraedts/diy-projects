@@ -2,9 +2,13 @@ import { Link, useNavigate, useParams, useRouter } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { formatDate } from '../components/format'
+import { usePhotoUrl, type ShownPhoto } from '../components/PhotoImage'
 import { AccentHeading } from '../components/ui'
-import { db, type Photo } from '../db/db'
+import { db, type Entry, type Project } from '../db/db'
 import { deletePhoto, updateProject } from '../db/write'
+import { usePublic, useVisitor } from '../public/mode'
+import { visitorTimeline } from '../public/source'
+import { UNREACHABLE } from '../public/ui'
 import { ConfirmDelete, PhotoActions } from './PhotoActions'
 import {
   IDENTITY,
@@ -24,6 +28,8 @@ import {
 // Gestures are plain pointer events: swipe left/right, swipe down to close, pinch, double-tap.
 // T-0009: from here a photo becomes the project's cover, or is deleted (a tombstone, D-0002).
 // Photos are never edited (D-0002): no rotate or crop.
+// T-0026: a visitor sees the same viewer, read from the NAS, without the cover and delete
+// actions (D-0025).
 
 const SETTLE_MS = 200
 const DOUBLE_TAP_MS = 300
@@ -37,12 +43,20 @@ type Gesture =
   | { kind: 'drag'; start: Point; startTransform: Transform; axis: 'x' | 'y' | null; startTime: number; moved: boolean }
   | { kind: 'pinch'; startDistance: number; startMid: Point; startTransform: Transform }
 
-export function PhotoViewer() {
-  const { projectId, photoId } = useParams({ from: '/projects/$projectId/photos/$photoId' })
-  const navigate = useNavigate()
-  const router = useRouter()
+/** What the viewer shows: the photo's entry, its project and the entry's live photos in order. */
+interface ViewerData {
+  entry: Pick<Entry, 'date' | 'note'> | undefined
+  project: Pick<Project, 'coverPhotoId'> | undefined
+  siblings: ShownPhoto[]
+}
 
-  const data = useLiveQuery(async () => {
+export function PhotoViewer() {
+  return useVisitor() ? <VisitorPhotoViewer /> : <OwnerPhotoViewer />
+}
+
+function OwnerPhotoViewer() {
+  const { projectId, photoId } = useParams({ from: '/projects/$projectId/photos/$photoId' })
+  const data = useLiveQuery(async (): Promise<ViewerData | null> => {
     const photo = await db.photos.get(photoId)
     if (!photo || photo.deletedAt || photo.projectId !== projectId) return null
     const [entry, project, all] = await Promise.all([
@@ -52,6 +66,58 @@ export function PhotoViewer() {
     ])
     return { entry, project, siblings: all.filter((p) => !p.deletedAt) }
   }, [projectId, photoId])
+  return <PhotoViewerView projectId={projectId} photoId={photoId} data={data} readOnly={false} />
+}
+
+function VisitorPhotoViewer() {
+  const { projectId, photoId } = useParams({ from: '/projects/$projectId/photos/$photoId' })
+  // The project's timeline, loaded once for all its photos (the source keeps it a minute).
+  const loaded = usePublic((source) => source.project(projectId), `project:${projectId}`)
+  if (loaded.state === 'unreachable') {
+    return (
+      <section className="fixed inset-0 z-30 bg-bg p-4">
+        <p role="status" className="text-grey italic">
+          {UNREACHABLE}
+        </p>
+        <p>
+          <Link to="/projects/$projectId" params={{ projectId }} className="text-grey">
+            ← Terug naar het project
+          </Link>
+        </p>
+      </section>
+    )
+  }
+  let data: ViewerData | null | undefined
+  if (loaded.state === 'ready') {
+    const timeline = loaded.data && visitorTimeline(loaded.data)
+    const photo = timeline?.photos.find((p) => p.id === photoId)
+    data =
+      loaded.data && timeline && photo
+        ? {
+            entry: timeline.entries.find((e) => e.id === photo.entryId),
+            project: loaded.data.project,
+            siblings: timeline.photos.filter((p) => p.entryId === photo.entryId),
+          }
+        : null
+  }
+  return <PhotoViewerView projectId={projectId} photoId={photoId} data={data} readOnly />
+}
+
+function PhotoViewerView({
+  projectId,
+  photoId,
+  data,
+  readOnly,
+}: {
+  projectId: string
+  photoId: string
+  /** undefined while loading, null when there's no such photo to show. */
+  data: ViewerData | null | undefined
+  /** A visitor: no cover or delete actions (T-0026). */
+  readOnly: boolean
+}) {
+  const navigate = useNavigate()
+  const router = useRouter()
 
   const siblings = data?.siblings ?? []
   const index = siblings.findIndex((p) => p.id === photoId)
@@ -124,7 +190,7 @@ export function PhotoViewer() {
   }, [router, navigate, projectId])
 
   const show = useCallback(
-    (photo: Photo) =>
+    (photo: ShownPhoto) =>
       void navigate({
         to: '/projects/$projectId/photos/$photoId',
         params: { projectId, photoId: photo.id },
@@ -451,19 +517,21 @@ export function PhotoViewer() {
             {data.entry.note && <p className="mt-2 mb-0">{data.entry.note}</p>}
           </>
         )}
-        <PhotoActions
-          isCover={data.project?.coverPhotoId === current.id}
-          busy={busy}
-          error={confirming ? null : error}
-          onUseAsCover={() => void makeCover()}
-          onDelete={() => {
-            setError(null)
-            setConfirming(true)
-          }}
-        />
+        {!readOnly && (
+          <PhotoActions
+            isCover={data.project?.coverPhotoId === current.id}
+            busy={busy}
+            error={confirming ? null : error}
+            onUseAsCover={() => void makeCover()}
+            onDelete={() => {
+              setError(null)
+              setConfirming(true)
+            }}
+          />
+        )}
       </div>
 
-      {confirming && (
+      {!readOnly && confirming && (
         <ConfirmDelete
           busy={busy}
           error={error}
@@ -478,24 +546,19 @@ export function PhotoViewer() {
   )
 }
 
-/** One photo in the strip, from the stored 2560 px copy. */
+/** One photo in the strip: the 2560 px copy, stored (the owner) or from the NAS (a visitor). */
 function ViewerImage({
   photo,
   alt,
   current,
   style,
 }: {
-  photo: Photo
+  photo: ShownPhoto
   alt: string
   current: boolean
   style?: CSSProperties
 }) {
-  const [url, setUrl] = useState<string>()
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(photo.blob)
-    setUrl(objectUrl)
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [photo.blob])
+  const url = usePhotoUrl(photo, 'copy')
   if (!url) return null
   return (
     <img

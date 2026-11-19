@@ -297,6 +297,36 @@ describe('pull', () => {
     expect(await stranger.db.projects.count()).toBe(0)
   })
 
+  it('keeps only its own records, although anyone may read public projects now (T-0026)', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server, 'u1')
+    const stranger = device(server, 'u2')
+    const project = await createProject({ title: 'Openbaar' }, phone.db)
+    expect(project.public).toBe(true)
+    await addEntry({ projectId: project.id, date: '2026-11-17', note: 'Zichtbaar' }, phone.db)
+    await phone.sync()
+    expect(server.get('projects', project.id)).toMatchObject({ public: true })
+    await stranger.sync()
+    expect(await stranger.db.projects.count()).toBe(0)
+    expect(await stranger.db.entries.count()).toBe(0)
+  })
+
+  it('syncs the public switch like any other field (D-0025)', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const project = await createProject({ title: 'Schuurdeur' }, phone.db)
+    await phone.sync()
+    await laptop.sync()
+    expect((await laptop.db.projects.get(project.id))?.public).toBe(true)
+    at('2099-01-01T00:00:00.000Z')
+    await updateProject(project.id, { public: false }, laptop.db)
+    await laptop.sync()
+    expect(server.get('projects', project.id)).toMatchObject({ public: false })
+    await phone.sync()
+    expect((await phone.db.projects.get(project.id))?.public).toBe(false)
+  })
+
   it('takes over a tombstone', async () => {
     const server = new FakePocketBase()
     const phone = device(server)

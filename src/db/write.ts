@@ -45,6 +45,11 @@ function checkTags(tags: unknown): string[] {
   return [...new Set(tags.map((t: string) => t.trim()).filter((t) => t !== ''))]
 }
 
+function checkPublic(value: unknown): boolean {
+  if (typeof value !== 'boolean') fail('Public must be true or false.')
+  return value
+}
+
 function checkDate(date: unknown): string {
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date)))
     fail(`Not a date (YYYY-MM-DD): ${String(date)}`)
@@ -84,6 +89,8 @@ export interface NewProject {
   description?: string
   status?: ProjectStatus
   tags?: string[]
+  /** D-0025: on unless the owner switches it off. */
+  public?: boolean
 }
 
 export async function createProject(input: NewProject, target: DiyDb = defaultDb): Promise<Project> {
@@ -94,6 +101,7 @@ export async function createProject(input: NewProject, target: DiyDb = defaultDb
     description: checkText(input.description ?? '', 'The description'),
     status: checkStatus(input.status ?? 'idea'),
     tags: checkTags(input.tags ?? []),
+    public: checkPublic(input.public ?? true),
     createdAt: time,
     updatedAt: time,
     deletedAt: null,
@@ -105,7 +113,7 @@ export async function createProject(input: NewProject, target: DiyDb = defaultDb
   return project
 }
 
-export type ProjectChanges = Partial<Pick<Project, 'title' | 'description' | 'status' | 'tags'>> & {
+export type ProjectChanges = Partial<Pick<Project, 'title' | 'description' | 'status' | 'tags' | 'public'>> & {
   /** A live photo of this project; `null` or `undefined` clears the chosen cover (T-0010). */
   coverPhotoId?: string | null
 }
@@ -116,6 +124,7 @@ export async function updateProject(id: string, changes: ProjectChanges, target:
   if ('description' in changes) patch.description = checkText(changes.description, 'The description')
   if ('status' in changes) patch.status = checkStatus(changes.status)
   if ('tags' in changes) patch.tags = checkTags(changes.tags)
+  if ('public' in changes) patch.public = checkPublic(changes.public)
   const clearCover = 'coverPhotoId' in changes && (changes.coverPhotoId === undefined || changes.coverPhotoId === null)
   if ('coverPhotoId' in changes && !clearCover) patch.coverPhotoId = checkText(changes.coverPhotoId, 'The cover photo')
   const time = now()

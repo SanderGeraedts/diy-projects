@@ -5,6 +5,7 @@ import { Layout } from './routes/Layout'
 import { NotFound } from './routes/NotFound'
 import { Overview } from './routes/Overview'
 import { ProjectPage } from './routes/ProjectPage'
+import { ownerOnly } from './public/ui'
 import { syncConfig } from './sync/config'
 import { EditProjectPage, NewProjectPage } from './routes/ProjectForm'
 import { SearchPage, validateSearchParams } from './routes/SearchPage'
@@ -26,18 +27,24 @@ const projectRoute = createRoute({
 })
 
 // T-0004: the project form. A static segment outranks $projectId, so /projects/new is the form.
-const newProjectRoute = createRoute({ getParentRoute: () => rootRoute, path: '/projects/new', component: NewProjectPage })
+// T-0026: pages that write, and search over the device's copy, are the owner's only; a
+// visitor gets "Niet gevonden" (D-0025).
+const newProjectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/new',
+  component: ownerOnly(NewProjectPage),
+})
 const editProjectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/edit',
-  component: EditProjectPage,
+  component: ownerOnly(EditProjectPage),
 })
 
 // T-0005: add a note to a project's timeline.
 const addEntryRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/projects/$projectId/entries/new',
-  component: AddEntryPage,
+  component: ownerOnly(AddEntryPage),
 })
 
 // T-0008: the full-screen photo viewer has its own URL, so back closes it and reload reopens it.
@@ -51,7 +58,7 @@ const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/zoeken',
   validateSearch: validateSearchParams,
-  component: SearchPage,
+  component: ownerOnly(SearchPage),
 })
 
 // D-0020: /design exists in every build but production. __DEPLOY_CONTEXT__ is replaced at

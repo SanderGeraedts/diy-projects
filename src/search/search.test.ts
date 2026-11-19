@@ -12,6 +12,7 @@ function project(id: string, title: string, extra: Partial<Project> = {}): Proje
     description: '',
     status: 'idea',
     tags: [],
+    public: true,
     createdAt: T,
     updatedAt: T,
     deletedAt: null,

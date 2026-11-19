@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import type { Photo, Project } from '../db/db'
-import { PhotoImage } from './PhotoImage'
+import type { Project } from '../db/db'
+import { PhotoImage, type ShownPhoto } from './PhotoImage'
 import { StatusBadge } from './StatusBadge'
 
 /** A heading underlined with an accent bar as wide as its text (D-0020). */
@@ -29,11 +29,20 @@ export function Tags({ tags }: { tags: string[] }) {
 }
 
 /** Project card: cover photo at 4:3 with a translucent panel, or a grey tile with the initial. */
-export function ProjectCard({ project, cover }: { project: Project; cover?: Photo }) {
+export function ProjectCard({
+  project,
+  cover,
+  coverFile = 'copy',
+}: {
+  project: Project
+  cover?: ShownPhoto
+  /** A visitor's card loads the thumbnail, not the 2560 px copy, over the internet (T-0026). */
+  coverFile?: 'copy' | 'thumbnail'
+}) {
   return (
     <div className="relative aspect-[4/3] overflow-hidden rounded-card bg-grey-lighter">
       {cover ? (
-        <PhotoImage photo={cover} alt="" className="h-full w-full object-cover" />
+        <PhotoImage photo={cover} file={coverFile} alt="" className="h-full w-full object-cover" />
       ) : (
         <span
           aria-hidden="true"
