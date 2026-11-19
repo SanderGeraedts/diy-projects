@@ -5,6 +5,11 @@
 # DIY_DIR is the NAS dataset holding tailscale/, pb_data/, serve.json and .env. Replace the
 # placeholder default /mnt/POOL/apps/diy-projects with the real path when pasting; never
 # commit the real path, the tailnet name or a secret (D-0010).
+#
+# APP_ORIGIN is the front end's origin, like https://<your-domain>: the only origin
+# PocketBase's CORS allows. It has no default; compose refuses to start without it. On
+# TrueNAS, replace ${APP_ORIGIN:?...} below with the origin when pasting (README step 4);
+# with plain docker compose, set APP_ORIGIN in the environment or a .env next to this file.
 name: diy-projects
 
 services:
@@ -41,7 +46,7 @@ services:
       - --migrationsDir=/pb_migrations
       - --hooksDir=/pb_hooks
       - --automigrate=false
-      - --origins=https://projects.sanderg.nl
+      - --origins=${APP_ORIGIN:?set APP_ORIGIN to the app's origin, like https://<your-domain>}
     volumes:
       - ${DIY_DIR:-/mnt/POOL/apps/diy-projects}/pb_data:/pb_data
     healthcheck:

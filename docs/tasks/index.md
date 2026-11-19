@@ -6,11 +6,11 @@ One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* 
 
 ## Open
 
-- [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
+None.
 
 ## Doing
 
-None.
+- [T-0021 Prepare the repository to go public under MIT](T-0021-prepare-the-repository-to-go-public.md): Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection.
 
 ## Done
 

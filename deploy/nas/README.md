@@ -18,8 +18,16 @@ Placeholders used below (never commit the real values, D-0010):
 | `<tailnet>` | the tailnet's MagicDNS name, like `tail1234` |
 | `/mnt/POOL/apps/diy-projects` | the NAS dataset for this app |
 | `tskey-auth-REPLACE-ME` | a one-time Tailscale auth key |
+| `<your-domain>` | the front end's domain on Netlify ([`docs/deploy/netlify.md`](../../docs/deploy/netlify.md)) |
 
-The app's address will be `https://diy-projects.<tailnet>.ts.net`.
+Settings (compose variables):
+
+| Variable | Means |
+| --- | --- |
+| `DIY_DIR` | the dataset's path; its default is the placeholder `/mnt/POOL/apps/diy-projects` |
+| `APP_ORIGIN` | the front end's origin, `https://<your-domain>` (no trailing slash): the only origin PocketBase's CORS allows (`--origins`). **Required**; compose refuses to start without it |
+
+PocketBase's address will be `https://diy-projects.<tailnet>.ts.net`.
 
 ## Before you start
 
@@ -58,9 +66,16 @@ GHCR package is private.
 ### 4. Install the app
 
 1. TrueNAS SCALE / HexOS: **Apps → Discover Apps → Install via YAML**, name `diy-projects`.
-2. Paste `deploy/nas/compose.yml`, and replace every `/mnt/POOL/apps/diy-projects` with the
-   dataset's real path (it's the default of `DIY_DIR`, used for the folders, `serve.json`
-   and `.env`). Save; the three containers start.
+2. Paste `deploy/nas/compose.yml`, and in it:
+   - replace every `/mnt/POOL/apps/diy-projects` with the dataset's real path (it's the
+     default of `DIY_DIR`, used for the folders, `serve.json` and `.env`);
+   - set `APP_ORIGIN`: replace `${APP_ORIGIN:?set APP_ORIGIN to the app's origin, like
+     https://<your-domain>}` on the pocketbase `--origins=` line with the front end's origin,
+     so the line reads `- --origins=https://<your-domain>`. (With plain `docker compose`
+     instead of TrueNAS, set `APP_ORIGIN` in the environment or in `.env` and pass it with
+     `--env-file`; see `.env.example`.)
+
+   Save; the three containers start.
 3. Wait up to ten minutes: a new Funnel name can take that long to answer.
 4. Check, in the **tailscale** container's shell: `tailscale funnel status` lists 443 as
    *Funnel on* (and 8443 without Funnel).
@@ -106,8 +121,8 @@ curl -i https://diy-projects.<tailnet>.ts.net/_/
 curl -i https://diy-projects.<tailnet>.ts.net/api/collections/history/records
 # -> 404
 
-curl -si -H 'Origin: https://projects.sanderg.nl' https://diy-projects.<tailnet>.ts.net/api/health | grep -i access-control-allow-origin
-# -> access-control-allow-origin: https://projects.sanderg.nl
+curl -si -H 'Origin: https://<your-domain>' https://diy-projects.<tailnet>.ts.net/api/health | grep -i access-control-allow-origin
+# -> access-control-allow-origin: https://<your-domain>
 
 curl -si -H 'Origin: https://example.com' https://diy-projects.<tailnet>.ts.net/api/health | grep -i access-control-allow-origin
 # -> nothing: another origin is refused by CORS
@@ -137,6 +152,9 @@ this is set the production app simply works offline.
   names each tag); Watchtower leaves a pinned image alone. Restore the backup taken before
   the change (**Settings → Backups → Restore**). Fix forward on `main` with a *new*
   migration, then go back to `:stable`.
+- **The YAML on the NAS is a copy.** Changes to `compose.yml` in the repo reach the NAS only
+  when you paste it again (**Apps → diy-projects → Edit**); when you do, fill in `DIY_DIR`'s
+  path and `APP_ORIGIN` again as in step 4. Watchtower only updates the pocketbase image.
 - **Updated by hand, rarely:** Tailscale, Watchtower and `serve.json`; they keep the NAS
   reachable. Changing `serve.json` means copying it to the dataset again and restarting the
   app. Add a path to the Funnel allowlist only when a task names it, and never the admin
