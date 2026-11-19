@@ -2,11 +2,11 @@
 id: D-0005
 title: "The front end is on Netlify at projects.sanderg.nl; the browser talks directly to PocketBase on the NAS through Tailscale Funnel"
 description: "The static PWA is hosted on Netlify at projects.sanderg.nl with deploy previews; data and photos go straight from the browser to PocketBase on the NAS via a Funnel ts.net address with a path allowlist; the backend deploys through GitHub Actions and Watchtower as in a sister app on the same NAS."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0023]
 resolves: []
 tags: [architecture, hosting]
 ---

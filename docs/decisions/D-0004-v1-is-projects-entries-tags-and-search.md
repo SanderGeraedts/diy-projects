@@ -2,11 +2,11 @@
 id: D-0004
 title: "v1 is projects with status and tags, dated photo entries, and offline search"
 description: "A project has a title, description, status, tags and cover photo and a timeline of entries (date, photos, note); search over titles, notes and tags runs on the device; materials, costs, checklists, sharing and multiple users are out of v1."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0022]
 resolves: []
 tags: [scope]
 ---
