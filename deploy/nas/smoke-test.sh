@@ -5,7 +5,8 @@
 set -euo pipefail
 
 B=http://127.0.0.1:8090
-APP=https://projects.sanderg.nl
+# The app's origin PocketBase was started with (--origins); backend.yml sets a test one.
+APP=${APP_ORIGIN:-https://app.example}
 PASS='ci-only-password-123456'
 
 fail() { echo "FAIL: $*" >&2; exit 1; }

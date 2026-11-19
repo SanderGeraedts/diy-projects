@@ -35,6 +35,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE: ghcr.io/sandergeraedts/diy-projects-pocketbase
+      # Any test origin will do; production sets its own (APP_ORIGIN, deploy/nas/README.md).
+      # deploy/nas/smoke-test.sh checks CORS against the same variable.
+      APP_ORIGIN: https://app.example
     steps:
       - uses: actions/checkout@v4
 
@@ -47,7 +50,7 @@ jobs:
         run: |
           docker run -d --name pb -p 127.0.0.1:8090:8090 pb-test serve --http=0.0.0.0:8090 \
             --dir=/pb_data --migrationsDir=/pb_migrations --hooksDir=/pb_hooks \
-            --automigrate=false --origins=https://projects.sanderg.nl
+            --automigrate=false --origins="$APP_ORIGIN"
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8090/api/health; then echo; exit 0; fi
             if [ "$(docker inspect -f '{{.State.Running}}' pb)" != "true" ]; then

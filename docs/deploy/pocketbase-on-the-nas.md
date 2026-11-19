@@ -13,6 +13,7 @@ use the placeholders below.
 | `<tailnet>` | the tailnet's MagicDNS name, like `tail1234` |
 | `/mnt/POOL/apps/diy-projects` | the NAS dataset for this app |
 | `tskey-auth-REPLACE-ME` | a one-time Tailscale auth key |
+| `<your-domain>` | the front end's domain on Netlify |
 
 ## 1. Shape on the NAS
 
@@ -44,8 +45,9 @@ The schema comes only from this repo.
 
 **Different here:** the sister app's browser never talks to PocketBase (only its Netlify
 functions do). In this app the browser talks to PocketBase directly (D-0005), so also set
-`--origins=https://projects.sanderg.nl` (PocketBase's CORS allowlist, `*` by default), and
-check it in CI.
+`--origins=https://<your-domain>` (PocketBase's CORS allowlist, `*` by default), and
+check it in CI. The origin is configuration: `APP_ORIGIN` in `deploy/nas/compose.yml` (see
+its README, step 4); CI uses a test origin.
 
 Health check on the pocketbase container:
 `wget -q --spider http://127.0.0.1:8090/api/health`, every 30 s, 15 s start period.

@@ -59,6 +59,8 @@ jobs:
       POCKETBASE_TEST_URL: http://127.0.0.1:8090
       POCKETBASE_TEST_SUPERUSER_EMAIL: admin@ci.invalid
       POCKETBASE_TEST_SUPERUSER_PASSWORD: ci-only-password-123456
+      # Any test origin will do; production sets its own (APP_ORIGIN, deploy/nas/README.md).
+      APP_ORIGIN: https://app.example
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -74,7 +76,7 @@ jobs:
         run: |
           docker run -d --name pb -p 127.0.0.1:8090:8090 pb-test serve --http=0.0.0.0:8090 \
             --dir=/pb_data --migrationsDir=/pb_migrations --hooksDir=/pb_hooks \
-            --automigrate=false --origins=https://projects.sanderg.nl
+            --automigrate=false --origins="$APP_ORIGIN"
           for i in $(seq 1 30); do
             if curl -fsS "$POCKETBASE_TEST_URL/api/health"; then echo; break; fi
             if [ "$(docker inspect -f '{{.State.Running}}' pb)" != "true" ]; then
