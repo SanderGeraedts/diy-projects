@@ -16,7 +16,7 @@ onFileDownloadRequest((e) => {
   const record = e.record
   let auth = null
   try {
-    const token = e.request.url.query().get("token")
+    const token = e.requestInfo().query["token"]
     if (token) auth = e.app.findAuthRecordByToken(token, "file")
   } catch (_) {
     auth = null

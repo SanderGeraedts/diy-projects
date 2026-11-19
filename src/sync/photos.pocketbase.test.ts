@@ -265,14 +265,18 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
   it('protects the files: no token or another user’s token gets nothing', async () => {
     const email = await user()
     const phone = await device(email)
-    const entry = await entryOn(phone.db)
+    // T-0026: a private project's photos; a public one's copy and thumbnail are for anyone.
+    const project = await createProject({ title: 'Werkbank', public: false }, phone.db)
+    const entry = await addEntry({ projectId: project.id, date: '2026-11-17' }, phone.db)
     const [p] = await addPhotos(entry.id, [photo(6)], phone.db)
     await phone.sync()
     const record = await su.collection('photos').getOne(p!.id)
-    expect((await fetch(su.files.getURL(record, record.copy))).status).not.toBe(200)
     const stranger = await device(await user())
     const token = await stranger.pb.files.getToken()
-    expect((await fetch(su.files.getURL(record, record.copy, { token }))).status).not.toBe(200)
+    for (const file of [record.original, record.copy, record.thumbnail]) {
+      expect((await fetch(su.files.getURL(record, file))).status).not.toBe(200)
+      expect((await fetch(su.files.getURL(record, file, { token }))).status).not.toBe(200)
+    }
   })
 
   it('never sends a photo deleted before its upload', async () => {
@@ -296,6 +300,7 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     expect(await laptop.db.photos.get(gone!.id)).toBeUndefined()
     expect(await laptop.db.photos.get(kept!.id)).toBeDefined()
   })
+
   it('a visitor reads a public project online: copy and thumbnail load, the original never (T-0026)', async () => {
     const email = await user()
     const phone = await device(email)
