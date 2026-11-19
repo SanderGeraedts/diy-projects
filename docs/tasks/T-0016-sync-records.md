@@ -2,12 +2,12 @@
 id: T-0016
 title: "Sync projects and entries with PocketBase"
 description: "The sync engine in src/sync/: push the outbox, pull changes since the last sync, last-write-wins with history kept on the NAS, tested in CI against a throwaway PocketBase."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0003, T-0013, T-0015]
 decisions: [D-0002, D-0005, D-0006, D-0017]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-19"
 result: [https://github.com/SanderGeraedts/diy-projects/pull/30, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
@@ -66,3 +66,4 @@ syncs photo *records* (and tombstones) but not their files.
   `pocketbase-auth` with the sign-in tests 5/5 and the sync tests 9/9; `backend` smoke test
   green with the new migration and hook. Draft PR #30 (base `t-0015-sign-in`).
 - 2026-11-19 claude-code/opus-5.5: Merged in PR #37 (reviewed and merged by Sander); sync runs in production. Remaining for Done: Sander sees a project made on the phone appear on the laptop (use a personal laptop, not the managed work one).
+- 2026-11-19 claude-code/opus-5.5: Done. Sander saw a project made on the phone appear on his personal laptop in production. Confirmed by Sander in chat ("All checked and verified").
