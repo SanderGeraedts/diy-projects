@@ -52,8 +52,8 @@ tasks rather than chat history.
   and every open question.
 - [`docs/tasks/`](docs/tasks/index.md): one file per piece of work, each with a check that
   proves it done.
-- [`AGENTS.md`](AGENTS.md): the rules agents follow, such as the paths that need the
-  owner's review.
+- [`AGENTS.md`](AGENTS.md): the rules agents follow: every change is a PR, and a PR merges
+  once CI is green.
 
 ## Licence
 

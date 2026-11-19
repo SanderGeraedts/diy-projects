@@ -5,7 +5,7 @@ description: "Once v1 works, make the deploy docs generic, check the history for
 status: Doing
 guarded: true
 depends_on: [T-0025, T-0002, T-0004, T-0005, T-0007, T-0008, T-0009, T-0010, T-0011, T-0012, T-0014, T-0015, T-0016, T-0017, T-0018, T-0019]
-decisions: [D-0023, D-0010, D-0018, D-0017]
+decisions: [D-0023, D-0010, D-0018, D-0028]
 raised_on: 2026-11-17
 done_on: ""
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/46"]
@@ -29,8 +29,8 @@ D-0010: private until v1 works and the deploy docs are generic, then public unde
   and D5 (NAS details) stay, by Sander's choice.
 - `LICENSE` (MIT) and a short `README.md`: what it is, how to run it locally, how to
   self-host it.
-- After Sander makes the repo public: branch protection on `main` (required CI check,
-  code-owner review), per D-0017.
+- After Sander makes the repo public: branch protection on `main` (required CI check
+  `checks`, no review), per D-0028.
 
 # Done when
 
@@ -69,7 +69,9 @@ D-0010: private until v1 works and the deploy docs are generic, then public unde
 - 2026-11-19 claude-code/opus-5.5: To revisit once public (no decision written): D-0008,
   outside contributors may suit GitHub Issues better than task files; D-0018, self-hosters
   will expect backup instructions; D-0020, the Dutch-only interface.
-- Remaining: Sander's review (guarded); set `APP_ORIGIN` on the NAS before or at merge (fill
+- Superseded by D-0028 (no guarded paths): no review needed; branch protection requires only
+  the `checks` status check. Merged by the agent once green.
+- Remaining: set `APP_ORIGIN` on the NAS before or at merge (fill
   it into the app's YAML the next time `compose.yml` is pasted, README step 4); make the
-  repository public; turn on branch protection on `main` (required CI check `checks`,
-  code-owner review), per D-0017.
+  repository public; turn on branch protection on `main` (required CI check `checks`, no
+  review), per D-0028.
