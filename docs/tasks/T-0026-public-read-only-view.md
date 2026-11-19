@@ -1,11 +1,11 @@
 ---
 id: T-0026
 title: "Show public projects read-only to visitors who aren't signed in"
-description: "A per-project public switch (off by default), PocketBase rules that let anyone read public projects, their entries and photo copies and thumbnails but never originals, and a read-only online view for visitors."
-status: Open
+description: "A per-project public switch (on by default, D-0025), PocketBase rules that let anyone read public projects, their entries and photo copies and thumbnails but never originals, and a read-only online view for visitors."
+status: Doing
 guarded: true
 depends_on: []
-decisions: [D-0002, D-0003, D-0006, D-0013, D-0014, D-0015, D-0018, D-0020, D-0022, D-0023]
+decisions: [D-0002, D-0003, D-0006, D-0013, D-0014, D-0015, D-0018, D-0020, D-0023, D-0024, D-0025]
 raised_on: 2026-11-19
 done_on: ""
 result: []
@@ -13,13 +13,14 @@ result: []
 
 # Goal
 
-D-0022 and D-0023: people who open `projects.sanderg.nl` without signing in see the projects
-Sander switched to public, read-only.
+D-0025 and D-0023: people who open `projects.sanderg.nl` without signing in see the projects
+Sander hasn't switched off, read-only.
 
-- **Public switch:** a `public` field on projects, off by default. Locally a new Dexie version
-  with an upgrade that sets it to false on existing projects (D-0007); it syncs like other
-  fields (T-0016). The project form gets a switch (“Openbaar”), with a short note that public
-  notes and photos are visible to anyone.
+- **Public switch (D-0025):** a `public` field on projects, on by default. Locally a new
+  Dexie version with an upgrade that sets it to true on existing projects (D-0007); new
+  projects start true; it syncs like other fields (T-0016). The PocketBase migration sets it
+  to true on existing records too. The project form gets a switch (“Openbaar”), with a short
+  note that public notes and photos are visible to anyone.
 - **PocketBase (additive migration, D-0018's backup first):**
   - `projects`: list/view rule `owner = @request.auth.id || (public = true && deletedAt = "")`
     (adjust to how tombstones are stored); create/update/delete stay owner-only.
@@ -46,8 +47,8 @@ Sander switched to public, read-only.
   gets nothing for a private project, a tombstoned record, `history`, or any original (also
   not of a public photo); a guest can't create or change anything.
 - Unit/e2e tests show visitor mode has no edit controls and never opens Dexie or the outbox.
-- Sander switches one project to public and sees it, read-only, in a private browser window;
-  a private project doesn't show there.
+- Sander sees his projects, read-only, in a private browser window; after he switches one
+  off, it no longer shows there.
 - Sander reviews the PR (guarded: `deploy/nas/`, `src/db/`, `src/sync/`, maybe `src/auth/`).
 
 # Notes
@@ -59,3 +60,4 @@ Sander switched to public, read-only.
   T-0014's log).
 
 # Log
+- 2026-11-19 claude-code/opus-5.5: Started. Sander chose the public switch on by default (D-0025, replacing D-0022), also for existing projects.
