@@ -39,6 +39,10 @@
       "PowerShell(git push -f origin HEAD:main:*)",
       "PowerShell(git push --no-verify:*)",
       "PowerShell(git push * --no-verify:*)"
+    ],
+    "ask": [
+      "Bash(*--confirmed*)",
+      "PowerShell(*--confirmed*)"
     ]
   }
 }
