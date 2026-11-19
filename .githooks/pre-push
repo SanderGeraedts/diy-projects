@@ -1,7 +1,7 @@
 #!/bin/sh
-# D-0017: local guard while the repository is private. Refuses any push to main, by any
+# D-0028 (was D-0017): local guard. Refuses any push to main, by any
 # agent or tool. Feature branches push normally. main changes only through a PR merged by
-# the auto-merge workflow or by Sander in GitHub.
+# the auto-merge workflow, an agent (green PRs only) or Sander in GitHub.
 # Git passes "<local ref> <local sha> <remote ref> <remote sha>" lines on stdin.
 
 refused=0
@@ -12,7 +12,7 @@ while read -r local_ref local_sha remote_ref remote_sha || [ -n "$remote_ref" ];
 done
 
 if [ "$refused" -eq 1 ]; then
-  echo "pre-push: refusing to push to main (D-0017)." >&2
+  echo "pre-push: refusing to push to main (D-0028)." >&2
   echo "Push a feature branch and open a PR; the auto-merge workflow or Sander merges it." >&2
   exit 1
 fi

@@ -2,9 +2,6 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "deny": [
-      "Bash(gh pr merge:*)",
-      "Bash(gh pr merge)",
-      "Bash(gh api *pulls/*/merge*)",
       "Bash(git push origin main:*)",
       "Bash(git push origin main)",
       "Bash(git push origin HEAD:main:*)",
@@ -24,9 +21,6 @@
       "Bash(git push --no-verify:*)",
       "Bash(git push * --no-verify:*)",
       "Bash(git push * --no-verify)",
-      "PowerShell(gh pr merge:*)",
-      "PowerShell(gh pr merge)",
-      "PowerShell(gh api *pulls/*/merge*)",
       "PowerShell(git push origin main:*)",
       "PowerShell(git push origin main)",
       "PowerShell(git push origin HEAD:main:*)",
@@ -39,6 +33,10 @@
       "PowerShell(git push -f origin HEAD:main:*)",
       "PowerShell(git push --no-verify:*)",
       "PowerShell(git push * --no-verify:*)"
+    ],
+    "ask": [
+      "Bash(*--confirmed*)",
+      "PowerShell(*--confirmed*)"
     ]
   }
 }

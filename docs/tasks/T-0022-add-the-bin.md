@@ -5,10 +5,10 @@ description: "A bin screen listing deleted projects and entries, with restore, a
 status: Done
 guarded: true
 depends_on: [T-0010, T-0017]
-decisions: [D-0002, D-0006, D-0014, D-0015, D-0018, D-0023, D-0024, D-0025]
+decisions: [D-0002, D-0006, D-0014, D-0015, D-0018, D-0023, D-0024, D-0025, D-0026]
 raised_on: 2026-11-17
 done_on: "2026-11-19"
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/42", https://github.com/SanderGeraedts/diy-projects/pull/43]
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/42", "https://github.com/SanderGeraedts/diy-projects/pull/43"]
 ---
 
 # Goal
@@ -73,3 +73,4 @@ D-0014's bin, after v1:
 - 2026-11-19 claude-code/opus-5.5: Built as described under *How it is built*, PR #42. NAS: migration `1794931600_purge_markers.js` (adds `purgedAt` to projects, entries and photos; nothing else), hook `bin.pb.js`; smoke test extended (a live project can't be purged; a guest and another account can't list the bin or purge; the owner's purge removes the three files from disk, the history rows and the content, keeps a marker per record and leaves other projects alone; a late upload, edit, re-create and a new photo or entry under a purged item get 410; an entry purge keeps its project). App: `restoreProject`, `restoreEntry`, `purgeScope`, `removePurged`, `forgetPurged` in `src/db/write.ts`; the engine drops a record on a marker or a 410 (`src/sync/engine.ts`); `src/sync/purge.ts` and `deleteForGood` in `src/sync/app.ts`; the "Prullenbak" screen at `/prullenbak` (owner only, linked at the foot of the overview), with "Terugzetten" and "Definitief verwijderen" after a confirmation that names what goes. Tests: write API and bin listing unit tests, engine tests against the fake PocketBase, `sync.pocketbase` (a restore on one device shows on another; a guest or another account can neither list the bin nor purge) and `photos.pocketbase` (a purge removes the files on the NAS and the other device drops its copies; an upload and a re-create of a purged photo from a second device get 410 and re-create nothing), e2e `bin.spec.ts` and the visitor tests (no bin, no link). Checks: `pnpm run typecheck` clean; `pnpm test` 27 files passed, 3 skipped (332 tests passed, 24 skipped); `pnpm run build` built, precache 22 entries; `E2E_PORT=4792 pnpm run test:e2e` 48 passed, 2 skipped. Against the official PocketBase 0.40.6 Windows build with this branch's migrations and hooks: smoke test "All smoke tests passed."; `auth.pocketbase` 5 passed, `sync.pocketbase` 11 passed, `photos.pocketbase` 8 passed. On Windows a file still being downloaded can't be removed; the hook then keeps the purge (the marker is committed) and logs the leftover files instead of failing.
 - Remaining: Sander reviews the PR (guarded: `deploy/nas/`, `src/db/`, `src/sync/`); before merging he takes a PocketBase backup in the admin screen (D-0018); after the deploy he restores and permanently deletes a test project in production.
 - 2026-11-19 claude-code/opus-5.5: Done. Sander deleted, restored and permanently deleted a test project in production. Confirmed by Sander in chat ("All checked and verified").
+- 2026-11-19 claude-code/opus-5.5: The bin's design recorded as D-0026, approved by Sander.
