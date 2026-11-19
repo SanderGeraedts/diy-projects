@@ -2,12 +2,12 @@
 id: T-0014
 title: "Run PocketBase on the NAS behind Tailscale Funnel"
 description: "Compose files, the Funnel serve.json allowlist and the step-by-step setup in deploy/nas/, so Sander can run the image on the NAS, reachable only through Funnel, updated by Watchtower."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0013]
 decisions: [D-0005, D-0006, D-0010, D-0017]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-19"
 result: [https://github.com/SanderGeraedts/diy-projects/pull/24]
 ---
 
@@ -56,3 +56,5 @@ Everything Sander needs to bring the backend up on the NAS (D-0005), following
   and checked the command matches CI, the label is on pocketbase only, and 443 has no
   admin, superuser or history path. Remaining: Sander follows the README on the NAS and
   runs the outside-network checks.
+- 2026-11-19 claude-code/opus-5.5: Deployed with Sander (README steps 1–8). Dataset on the larger pool, `<pool>/Applications/diy-projects`, with `tailscale/`, `pb_data/`, `serve.json` and `.env`; app installed from the reviewed `compose.yml` (path substituted, otherwise identical to `main`) through the same API as Install via YAML, since the YAML editor auto-indents. GHCR package made public (anonymous pull 200). Tailscale: MagicDNS, HTTPS and the Funnel attribute were already on; one-off 1-day auth key (pasted by Sander), key expiry disabled, key line removed from `.env` afterwards and the app came back without it. Outside checks: health 200, signed-out list empty, superuser sign-in / `/_/` / `history` 404, CORS only `projects.sanderg.nl`, 8443 unreachable off the tailnet. Netlify `POCKETBASE_URL` set for Production only (free plan has no scope limits; previews have no value), production redeployed and its bundle has the address. Sander created the superuser and his user from his phone.
+- 2026-11-19 claude-code/opus-5.5: Lesson: a managed work laptop can intercept TLS by hostname (a test with a wrong SNI to the tailnet IP returned that other site's real certificate), sending tailnet traffic out through Funnel; 8443 then fails with "ingress conn for unconfigured …:8443" on the NAS. Use a personal device for the admin screen.
