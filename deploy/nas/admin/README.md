@@ -11,8 +11,14 @@ user environment variables, never in the repository.
 
 1. **A user for the agent.** TrueNAS → **Credentials → Users → Add**:
    - Username `claude-agent`, full name "Claude agent".
-   - **Disable password** (it signs in with its API key only), no SMB, no shell access.
-   - Group: `builtin_administrators` (full admin, D-0027).
+   - **TrueNAS Access:** Full Admin (D-0027). This adds `builtin_administrators` and forces
+     **Shell Access** on (greyed out); that's harmless with the password disabled and no SSH.
+   - **SSH Access:** off, and leave **Public SSH Key** empty. With SSH on, TrueNAS 25.10
+     refuses to save: "/var/empty: the user home directory must be set to a writable path
+     located within a data pool."
+   - **SMB Access:** off. **Disable Password:** on (it signs in with its API key only).
+   - **Home Directory:** a folder on a data pool (TrueNAS 25.10 wants one for admin users);
+     nothing is stored there.
 2. **Its API key.** **Credentials → Users → claude-agent → API Keys → Add**. Name it after
    the machine (letters and digits only). Copy the key once; TrueNAS won't show it again.
 3. **The certificate fingerprint.** In PowerShell on the laptop, on the home network:
