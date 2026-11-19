@@ -1,5 +1,6 @@
 import { ClientResponseError } from 'pocketbase'
 import type { RecordApi, SyncAuth, SyncClient } from './engine'
+import type { PurgeClient } from './purge'
 import type { ServerRecord } from './records'
 
 // Test helpers for src/sync (T-0016). Not imported by the app.
@@ -13,6 +14,11 @@ import type { ServerRecord } from './records'
 // Reads (T-0026): like deploy/nas's rules, a list also returns other owners' public projects
 // that aren't tombstoned, and their live entries and photos; the engine asks for its own.
 //
+// The bin (T-0022): like deploy/nas/pb_hooks/bin.pb.js, the owner's DELETE of a tombstoned
+// project, entry or photo deletes it and what it holds for good: each record becomes a marker
+// with `purgedAt`, without content or files, and its history rows go. A marker answers every
+// later update, upload or create (also of a new record under it) with 410 Gone.
+//
 // Files (T-0017): a multipart update stores each file under a new name, as PocketBase does
 // (replacing the field's earlier file), and protected downloads need a file token.
 
@@ -23,7 +29,7 @@ export interface HistoryRow {
 }
 
 /** `upload` is an update with files (multipart); `download` fetches one file. */
-export type Operation = 'getList' | 'create' | 'update' | 'upload' | 'token' | 'download'
+export type Operation = 'getList' | 'create' | 'update' | 'upload' | 'token' | 'download' | 'delete'
 
 /** Return an error to fail a request, or nothing to let it through. */
 export type Interceptor = (
@@ -105,6 +111,45 @@ export class FakePocketBase {
     if (err) throw err
   }
 
+  /** Whether a record, or the project or entry holding it, was deleted for good. */
+  private purgedUnder(collection: string, record: { id: string; [field: string]: unknown }): boolean {
+    const gone = (c: string, id: unknown) => !!this.records.get(c)?.get(String(id))?.purgedAt
+    return (
+      gone(collection, record.id) ||
+      (collection !== 'projects' && gone('projects', record.projectId)) ||
+      (collection === 'photos' && gone('entries', record.entryId))
+    )
+  }
+
+  /** What bin.pb.js does on the owner's DELETE of a tombstoned record. */
+  purge(collection: string, id: string): void {
+    const record = this.table(collection).get(id)
+    if (!record) throw responseError(404)
+    if (record.purgedAt) return
+    if (!record.deletedAt) throw responseError(400)
+    const time = new Date(this.clock).toISOString()
+    const targets: [string, ServerRecord][] = [[collection, record]]
+    const holds = (c: string, field: string) =>
+      [...this.table(c).values()].filter((r) => r[field] === id && r.owner === record.owner).map((r) => [c, r] as [string, ServerRecord])
+    if (collection === 'projects') targets.push(...holds('entries', 'projectId'), ...holds('photos', 'projectId'))
+    if (collection === 'entries') targets.push(...holds('photos', 'entryId'))
+    const EMPTY: Record<string, Record<string, unknown>> = {
+      projects: { title: '', description: '', tags: [], coverPhotoId: '', public: false },
+      entries: { note: '' },
+      photos: { original: '', copy: '', thumbnail: '', takenAt: '', width: 0, height: 0 },
+    }
+    for (const [c, r] of targets) {
+      if (r.purgedAt) continue
+      for (const field of ['original', 'copy', 'thumbnail']) {
+        if (typeof r[field] === 'string' && r[field]) this.files.delete(`${c}/${r.id}/${r[field] as string}`)
+      }
+      const marker = { ...r, ...EMPTY[c], deletedAt: r.deletedAt || time, updatedAt: time, purgedAt: time }
+      this.table(c).set(r.id, { ...marker, updated: this.now() } as ServerRecord)
+    }
+    const ids = new Set(targets.map(([, r]) => r.id))
+    for (let i = this.history.length - 1; i >= 0; i--) if (ids.has(this.history[i]!.recordId)) this.history.splice(i, 1)
+  }
+
   /** Readable by anyone, as the T-0026 list rules have it (deploy/nas/pb_migrations/). */
   isPublic(collection: string, record: ServerRecord): boolean {
     if (record.deletedAt) return false
@@ -113,7 +158,7 @@ export class FakePocketBase {
   }
 
   /** A client signed in as `userId`. Set `signedIn = false` on it to make every request a 401. */
-  client(userId = 'u1'): SyncClient & { signedIn: boolean } {
+  client(userId = 'u1'): SyncClient & PurgeClient & { signedIn: boolean } {
     const server = this
     const client = {
       signedIn: true,
@@ -131,7 +176,7 @@ export class FakePocketBase {
           return `fake:/api/files/${collection}/${String(record.id)}/${filename}?token=${String(query.token ?? '')}`
         },
       },
-      collection(name: string): RecordApi {
+      collection(name: string): RecordApi & { delete(id: string, options?: Record<string, unknown>): Promise<boolean> } {
         const guard = (op: Operation, id?: string) => {
           if (!client.signedIn) throw responseError(401)
           server.check(op, name, id)
@@ -150,6 +195,7 @@ export class FakePocketBase {
             guard('create', String(body.id))
             const table = server.table(name)
             const id = String(body.id)
+            if (body.owner === userId && server.purgedUnder(name, { ...body, id })) throw responseError(410)
             if (table.has(id)) throw responseError(400)
             if (body.owner !== userId) throw responseError(400)
             const record = { ...clone(body), id, updated: server.now() } as ServerRecord
@@ -165,6 +211,7 @@ export class FakePocketBase {
             const table = server.table(name)
             const stored = table.get(id)
             if (!stored || stored.owner !== userId) throw responseError(404)
+            if (stored.purgedAt) throw responseError(410) // bin.pb.js
             const body: Record<string, unknown> = input instanceof FormData ? {} : input
             if (input instanceof FormData) {
               for (const [field, value] of input.entries()) {
@@ -193,6 +240,13 @@ export class FakePocketBase {
             const record = { ...incoming, id, updated: server.now() }
             table.set(id, record)
             return clone(record)
+          },
+          async delete(id) {
+            guard('delete', id)
+            const stored = server.table(name).get(id)
+            if (!stored || stored.owner !== userId) throw responseError(404)
+            server.purge(name, id)
+            return true
           },
         }
       },

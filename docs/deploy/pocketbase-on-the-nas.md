@@ -201,6 +201,16 @@ Hooks (`deploy/nas/pb_hooks/*.pb.js`):
   dropped, newest 100 kept) keeps the collection small.
 - Settings that differ per NAS (secrets, allowlists) come from container environment
   variables via `$os.getenv(...)`, never from the repo.
+- **The bin's permanent delete** (T-0022, D-0014) is `pb_hooks/bin.pb.js`: the owner's
+  `DELETE` of a tombstoned project, entry or photo empties it and everything in it, removes
+  their files and `history` rows in one transaction, and keeps each record as a marker with
+  `purgedAt` set; a marker answers later updates, uploads and creates with 410 Gone. It uses
+  the record paths Funnel already allows, so `serve.json` doesn't change. In JS hooks read the
+  request through `e.requestInfo()` (`e.request` can be undefined), and save an emptied
+  record with `saveNoValidate` (a marker breaks `required`).
+- Hook files load in file-name order, so `bin.pb.js` registers before
+  `last_write_wins.pb.js`. Should the latter ever answer first (an older edit of a purged
+  record, answered with the stored marker), the app drops its copy all the same.
 
 ## 6. Running it
 

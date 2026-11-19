@@ -325,6 +325,114 @@ export async function markPhotoFileUploaded(id: string, file: PhotoFile, target:
   })
 }
 
+// --- The bin (T-0022, D-0014) ---
+//
+// What a delete cascaded to is found by its delete time: `deleteProject` and `deleteEntry`
+// give the item and every record they tombstone the same `deletedAt`, and records already
+// tombstoned keep their own. So a restore brings back exactly the records whose `deletedAt`
+// equals the item's: an entry or photo deleted on its own earlier stays deleted. The time
+// travels unchanged through sync (a text field on the NAS), so this holds on every device.
+
+/** The kinds of item the bin lists; photos deleted on their own aren't listed. */
+export type BinKind = 'project' | 'entry'
+
+/** Clears a record's tombstone and queues the change. Call inside a transaction. */
+async function untombstone(target: DiyDb, table: SyncedTable, id: string, time: string) {
+  await target.table(table).update(id, { deletedAt: null, updatedAt: time })
+  await queue(target, table, id, 'put', time)
+}
+
+/**
+ * Restores a deleted project ("Terugzetten") with the entries and photos its delete took with
+ * it (the same `deletedAt`), in one transaction with an outbox row per record (D-0002).
+ * Returns the number of photos restored.
+ */
+export async function restoreProject(id: string, target: DiyDb = defaultDb): Promise<number> {
+  const time = now()
+  return target.transaction('rw', target.projects, target.entries, target.photos, target.outbox, async () => {
+    const project = await target.projects.get(id)
+    if (!project || project.deletedAt === null) fail(`Project ${id} is not in the bin.`)
+    const deletedAt = project.deletedAt
+    const entries = await target.entries.where('projectId').equals(id).toArray()
+    for (const entry of entries) if (entry.deletedAt === deletedAt) await untombstone(target, 'entries', entry.id, time)
+    const photos = (await target.photos.where('projectId').equals(id).toArray()).filter((p) => p.deletedAt === deletedAt)
+    for (const photo of photos) await untombstone(target, 'photos', photo.id, time)
+    await untombstone(target, 'projects', id, time)
+    return photos.length
+  })
+}
+
+/**
+ * Restores a deleted entry with the photos its delete took with it (the same `deletedAt`), in
+ * one transaction with an outbox row per record. Its project must be live: an entry deleted
+ * with its project comes back with the project. Returns the number of photos restored.
+ */
+export async function restoreEntry(id: string, target: DiyDb = defaultDb): Promise<number> {
+  const time = now()
+  return target.transaction('rw', target.projects, target.entries, target.photos, target.outbox, async () => {
+    const entry = await target.entries.get(id)
+    if (!entry || entry.deletedAt === null) fail(`Entry ${id} is not in the bin.`)
+    const project = await target.projects.get(entry.projectId)
+    if (!project || project.deletedAt !== null) fail('Restore the project first.')
+    const deletedAt = entry.deletedAt
+    const photos = (await target.photos.where('entryId').equals(id).toArray()).filter((p) => p.deletedAt === deletedAt)
+    for (const photo of photos) await untombstone(target, 'photos', photo.id, time)
+    await untombstone(target, 'entries', id, time)
+    return photos.length
+  })
+}
+
+/**
+ * What a permanent delete of a bin item removes, the same as the NAS does
+ * (deploy/nas/pb_hooks/bin.pb.js): a project with every entry and photo of it, an entry
+ * with every photo of it, whatever their own tombstones say.
+ */
+export async function purgeScope(
+  kind: BinKind,
+  id: string,
+  target: DiyDb = defaultDb,
+): Promise<{ projects: string[]; entries: string[]; photos: string[] }> {
+  if (kind === 'project') {
+    const entries = await target.entries.where('projectId').equals(id).primaryKeys()
+    const photos = await target.photos.where('projectId').equals(id).primaryKeys()
+    return { projects: [id], entries, photos }
+  }
+  const photos = await target.photos.where('entryId').equals(id).primaryKeys()
+  return { projects: [], entries: [id], photos }
+}
+
+/**
+ * Removes a bin item and what it holds (`purgeScope`) from this device, with their outbox
+ * rows, in one transaction. Only for an item in the bin, and only once the NAS has deleted it
+ * for good (src/sync/purge.ts), or where there is no NAS (previews and dev, D-0006).
+ */
+export async function removePurged(kind: BinKind, id: string, target: DiyDb = defaultDb): Promise<void> {
+  const tables = [target.projects, target.entries, target.photos, target.outbox]
+  await target.transaction('rw', tables, async () => {
+    const item = kind === 'project' ? await target.projects.get(id) : await target.entries.get(id)
+    if (!item) return
+    if (item.deletedAt === null) fail('Only an item in the bin can be deleted for good.')
+    const scope = await purgeScope(kind, id, target)
+    for (const table of ['projects', 'entries', 'photos'] as const) {
+      for (const recordId of scope[table]) await forget(target, table, recordId)
+    }
+  })
+}
+
+/**
+ * Drops one record the NAS has deleted for good (its marker came through sync, or the NAS
+ * answered 410 Gone), with every outbox row for it: the NAS refuses those changes anyway
+ * (D-0014). Its files on this device go with it. For the sync engine.
+ */
+export async function forgetPurged(table: SyncedTable, id: string, target: DiyDb = defaultDb): Promise<void> {
+  await target.transaction('rw', target.table(table), target.outbox, () => forget(target, table, id))
+}
+
+async function forget(target: DiyDb, table: SyncedTable, id: string) {
+  await target.table(table).delete(id)
+  await target.outbox.where('[table+recordId]').equals([table, id]).delete()
+}
+
 // --- Sync status (T-0018) ---
 
 /** Changes on this device the NAS hasn't confirmed yet. */
