@@ -2,12 +2,12 @@
 id: T-0017
 title: "Sync photo files: upload the original, copy and thumbnail; other devices fetch copy and thumbnail"
 description: "Upload each photo's untouched original, its 2560 px copy and its thumbnail in the background, resuming after interruptions; drop the device's original once confirmed; other devices download only the copy and thumbnail."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0007, T-0016]
 decisions: [D-0002, D-0003, D-0005, D-0006, D-0014, D-0015]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-19"
 result: [https://github.com/SanderGeraedts/diy-projects/pull/35, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
@@ -71,3 +71,4 @@ D-0015's three files per photo:
   skipped; build OK; e2e 33 passed / 2 skipped; locally against PocketBase 0.40.6 auth 5/5,
   sync 9/9, photo files 5/5. Draft PR #35 (base `t-0016-sync`).
 - 2026-11-19 claude-code/opus-5.5: Merged in PR #37 (reviewed and merged by Sander); photo upload works in production. Remaining for Done: Sander adds 20 photos on mobile data, closes the app halfway, reopens it, and all of them arrive.
+- 2026-11-19 claude-code/opus-5.5: Done. Sander added 20 photos on mobile data, closed the app halfway and reopened it; all arrived. Confirmed by Sander in chat ("All checked and verified").

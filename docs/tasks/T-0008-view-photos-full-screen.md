@@ -2,12 +2,12 @@
 id: T-0008
 title: "View photos full screen"
 description: "A full-screen photo viewer with swipe between an entry's photos and pinch zoom, sized for the open Pixel Fold."
-status: Doing
+status: Done
 guarded: false
 depends_on: [T-0002]
 decisions: [D-0003, D-0020]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-19"
 result: [https://github.com/SanderGeraedts/diy-projects/pull/25, https://github.com/SanderGeraedts/diy-projects/pull/37]
 ---
 
@@ -38,3 +38,4 @@ Tapping a photo opens it full screen from the local 2560 px copy, offline (D-000
 
 - 2026-11-17 claude-code/opus-5.5: Built the viewer at `/projects/$projectId/photos/$photoId` (src/viewer/), plain pointer events, no gesture library. Grids now show the thumbnail and link to the viewer. Stacked on T-0002's branch. Open points: (1) the viewer uses the theme background (`bg-bg`), not black; a black photo background would need a token, so that's for Sander or a decision; (2) zoom goes up to one copy pixel per CSS pixel. Remaining: Sander checks it on his Fold, open and folded.
 - 2026-11-19 claude-code/opus-5.5: Merged in PR #37 (reviewed and merged by Sander). Remaining for Done: Sander checks the viewer on the Fold, open and folded.
+- 2026-11-19 claude-code/opus-5.5: Done. Sander checked the viewer on the Fold, open and folded. Confirmed by Sander in chat ("All checked and verified").
