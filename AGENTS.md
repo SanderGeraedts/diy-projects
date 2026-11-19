@@ -24,6 +24,8 @@ recorded decisions and tasks.
 - **Never merge a PR, push to `main`, or skip git hooks** (D-0017). The auto-merge workflow
   and Sander merge.
 - **Never point anything but production at the real NAS** (D-0006).
+- **Manage the NAS only with `deploy/nas/admin/truenas.mjs`** (D-0027). Ask Sander in chat
+  before any `--confirmed` (destructive) call, and never print or commit the key.
 - **Use pnpm** (D-0019): `pnpm install`, `pnpm run <script>`, `pnpm exec`; never `npm` or
   `npx`, and never commit a `package-lock.json`.
 - **Prove your work.** Run the task's check and report its actual output.
