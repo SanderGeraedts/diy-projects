@@ -61,6 +61,11 @@ overwriting data, datasets, snapshots, disks and apps; anything about users, gro
 certificates, SSH, sign-in, network and the UI's own settings; reboot, shutdown and OS
 updates. Ask Sander in chat with exactly what will happen, then rerun with `--confirmed`.
 
+Creating a snapshot is a backup, not destructive: it runs without asking (Sander,
+2026-11-20). Take one before any risky change, for example
+`pool.snapshot.create '[{"dataset":"<dataset>","name":"before-<change>"}]'`. Deleting, rolling
+back or cloning a snapshot still asks.
+
 ## Limits
 
 - LAN only: from home. If something intercepts TLS (the managed work laptop does on the

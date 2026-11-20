@@ -23,7 +23,9 @@ const DESTRUCTIVE = [
   /\.delete$/, /\.wipe$/, /\.destroy$/, /\.rollback$/, /\.clear$/, /\.purge$/,
   /^pool\.(export|detach|offline|remove|replace|expand)$/,
   /^pool\.dataset\.(delete|destroy_snapshots|promote|change_key|lock)$/,
-  /^zfs\.snapshot\./, /^disk\./, /^filesystem\.(put|setacl|setperm|chown)$/,
+  // snapshots: creating one is a backup and runs freely (Sander, 2026-11-20); deleting,
+  // rolling back or cloning one still asks
+  /^(zfs|pool)\.snapshot\.(delete|destroy|rollback|clone|hold|release)$/, /^disk\./, /^filesystem\.(put|setacl|setperm|chown)$/,
   /^replication\.(run|restore)$/, /^cloudsync\.(sync|restore)$/, /^rsynctask\.run$/,
   // who can get in, and how
   /^(user|group|privilege|api_key|auth|ssh|kerberos|directoryservices|ldap|activedirectory|idmap|certificate|certificateauthority|acme|kmip|truecommand|tn_connect)\./,

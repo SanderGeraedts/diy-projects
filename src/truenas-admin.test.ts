@@ -11,7 +11,8 @@ const run = (...args: string[]) =>
 
 describe('deploy/nas/admin/truenas.mjs', () => {
   it.each([
-    'pool.dataset.delete', 'app.delete', 'zfs.snapshot.create', 'user.update', 'api_key.create',
+    'pool.dataset.delete', 'app.delete', 'pool.snapshot.delete', 'pool.snapshot.rollback',
+    'zfs.snapshot.rollback', 'pool.snapshot.clone', 'user.update', 'api_key.create',
     'system.reboot', 'update.update', 'filesystem.put', 'interface.commit', 'system.general.update',
   ])('refuses %s without --confirmed', (method) => {
     const r = run(method, '[]');
@@ -19,7 +20,7 @@ describe('deploy/nas/admin/truenas.mjs', () => {
     expect(r.stderr).toMatch(/ask Sander/);
   });
 
-  it.each(['system.info', 'app.query', 'app.redeploy', 'app.update', 'app.upgrade', 'app.stop', 'pool.dataset.query'])(
+  it.each(['system.info', 'app.query', 'app.redeploy', 'app.update', 'app.upgrade', 'app.stop', 'pool.dataset.query', 'pool.snapshot.create', 'zfs.snapshot.create'])(
     'lets %s through to the connection',
     (method) => {
       const r = run(method, '[]');
