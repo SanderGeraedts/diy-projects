@@ -7,7 +7,7 @@ depends_on: []
 decisions: [D-0030, G-0001, G-0002, G-0004, G-0011, G-0012, G-0016, G-0019, G-0022, G-0023, G-0025]
 raised_on: 2026-11-20
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/56"]
 ---
 
 # Goal
@@ -63,3 +63,14 @@ To be written by the tester.
   `scripts/tasks-index.mjs`, `deploy/nas/admin/truenas.mjs`, their two tests and the `ws`
   dependency. `ci.yml` and `auto-merge.yml` call the harness's workflows at `v0.1.0`;
   `pocketbase-auth` stays a job of its own.
+- 2026-11-20 developer: Draft PR #56. Locally: `harness check` "✓ tasks: 28 tasks, index in
+  step", "✓ decisions: 35 records, index complete, 0 overrules valid", "✓ engineers: 2
+  listed", "✓ generated files: current"; `pnpm run typecheck` clean; `pnpm test` 27 files
+  passed, 3 skipped, 333 tests passed, 26 skipped; `pnpm run build` built; `E2E_PORT=4795
+  pnpm run test:e2e` 52 passed, 2 skipped. CI green on #56: `checks / checks` (harness check
+  as above, e2e 54 passed) and `pocketbase-auth`. The ruleset on `main` still requires
+  `checks`, which CI no longer reports under that name.
+- Remaining: at the merge, the ruleset on `main` requires `checks / checks` instead of
+  `checks` (`pnpm exec harness protect "checks / checks"`), after the tester has passed the
+  PR; the periodic ZFS snapshot task for the app's dataset (G-0023) is still to be created
+  on the NAS.
