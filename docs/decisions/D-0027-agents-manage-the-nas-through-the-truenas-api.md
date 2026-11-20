@@ -2,11 +2,11 @@
 id: D-0027
 title: "Agents manage the NAS through the TrueNAS API as a full-admin user over the LAN, and ask Sander before anything destructive"
 description: "A dedicated TrueNAS user with full admin and an API key that Sander creates and keeps in his environment lets agents read, configure, update and restart apps and the NAS from the home LAN, through deploy/nas/admin/truenas.mjs with the certificate pinned; destructive calls need --confirmed, which Claude Code always asks Sander about."
-status: Accepted
+status: Replaced
 date: 2026-11-19
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [process, hosting, security]
 ---

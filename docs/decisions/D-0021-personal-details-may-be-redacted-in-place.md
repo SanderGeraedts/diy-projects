@@ -2,11 +2,11 @@
 id: D-0021
 title: "Personal details may be redacted from records in place; what was decided never changes"
 description: "Names of other people, employers and private incident details can be removed or replaced by neutral wording in decisions, questions, tasks and docs without writing a replacing decision, as long as the substance of what was decided stays the same; redactions are listed in the commit and the PR."
-status: Accepted
+status: Replaced
 date: 2026-11-17
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [process, privacy]
 ---

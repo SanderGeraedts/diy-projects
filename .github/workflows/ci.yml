@@ -1,4 +1,5 @@
-# D-0017: every PR runs the checks; the auto-merge workflow acts on the result.
+# Every PR runs the checks; the auto-merge workflow acts on the result (G-0011).
+# Keep the tag the same as the harness dependency in package.json (D-0030).
 name: CI
 
 on:
@@ -15,42 +16,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The harness's reusable CI: pnpm install, harness check, then the checks below. GitHub
+  # reports this job as "checks / checks", the name the ruleset on main requires.
   checks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      # D-0019: pnpm, at the version in package.json's packageManager field.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run typecheck
-      - run: pnpm test
-      # No CONTEXT here, so this is a "local" build: seeded data, no PocketBase address (D-0006).
-      - run: pnpm run build
-      - run: pnpm exec playwright install --with-deps chromium
+    uses: SanderGeraedts/harness/.github/workflows/ci.yml@v0.1.0
+    with:
+      # No CONTEXT here, so this is a "local" build: seeded data, no PocketBase address
+      # (G-0019).
+      checks: |
+        pnpm run typecheck
+        pnpm test
+        pnpm run build
       # Screenshot baselines (T-0002): committed ones are compared; missing ones are written
-      # and uploaded as the screenshot-baselines artifact, to commit under e2e/.
-      - run: pnpm run test:e2e --update-snapshots=missing
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshot-baselines
-          path: e2e/**/*-snapshots/**
-          if-no-files-found: ignore
-          retention-days: 7
-      - if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+      # and uploaded in the ci-artifacts artifact, to commit under e2e/.
+      e2e: pnpm run test:e2e --update-snapshots=missing
+      artifacts: |
+        e2e/**/*-snapshots/**
+        playwright-report/
 
   # T-0015 and T-0016: sign-in and sync against a throwaway PocketBase built from deploy/nas
-  # (its migrations and hooks), on an empty database (D-0006: never the NAS). The
+  # (its migrations and hooks), on an empty database (G-0019: never the NAS). The
   # *.pocketbase.test.ts files are skipped elsewhere.
   pocketbase-auth:
     runs-on: ubuntu-latest

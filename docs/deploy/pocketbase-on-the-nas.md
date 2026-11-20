@@ -260,7 +260,7 @@ recovered by hand. What carries over:
   enters the outbox (T-0003), and previews never get a backend address (D-0006).
 - **Before merging a schema change, take a backup** ("Backup now" in the admin screen): the
   CI check proves a migration on an *empty* database, not on real data. Adopted here as
-  D-0018.
+  D-0018, and since replaced by periodic ZFS snapshots of the app's dataset (G-0023).
 - **Node 26 ships its own `localStorage`**, which hid happy-dom's in the sister app's tests and
   made them fail locally while CI (an older Node) passed. This repo runs Node 26 locally and
   24 in CI: if storage tests behave differently between the two, look there first.

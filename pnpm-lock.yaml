@@ -194,6 +194,9 @@ importers:
       '@playwright/test':
         specifier: ^1.65.1
         version: 1.65.1
+      '@sandergeraedts/harness':
+        specifier: github:SanderGeraedts/harness#v0.1.0
+        version: https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec
       '@tailwindcss/vite':
         specifier: ^4.3.5
         version: 4.3.5(vite@8.3.8(@types/node@26.6.6)(jiti@2.7.0)(terser@5.51.2))
@@ -239,9 +242,6 @@ importers:
       workbox-window:
         specifier: ^7.4.1
         version: 7.4.1
-      ws:
-        specifier: ^8.23.0
-        version: 8.23.0
 
 packages:
 
@@ -1109,6 +1109,12 @@ packages:
     resolution: {integrity: sha512-/eMzhxPPUGd5vjHdaNtvxHbblmoe+DyvPnJkZ4uQrDlVq9PQSd8br4pWwamycwRcLoNEzXwFy2mzcGoZTYqU5A==}
     cpu: [x64]
     os: [win32]
+
+  '@sandergeraedts/harness@https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec':
+    resolution: {gitHosted: true, integrity: sha512-g/BPq5yW3FGkPTRoSlyFl1vAx4gt/f0M+ZZob1Ux3pzSUhZSwVLOpCBR/ZGDJ2uMDqf+9/2I0AYZksFWyr0gYA==, tarball: https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec}
+    version: 0.1.0
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@tailwindcss/node@4.3.5':
     resolution: {integrity: sha512-yT53FzV4ke0cr/BguDxhWMpm5MJu1O2muzk+tKw6lKHjODAsYArBbWwFbJiaksfzFv1tpkO9QHGzmfs1hJT66g==}
@@ -3680,6 +3686,13 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.68.4':
     optional: true
+
+  '@sandergeraedts/harness@https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec':
+    dependencies:
+      ws: 8.23.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@tailwindcss/node@4.3.5':
     dependencies:

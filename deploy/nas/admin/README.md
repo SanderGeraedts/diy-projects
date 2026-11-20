@@ -1,17 +1,21 @@
-# Agent access to the NAS (D-0027)
+# Agent access to the NAS (G-0022)
 
-Agents manage TrueNAS through its API with `truenas.mjs`, as a dedicated admin user, from a
-machine on the home LAN. Destructive calls need `--confirmed`, and Claude Code asks Sander
-before running any command that contains it.
+Agents manage TrueNAS through its API with the harness's NAS tool,
+`pnpm exec harness nas`, as a dedicated admin user, from a machine on the home LAN. How the
+tool works, what it treats as destructive and its examples are in
+[the harness's README](https://github.com/SanderGeraedts/harness#the-nas-tool)
+(`node_modules/@sandergeraedts/harness/README.md`). Destructive calls need `--confirmed`,
+and Claude Code asks Sander before running any command that contains it.
 
-Nothing here is secret. The host, key and certificate fingerprint live only in Sander's
-user environment variables, never in the repository.
+This file holds the setup that is specific to this project. Nothing here is secret. The
+host, key and certificate fingerprint live only in Sander's user environment variables,
+never in the repository.
 
 ## One-time setup (Sander)
 
 1. **A user for the agent.** TrueNAS → **Credentials → Users → Add**:
    - Username `claude-agent`, full name "Claude agent".
-   - **TrueNAS Access:** Full Admin (D-0027). This adds `builtin_administrators` and forces
+   - **TrueNAS Access:** Full Admin. This adds `builtin_administrators` and forces
      **Shell Access** on (greyed out); that's harmless with the password disabled and no SSH.
    - **SSH Access:** off, and leave **Public SSH Key** empty. With SSH on, TrueNAS 25.10
      refuses to save: "/var/empty: the user home directory must be set to a writable path
@@ -21,11 +25,12 @@ user environment variables, never in the repository.
      nothing is stored there.
 2. **Its API key.** **Credentials → Users → claude-agent → API Keys → Add**. Name it after
    the machine (letters and digits only). Copy the key once; TrueNAS won't show it again.
-3. **The certificate fingerprint.** In PowerShell on the laptop, on the home network:
+3. **The certificate fingerprint.** In PowerShell on the laptop, on the home network, in
+   this repository:
 
    ```powershell
    $env:TRUENAS_HOST = '<the NAS LAN address>'
-   node deploy/nas/admin/truenas.mjs --fingerprint
+   pnpm exec harness nas --fingerprint
    ```
 
    Compare it with the SHA-256 fingerprint the browser shows for the TrueNAS certificate
@@ -39,32 +44,31 @@ user environment variables, never in the repository.
    ```
 
 5. Restart the terminal (and Orca/Claude Code), then check:
-   `node deploy/nas/admin/truenas.mjs system.info`.
+   `pnpm exec harness nas system.info`.
 
 **To revoke:** delete the key, or lock the `claude-agent` user, in the TrueNAS UI. To change
 the key: add a new one, `setx` it, delete the old one.
 
-## Use
+## This project's app
+
+The TrueNAS app is called `diy-projects`:
 
 ```sh
-node deploy/nas/admin/truenas.mjs system.info
-node deploy/nas/admin/truenas.mjs app.query '[[["name","=","diy-projects"]]]'
-node deploy/nas/admin/truenas.mjs app.config '["diy-projects"]'
-node deploy/nas/admin/truenas.mjs app.redeploy '["diy-projects"]' --job
-node deploy/nas/admin/truenas.mjs app.update '["diy-projects", {"custom_compose_config_string": "..."}]' --job
+pnpm exec harness nas app.query '[[["name","=","diy-projects"]]]'
+pnpm exec harness nas app.config '["diy-projects"]'
+pnpm exec harness nas app.redeploy '["diy-projects"]' --job
+pnpm exec harness nas app.update '["diy-projects", {"custom_compose_config_string": "..."}]' --job
 ```
 
 Methods are in the TrueNAS API reference for the NAS's version (`/api/docs/` on the NAS).
 
-**Destructive** (refused without `--confirmed`; the list is in `truenas.mjs`): deleting or
-overwriting data, datasets, snapshots, disks and apps; anything about users, groups, keys,
-certificates, SSH, sign-in, network and the UI's own settings; reboot, shutdown and OS
-updates. Ask Sander in chat with exactly what will happen, then rerun with `--confirmed`.
-
-Creating a snapshot is a backup, not destructive: it runs without asking (Sander,
-2026-11-20). Take one before any risky change, for example
-`pool.snapshot.create '[{"dataset":"<dataset>","name":"before-<change>"}]'`. Deleting, rolling
-back or cloning a snapshot still asks.
+- **Snapshots** (G-0023): the app's dataset gets a periodic ZFS snapshot task. Until that
+  task exists (T-0028), take a snapshot before a schema change or any other risky change:
+  `pnpm exec harness nas pool.snapshot.create '[{"dataset":"<dataset>","name":"before-<change>"}]'`.
+  Creating one runs without asking; deleting, rolling back or cloning one still asks.
+- Never touch Immich or the other apps on the NAS unless a task names them.
+- Never put the NAS's address, the tailnet name or a pool name in a committed file.
+- Record what you changed on the NAS in the task's Log.
 
 ## Limits
 

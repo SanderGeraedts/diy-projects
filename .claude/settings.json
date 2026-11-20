@@ -32,7 +32,14 @@
       "PowerShell(git push -f origin main:*)",
       "PowerShell(git push -f origin HEAD:main:*)",
       "PowerShell(git push --no-verify:*)",
-      "PowerShell(git push * --no-verify:*)"
+      "PowerShell(git push * --no-verify:*)",
+      "PowerShell(git push origin *:refs/heads/main:*)",
+      "PowerShell(git push origin *:refs/heads/main)",
+      "PowerShell(git push --force-with-lease origin main:*)",
+      "PowerShell(git push --force-with-lease origin HEAD:main:*)",
+      "PowerShell(git push -u origin main:*)",
+      "PowerShell(git push --set-upstream origin main:*)",
+      "PowerShell(git push * --no-verify)"
     ],
     "ask": [
       "Bash(*--confirmed*)",
