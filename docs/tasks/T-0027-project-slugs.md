@@ -8,7 +8,7 @@ depends_on: []
 decisions: [D-0002, D-0006, D-0007, D-0018, D-0023, D-0024, D-0025, D-0026, D-0027, D-0028, D-0029]
 raised_on: 2026-11-20
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/52"]
 ---
 
 # Goal
@@ -52,4 +52,5 @@ holds an id, for the owner or for visitors:
 # Log
 - 2026-11-20 claude-code/opus-5.5: Started on `project-slugs`. Sander asked for slugs instead of UUIDs in URLs and delegated the details; recorded as D-0029.
 - 2026-11-20 claude-code/opus-5.5: Built on `project-slugs`. App: slug rules in `src/db/slug.ts`; projects get `slug` and `oldSlugs` (Dexie v5 backfills by `createdAt`, then id, no outbox rows); `createProject` and `updateProject` pick a slug unique on the device and move a renamed one to `oldSlugs`; routes `/projects/$slug`, `/projects/$slug/edit`, `/projects/$slug/entries/new`, `/projects/$slug/$day/$n`; owner pages find a project by slug or old slug in Dexie and redirect (replace) to the current one; entries are `#<date>` (`-2` for a second entry on a date) on the project page and in search; the sync engine takes the NAS's slug and oldSlugs whenever nothing is pending, also at an unchanged `updatedAt`, and keeps or makes a slug against a NAS without them; visitors resolve `slug = "x" || oldSlugs ~ "\"x\""` online; demo projects have slugs from their titles. NAS: migration `1794931700_project_slugs.js` (adds the fields, backfills per owner by creation with plain SQL and a new `updated`, unique index on `(owner, slug)` for non-empty slugs), hook `slugs.pb.js` with `slug.js` (dedupe on create and update, old slug kept, per owner, purge markers left out), `bin.pb.js` clears a marker's slugs. Checks: `pnpm run typecheck` clean; `pnpm test` 29 files passed, 3 skipped (351 tests passed, 26 skipped); `pnpm run build` built, precache 22 entries; `E2E_PORT=4794 pnpm run test:e2e` 52 passed, 2 skipped. Against the official PocketBase 0.40.6 Windows build with this branch's migrations and hooks: the migration on a database with existing projects gave `kast`, `kast-2` by creation, `kast-fur-sanne` to a tombstoned one, `project` to one titled `new`, nothing to a purge marker; `auth.pocketbase` 5 passed, `sync.pocketbase` 13 passed, `photos.pocketbase` 8 passed. The smoke test's new section runs in CI only (no jq here).
+- 2026-11-20 claude-code/opus-5.5: Draft PR #52. CI green on it: `checks` (unit 29 files passed, 3 skipped, 356 tests passed, 26 skipped; e2e 54 passed), `pocketbase-auth` (`auth.pocketbase` 5 passed, `sync.pocketbase` 13 passed, `photos.pocketbase` 8 passed), backend `image` (smoke test "All smoke tests passed.", with the four new slug checks ok).
 - Remaining: before merging, a PocketBase backup on the NAS (D-0018), then mark the PR ready; after the deploy, Sander opens a project by its slug on his phone and in a private window.
