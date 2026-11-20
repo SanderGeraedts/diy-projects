@@ -7,7 +7,7 @@ import { CACHE_MS, createDemoSource, createPocketBaseSource, UnreachableError, v
 const T = '2026-11-16T12:00:00.000Z'
 
 function project(id: string, extra: Record<string, unknown> = {}): ServerRecord {
-  return { id, updated: T, title: id, description: '', status: 'idea', tags: [], public: true, createdAt: T, updatedAt: T, deletedAt: '', ...extra }
+  return { id, updated: T, title: id, description: '', status: 'idea', tags: [], public: true, slug: id, oldSlugs: [], createdAt: T, updatedAt: T, deletedAt: '', ...extra }
 }
 
 function photo(id: string, extra: Record<string, unknown> = {}): ServerRecord {
@@ -29,21 +29,19 @@ function photo(id: string, extra: Record<string, unknown> = {}): ServerRecord {
 }
 
 function mockClient(records: Record<string, ServerRecord[]>) {
-  const getFullList = vi.fn(async (name: string, _options?: Record<string, unknown>) => records[name] ?? [])
-  const getOne = vi.fn(async (name: string, id: string) => {
-    const found = (records[name] ?? []).find((r) => r.id === id)
-    if (!found) throw new ClientResponseError({ url: 'https://pb.test', status: 404, response: {} })
-    return found
+  // Like PocketBase: `slug = 'x' || oldSlugs ~ '"x"'` finds a project by its slug or an earlier one.
+  const getFullList = vi.fn(async (name: string, options?: Record<string, unknown>) => {
+    const bySlug = /^slug = '([^']*)'/.exec(String(options?.filter ?? ''))?.[1]
+    const all = records[name] ?? []
+    if (bySlug === undefined) return all
+    return all.filter((r) => r.slug === bySlug || (Array.isArray(r.oldSlugs) && r.oldSlugs.includes(bySlug)))
   })
   const client: PublicClient = {
-    collection: (name) => ({
-      getFullList: (options) => getFullList(name, options),
-      getOne: (id) => getOne(name, id),
-    }),
+    collection: (name) => ({ getFullList: (options) => getFullList(name, options) }),
     files: { getURL: (record, filename) => `https://pb.test/api/files/${String(record.collectionName)}/${String(record.id)}/${filename}` },
-    filter: (raw, params) => raw.replace('{:id}', `'${String(params?.id)}'`),
+    filter: (raw, params) => raw.replace(/\{:(\w+)\}/g, (_, key: string) => `'${String(params?.[key])}'`),
   }
-  return { client, getFullList, getOne }
+  return { client, getFullList }
 }
 
 describe('isVisitor (T-0026, D-0025)', () => {
@@ -94,20 +92,30 @@ describe('createPocketBaseSource', () => {
   })
 
   it('asks only for the fields it shows, and for one project’s entries and photos', async () => {
-    const { client, getFullList } = mockClient({ projects: [project('p1')] })
-    await createPocketBaseSource(client).project('p1')
+    const { client, getFullList } = mockClient({ projects: [project('p1', { slug: 'bank' })] })
+    await createPocketBaseSource(client).project('bank')
     const calls = getFullList.mock.calls.map(([name, options]) => [name, options?.filter, String(options?.fields)])
     expect(calls).toEqual([
+      ['projects', `slug = 'bank' || oldSlugs ~ '"bank"'`, expect.not.stringMatching(/owner|oldSlugs/)],
       ['entries', `projectId = 'p1' && deletedAt = ""`, expect.not.stringMatching(/owner|original/)],
       ['photos', `projectId = 'p1' && deletedAt = ""`, expect.not.stringMatching(/owner|original/)],
     ])
   })
 
-  it('gives null for a project PocketBase doesn’t show (404), or that isn’t public', async () => {
+  it('gives null for a project PocketBase doesn’t show, or that isn’t public', async () => {
     const { client } = mockClient({ projects: [project('p2', { public: false })] })
     const source = createPocketBaseSource(client)
     expect(await source.project('nope')).toBeNull()
     expect(await source.project('p2')).toBeNull()
+    expect(await source.project('Not a slug!')).toBeNull()
+  })
+
+  it('finds a project by an earlier slug, with its current one to redirect to (T-0027)', async () => {
+    const { client } = mockClient({ projects: [project('p1', { slug: 'bank', oldSlugs: ['kast'] }), project('p2', { slug: 'kast-2' })] })
+    const source = createPocketBaseSource(client)
+    expect((await source.project('kast'))?.project).toMatchObject({ id: 'p1', slug: 'bank' })
+    expect((await source.project('bank'))?.project).toMatchObject({ id: 'p1', slug: 'bank' })
+    expect((await source.project('kast-2'))?.project).toMatchObject({ id: 'p2', slug: 'kast-2' })
   })
 
   it('turns any other failure into UnreachableError, and tries again next time', async () => {
@@ -120,14 +128,15 @@ describe('createPocketBaseSource', () => {
 
   it('reuses a load for a minute', async () => {
     let now = 0
-    const { client, getOne } = mockClient({ projects: [project('p1')] })
+    const { client, getFullList } = mockClient({ projects: [project('p1')] })
     const source = createPocketBaseSource(client, () => now)
+    const projectLoads = () => getFullList.mock.calls.filter(([name]) => name === 'projects').length
     await source.project('p1')
     await source.project('p1')
-    expect(getOne).toHaveBeenCalledTimes(1)
+    expect(projectLoads()).toBe(1)
     now = CACHE_MS
     await source.project('p1')
-    expect(getOne).toHaveBeenCalledTimes(2)
+    expect(projectLoads()).toBe(2)
   })
 })
 
@@ -137,6 +146,7 @@ describe('createDemoSource (D-0006)', () => {
     expect(projects.map((p) => p.title)).toContain('Tuinbank')
     expect(photos.every((p) => p.copyUrl.startsWith('blob:'))).toBe(true)
     expect(await createDemoSource('on').project('nope')).toBeNull()
+    expect((await createDemoSource('on').project('tuinbank'))?.project.title).toBe('Tuinbank')
   })
 
   it('stands in for an unreachable NAS', async () => {

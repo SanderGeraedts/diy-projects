@@ -10,6 +10,7 @@ import {
   type ProjectStatus,
   type SyncedTable,
 } from './db'
+import { renamedSlugs, slugify, slugsOf, uniqueSlug } from './slug'
 
 // The one write API every screen uses (T-0003). Each call validates its input, stamps
 // `updatedAt`, and writes the record and its outbox row in one transaction (D-0002), so a
@@ -84,6 +85,15 @@ async function liveEntry(target: DiyDb, id: string): Promise<Entry> {
 
 // --- Projects ---
 
+/**
+ * Every slug the other projects on this device hold, current and earlier, tombstoned ones
+ * included (D-0029). Call inside a transaction that reads projects.
+ */
+async function takenSlugs(target: DiyDb, exceptId: string): Promise<Set<string>> {
+  const projects = await target.projects.toArray()
+  return new Set(projects.filter((p) => p.id !== exceptId).flatMap(slugsOf))
+}
+
 export interface NewProject {
   title: string
   description?: string
@@ -102,11 +112,15 @@ export async function createProject(input: NewProject, target: DiyDb = defaultDb
     status: checkStatus(input.status ?? 'idea'),
     tags: checkTags(input.tags ?? []),
     public: checkPublic(input.public ?? true),
+    slug: '',
+    oldSlugs: [],
     createdAt: time,
     updatedAt: time,
     deletedAt: null,
   }
   await target.transaction('rw', target.projects, target.outbox, async () => {
+    // D-0029: unique among the projects on this device; the NAS settles clashes with others.
+    project.slug = uniqueSlug(slugify(project.title), await takenSlugs(target, project.id))
     await target.projects.add(project)
     await queue(target, 'projects', project.id, 'put', time)
   })
@@ -135,6 +149,8 @@ export async function updateProject(id: string, changes: ProjectChanges, target:
       if (!photo || photo.deletedAt !== null || photo.projectId !== id) fail('The cover must be a photo of this project.')
     }
     const updated: Project = { ...project, ...patch, updatedAt: time }
+    // D-0029: a new title can mean a new slug; the old one is kept in oldSlugs.
+    if (patch.title !== undefined) Object.assign(updated, renamedSlugs(project, patch.title, await takenSlugs(target, id)))
     if (clearCover) delete updated.coverPhotoId
     await target.projects.put(updated)
     await queue(target, 'projects', id, 'put', time)

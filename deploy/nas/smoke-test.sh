@@ -432,6 +432,62 @@ m=$(body "$(req GET "/api/collections/projects/records/$KEEP" "$A")")
 [ "$(on_disk "$KEEP_F" | wc -l)" = 3 ] || fail "the project's other photo lost files"
 ok "an entry deleted for good takes its photos, not its project"
 
+# --- T-0027 (D-0029): project slugs. A device picks one offline from the title; the NAS makes
+# it unique per owner in pb_hooks/slugs.pb.js (earlier slugs and tombstoned projects count,
+# purge markers don't) and keeps a rename's old slug in oldSlugs. ---
+
+projects=$(body "$(req GET /api/collections/projects "$SU")")
+[ "$(jq -r '.fields[] | select(.name=="slug") | .type' <<<"$projects")" = text ] || fail "projects.slug is not a text field"
+[ "$(jq -r '.fields[] | select(.name=="oldSlugs") | .type' <<<"$projects")" = json ] || fail "projects.oldSlugs is not a json field"
+jq -r '.indexes[]' <<<"$projects" | grep -q 'UNIQUE INDEX `idx_projects_owner_slug` ON `projects` (`owner`, `slug`)' ||
+  fail "no unique index on (owner, slug): $(jq -c .indexes <<<"$projects")"
+ok "projects have slug and oldSlugs, unique per owner"
+
+sproject() { # sproject OWNER_ID TITLE [SLUG] [DELETED_AT]: a project as the app sends it (no slug: an app from before T-0027)
+  local slug=""
+  [ -n "${3:-}" ] && slug=",\"slug\":\"$3\",\"oldSlugs\":[]"
+  echo "{\"owner\":\"$1\",\"title\":\"$2\",\"description\":\"\",\"status\":\"idea\",\"tags\":[],\"public\":true,\"deletedAt\":\"${4:-}\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"$slug}"
+}
+slug_of() { # slug_of ID: "slug oldSlugs" as the owner reads them
+  body "$(req GET "/api/collections/projects/records/$1" "$A")" | jq -r '.slug + " " + (.oldSlugs | tojson)'
+}
+K1=$(mk projects "$(sproject "$A_ID" "Kast für Sanne" kast-fur-sanne)")
+K2=$(mk projects "$(sproject "$A_ID" "Kast für Sanne" kast-fur-sanne)")
+K3=$(mk projects "$(sproject "$A_ID" "Kast für Sanne" kast-fur-sanne-2)")
+OLD=$(mk projects "$(sproject "$A_ID" "Zolder trap")")
+[ "$(slug_of "$K1")" = 'kast-fur-sanne []' ] || fail "the first Kast für Sanne: $(slug_of "$K1")"
+[ "$(slug_of "$K2")" = 'kast-fur-sanne-2 []' ] || fail "the second device's Kast für Sanne: $(slug_of "$K2")"
+[ "$(slug_of "$K3")" = 'kast-fur-sanne-3 []' ] || fail "a third device that picked -2 too: $(slug_of "$K3")"
+[ "$(slug_of "$OLD")" = 'zolder-trap []' ] || fail "a project sent without a slug: $(slug_of "$OLD")"
+r=$(req POST /api/collections/projects/records "$S" "$(sproject "$S_ID" "Kast für Sanne" kast-fur-sanne)")
+expect "$r" 200 "another account makes its own Kast für Sanne"
+[ "$(body "$r" | jq -r .slug)" = kast-fur-sanne ] || fail "slugs are per owner: $(body "$r" | jq -r .slug)"
+ok "the NAS settles a clash with -2, -3; a slug is made for an app that sends none; per owner"
+
+# A rename: the old slug moves to oldSlugs (also when the device doesn't send it), still leads
+# here for a guest, and isn't given to a new project. An older update changes nothing.
+expect "$(req PATCH "/api/collections/projects/records/$K1" "$A" "{\"title\":\"Bank\",\"slug\":\"bank\",\"updatedAt\":\"$LATER\"}")" 200 "rename"
+[ "$(slug_of "$K1")" = 'bank ["kast-fur-sanne"]' ] || fail "after the rename: $(slug_of "$K1")"
+expect "$(req PATCH "/api/collections/projects/records/$K1" "$A" '{"title":"Oud","slug":"oud","updatedAt":"2026-01-01T00:00:00.000Z"}')" 200 "an older rename"
+[ "$(slug_of "$K1")" = 'bank ["kast-fur-sanne"]' ] || fail "an older update changed the slug: $(slug_of "$K1")"
+K4=$(mk projects "$(sproject "$A_ID" "Kast für Sanne" kast-fur-sanne)")
+[ "$(slug_of "$K4")" = 'kast-fur-sanne-4 []' ] || fail "an old slug was given to a new project: $(slug_of "$K4")"
+r=$(req GET "/api/collections/projects/records?fields=id,slug&filter=$(jq -rn --arg f 'slug = "kast-fur-sanne" || oldSlugs ~ "\"kast-fur-sanne\""' '$f|@uri')")
+expect "$r" 200 "a guest looks up an old slug"
+[ "$(body "$r" | jq -c '[.items[] | select(.id == "'"$K1"'") | .slug]')" = '["bank"]' ] || fail "a guest doesn't find the renamed project by its old slug: $(body "$r")"
+ok "a rename keeps the old slug in oldSlugs, found by a guest, never reused; an older update is ignored"
+
+# The bin: a tombstoned project keeps its slug; a purge marker frees it.
+tomb projects "$OLD"
+mk projects "$(sproject "$A_ID" "Zolder trap" zolder-trap)" >/dev/null
+[ "$(body "$(req GET "/api/collections/projects/records?filter=$(jq -rn --arg f 'slug = "zolder-trap-2"' '$f|@uri')" "$A")" | jq '.items | length')" = 1 ] ||
+  fail "a tombstoned project's slug was given away"
+expect "$(req DELETE "/api/collections/projects/records/$OLD" "$A")" 204 "the owner deletes the old project for good"
+[ "$(slug_of "$OLD")" = ' []' ] || fail "the purge marker keeps a slug: $(slug_of "$OLD")"
+FREE=$(mk projects "$(sproject "$A_ID" "Zolder trap" zolder-trap)")
+[ "$(slug_of "$FREE")" = 'zolder-trap []' ] || fail "a purged project's slug isn't free: $(slug_of "$FREE")"
+ok "a tombstoned project keeps its slug; deleted for good, it's free again"
+
 # CORS: only the app's origin gets an Access-Control-Allow-Origin header (D-0005).
 curl -sS -i -H "Origin: $APP" "$B/api/health" | grep -i "^access-control-allow-origin: $APP" >/dev/null ||
   fail "no CORS header for $APP"

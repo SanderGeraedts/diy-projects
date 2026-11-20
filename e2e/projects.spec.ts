@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 // T-0004: create a project, edit its status and tags, reload and still see the changes;
 // once online and once with the network off.
 
-async function createAndEdit(page: Page, title: string) {
+async function createAndEdit(page: Page, title: string, slug: string) {
   await page.getByRole('link', { name: 'Nieuw project' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Nieuw project' })).toBeVisible()
 
@@ -30,8 +30,8 @@ async function createAndEdit(page: Page, title: string) {
   await expect(tags).toHaveValue('')
   await page.getByRole('button', { name: 'Opslaan' }).click()
 
-  // Saving opens the new project's page.
-  await expect(page).toHaveURL(/\/projects\/[0-9a-f-]{36}$/)
+  // Saving opens the new project's page, at its slug (D-0029).
+  await expect(page).toHaveURL(`/projects/${slug}`)
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
   const header = page.locator('article header')
   await expect(header.getByText('idee', { exact: true })).toBeVisible()
@@ -63,7 +63,7 @@ async function createAndEdit(page: Page, title: string) {
 
 test('creates a project, edits its status and tags, and keeps them after a reload', async ({ page }) => {
   await page.goto('/')
-  await createAndEdit(page, 'Werkbank')
+  await createAndEdit(page, 'Werkbank', 'werkbank')
 })
 
 test('creates and edits a project offline', async ({ page, context }) => {
@@ -71,14 +71,14 @@ test('creates and edits a project offline', async ({ page, context }) => {
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload() // now controlled by the service worker
   await context.setOffline(true)
-  await createAndEdit(page, 'Schuurdeur')
+  await createAndEdit(page, 'Schuurdeur', 'schuurdeur')
   expect(await page.evaluate(() => navigator.onLine)).toBe(false)
 })
 
 test('opens the edit form directly and cancels back to the project', async ({ page }) => {
-  await page.goto('/projects/demo-bathroom-shelf/edit')
+  await page.goto('/projects/badkamerplank/edit')
   await expect(page.getByLabel('Titel')).toHaveValue('Badkamerplank')
   await page.getByRole('button', { name: 'Annuleren' }).click()
-  await expect(page).toHaveURL(/\/projects\/demo-bathroom-shelf$/)
+  await expect(page).toHaveURL(/\/projects\/badkamerplank$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Badkamerplank' })).toBeVisible()
 })

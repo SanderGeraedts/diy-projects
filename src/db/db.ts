@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable, type Transaction } from 'dexie'
+import { backfillSlugs } from './slug'
 
 // D-0004: a project has a title, description, status, tags and a cover photo, and a
 // timeline of dated entries with photos and a note. D-0003: photos are kept on the device as
@@ -26,6 +27,13 @@ export interface Project {
    * and for the ones that existed before v4.
    */
   public: boolean
+  /**
+   * The project's address, /projects/<slug> (D-0029, T-0027): made from the title, unique
+   * among this owner's projects. The NAS settles clashes (deploy/nas/pb_hooks/slugs.pb.js).
+   */
+  slug: string
+  /** Slugs it had before a rename; their addresses redirect here (D-0029). */
+  oldSlugs: string[]
   createdAt: string
   /** ISO time of the last edit, used for last-write-wins (D-0002). */
   updatedAt: string
@@ -135,6 +143,12 @@ export const SCHEMA_V3 = {
 /** v4 (T-0026) adds `public` to projects; no new index, so the stores stay as in v3. */
 export const SCHEMA_V4 = SCHEMA_V3
 
+/** v5 (T-0027) adds `slug` and `oldSlugs` to projects, both indexed to find a project by address. */
+export const SCHEMA_V5 = {
+  ...SCHEMA_V4,
+  projects: 'id, status, *tags, updatedAt, slug, *oldSlugs',
+} as const
+
 /** v1 → v2: add tombstones, `updatedAt` on photos, and the photo file fields. Keeps all data. */
 export async function upgradeToV2(tx: Transaction): Promise<void> {
   await tx
@@ -178,12 +192,39 @@ export async function upgradeToV4(tx: Transaction): Promise<void> {
     })
 }
 
+/**
+ * v4 → v5: every project gets a slug from its title (D-0029), by creation, the same way the
+ * NAS's migration does (deploy/nas/pb_migrations/1794931700_project_slugs.js). Keeps all data
+ * and adds no outbox rows: the slugs are this device's until the NAS's arrive. The NAS's
+ * migration moves `updated` on every project, so the next pull brings them, and the sync
+ * engine takes a project's slug and oldSlugs from the NAS whatever `updatedAt` says
+ * (src/sync/engine.ts). So a device and the NAS end up with the same slugs.
+ */
+export async function upgradeToV5(tx: Transaction): Promise<void> {
+  const table = tx.table('projects')
+  const projects = (await table.toArray()) as Partial<Project>[]
+  const slugs = backfillSlugs(
+    projects.map((p) => ({
+      id: String(p.id),
+      title: p.title ?? '',
+      createdAt: p.createdAt ?? '',
+      slug: p.slug,
+      oldSlugs: p.oldSlugs,
+    })),
+  )
+  await table.toCollection().modify((p: Partial<Project>) => {
+    if (!p.slug) p.slug = slugs.get(String(p.id)) ?? ''
+    if (!Array.isArray(p.oldSlugs)) p.oldSlugs = []
+  })
+}
+
 export function openDb(name = 'diy-projects'): DiyDb {
   const db = new Dexie(name) as DiyDb
   db.version(1).stores(SCHEMA_V1)
   db.version(2).stores(SCHEMA_V2).upgrade(upgradeToV2)
   db.version(3).stores(SCHEMA_V3)
   db.version(4).stores(SCHEMA_V4).upgrade(upgradeToV4)
+  db.version(5).stores(SCHEMA_V5).upgrade(upgradeToV5)
   return db
 }
 

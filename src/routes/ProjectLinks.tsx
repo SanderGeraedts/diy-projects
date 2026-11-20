@@ -14,9 +14,9 @@ export function NewProjectLink() {
   )
 }
 
-export function EditProjectLink({ projectId }: { projectId: string }) {
+export function EditProjectLink({ slug }: { slug: string }) {
   return (
-    <Link to="/projects/$projectId/edit" params={{ projectId }} className={secondaryLinkClass}>
+    <Link to="/projects/$slug/edit" params={{ slug }} className={secondaryLinkClass}>
       Bewerken
     </Link>
   )

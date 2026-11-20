@@ -3,8 +3,9 @@ import { expect, test, type Page } from '@playwright/test'
 // T-0008: the full-screen photo viewer, on the seeded demo data (D-0006). Tuinbank's entry of
 // 4 okt 2026 has three photos.
 
-const project = '/projects/demo-garden-bench'
-const photo = (n: number) => `${project}/photos/demo-garden-bench-entry-1-photo-${n}`
+// D-0029 (T-0027): the project's slug, the entry's day and the photo's place.
+const project = '/projects/tuinbank'
+const photo = (n: number) => `${project}/2026-10-04/${n}`
 
 async function openFirstPhoto(page: Page) {
   await page.goto(project)

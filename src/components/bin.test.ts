@@ -10,6 +10,8 @@ const project = (id: string, title: string, deletedAt: string | null): Project =
   status: 'idea',
   tags: [],
   public: true,
+  slug: id,
+  oldSlugs: [],
   createdAt: T,
   updatedAt: T,
   deletedAt,

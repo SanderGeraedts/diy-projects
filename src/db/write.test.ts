@@ -2,7 +2,7 @@
 // Node, not jsdom: jsdom Blobs do not survive fake-indexeddb's structured clone.
 import Dexie from 'dexie'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { openDb, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, upgradeToV2, type DiyDb } from './db'
+import { openDb, SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, upgradeToV2, upgradeToV4, type DiyDb } from './db'
 import {
   addEntry,
   addPhotos,
@@ -77,7 +77,7 @@ describe('schema v1 → v2', () => {
 
     db = openDb(name)
     await db.open()
-    expect(db.verno).toBe(4)
+    expect(db.verno).toBe(5)
     expect(await db.projects.count()).toBe(1)
     expect(await db.entries.count()).toBe(1)
     expect(await db.photos.count()).toBe(2)
@@ -107,7 +107,7 @@ describe('schema v2 → v3 (T-0016)', () => {
 
     db = openDb(name)
     await db.open()
-    expect(db.verno).toBe(4)
+    expect(db.verno).toBe(5)
     expect(await db.projects.get('p1')).toMatchObject({ title: 'Old' })
     expect(await db.outbox.toArray()).toMatchObject([{ id: 1, table: 'projects', recordId: 'p1', op: 'put' }])
     expect(await db.syncState.count()).toBe(0)
@@ -132,11 +132,46 @@ describe('schema v3 → v4 (T-0026)', () => {
 
     db = openDb(name)
     await db.open()
-    expect(db.verno).toBe(4)
+    expect(db.verno).toBe(5)
     expect(await db.projects.get('p1')).toMatchObject({ title: 'Alive', public: true, updatedAt: '2026-01-02T00:00:00.000Z' })
     expect(await db.projects.get('p2')).toMatchObject({ title: 'Deleted', public: true, deletedAt: '2026-01-03T00:00:00.000Z' })
     expect(await db.outbox.toArray()).toMatchObject([{ id: 1, table: 'projects', recordId: 'p1', op: 'put' }])
     expect(await db.syncState.get('cursor:projects')).toMatchObject({ value: '2026-01-02 00:00:00.000Z' })
+  })
+})
+
+describe('schema v4 → v5 (T-0027)', () => {
+  it('gives every project a slug from its title by creation, keeping records and the outbox, adding no rows', async () => {
+    const name = `upgrade-test-${++counter}`
+    const v4 = new Dexie(name)
+    v4.version(1).stores(SCHEMA_V1)
+    v4.version(2).stores(SCHEMA_V2).upgrade(upgradeToV2)
+    v4.version(3).stores(SCHEMA_V3)
+    v4.version(4).stores(SCHEMA_V4).upgrade(upgradeToV4)
+    const base = { description: '', status: 'idea', tags: [], public: true, deletedAt: null }
+    const at = (day: number) => `2026-01-0${day}T00:00:00.000Z`
+    await v4.table('projects').bulkAdd([
+      { ...base, id: 'p3', title: 'Kast', createdAt: at(3), updatedAt: at(3) },
+      { ...base, id: 'p1', title: 'Kast', createdAt: at(1), updatedAt: at(1) },
+      { ...base, id: 'p2', title: 'Kast für Sanne', createdAt: at(2), updatedAt: at(2), deletedAt: at(4) },
+      { ...base, id: 'p4', title: 'new', createdAt: at(4), updatedAt: at(4) },
+    ])
+    await v4.table('outbox').add({ table: 'projects', recordId: 'p1', op: 'put', queuedAt: at(1) })
+    v4.close()
+
+    db = openDb(name)
+    await db.open()
+    expect(db.verno).toBe(5)
+    const slugs = Object.fromEntries((await db.projects.toArray()).map((p) => [p.id, [p.slug, p.oldSlugs]]))
+    expect(slugs).toEqual({
+      p1: ['kast', []],
+      p2: ['kast-fur-sanne', []], // tombstoned projects keep their address (D-0029)
+      p3: ['kast-2', []],
+      p4: ['project', []], // reserved
+    })
+    expect(await db.projects.get('p1')).toMatchObject({ title: 'Kast', updatedAt: at(1) })
+    expect(await db.outbox.toArray()).toMatchObject([{ id: 1, table: 'projects', recordId: 'p1', op: 'put' }])
+    expect(await db.projects.where('slug').equals('kast-2').primaryKeys()).toEqual(['p3'])
   })
 })
 

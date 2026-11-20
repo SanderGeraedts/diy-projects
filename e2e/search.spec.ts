@@ -29,9 +29,10 @@ test('finds an entry by a note word, offline, and opens that entry', async ({ pa
   await expect(hit).toBeVisible()
   await expect(hit.locator('mark')).toHaveText('diamant')
   await hit.click()
-  await expect(page).toHaveURL(/\/projects\/demo-bathroom-shelf#entry-demo-bathroom-shelf-entry-1$/)
+  // D-0029 (T-0027): the project's slug and the entry's day, never an id.
+  await expect(page).toHaveURL(/\/projects\/badkamerplank#2026-08-15$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Badkamerplank' })).toBeVisible()
-  await expect(page.locator('#entry-demo-bathroom-shelf-entry-1')).toBeInViewport()
+  await expect(page.locator('[id="2026-08-15"]')).toBeInViewport()
 })
 
 test('keeps the query in the URL and shows when nothing matches', async ({ page }) => {

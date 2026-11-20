@@ -26,7 +26,7 @@ export function BinPage() {
     ])
     return binItems(projects, entries, photos)
   }, [])
-  const [done, setDone] = useState<{ text: string; projectId: string } | null>(null)
+  const [done, setDone] = useState<{ text: string; slug: string } | null>(null)
 
   return (
     <section>
@@ -43,10 +43,10 @@ export function BinPage() {
         {done && (
           <>
             {done.text}{' '}
-            {done.projectId && (
+            {done.slug && (
               <Link
-                to="/projects/$projectId"
-                params={{ projectId: done.projectId }}
+                to="/projects/$slug"
+                params={{ slug: done.slug }}
                 className="text-text underline decoration-accent decoration-2 underline-offset-4"
               >
                 Bekijken
@@ -65,7 +65,7 @@ export function BinPage() {
   )
 }
 
-function BinRow({ item, onDone }: { item: BinItem; onDone: (done: { text: string; projectId: string }) => void }) {
+function BinRow({ item, onDone }: { item: BinItem; onDone: (done: { text: string; slug: string }) => void }) {
   const name = binItemName(item)
   const parts = partsText(item)
   const [busy, setBusy] = useState(false)
@@ -79,7 +79,7 @@ function BinRow({ item, onDone }: { item: BinItem; onDone: (done: { text: string
     try {
       if (item.kind === 'project') await restoreProject(item.id)
       else await restoreEntry(item.id)
-      onDone({ text: `${name} is teruggezet.`, projectId: item.projectId })
+      onDone({ text: `${name} is teruggezet.`, slug: item.projectSlug })
     } catch (err) {
       console.error(err)
       setError('Terugzetten is niet gelukt. Probeer het opnieuw.')
@@ -94,7 +94,7 @@ function BinRow({ item, onDone }: { item: BinItem; onDone: (done: { text: string
     try {
       await deleteForGood(item.kind, item.id)
       setConfirming(false)
-      onDone({ text: `${name} is definitief verwijderd.`, projectId: '' })
+      onDone({ text: `${name} is definitief verwijderd.`, slug: '' })
     } catch (err) {
       console.error(err)
       setPurgeError(purgeErrorMessage(err))

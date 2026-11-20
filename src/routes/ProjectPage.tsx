@@ -14,6 +14,8 @@ import { AddEntryLink } from './AddEntry'
 import { DeleteEntryButton, DeleteProjectButton } from './Delete'
 import { EntryNote } from './EntryNote'
 import { ImportPhotos } from './ImportPhotos'
+import { entryDays, comparePhotos, photoNumber } from './paths'
+import { SlugRedirect, useProjectBySlug } from './projectBySlug'
 import { EditProjectLink } from './ProjectLinks'
 
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
@@ -24,12 +26,11 @@ export function ProjectPage() {
 }
 
 function OwnerProjectPage() {
-  const { projectId } = useParams({ from: '/projects/$projectId' })
+  const { slug } = useParams({ from: '/projects/$slug' })
   // T-0010: a deleted project (a tombstone, D-0014) and its deleted entries don't show.
-  const project = useLiveQuery(
-    () => db.projects.get(projectId).then((p) => (p && p.deletedAt === null ? p : null)),
-    [projectId],
-  )
+  // T-0027: found by its slug, or an earlier one, which redirects (D-0029).
+  const project = useProjectBySlug(slug)
+  const projectId = project?.id ?? ''
   const entries = useLiveQuery(
     () =>
       db.entries
@@ -42,22 +43,25 @@ function OwnerProjectPage() {
   )
   // T-0009: every photo, deleted ones (tombstones, D-0002) included, so an entry whose photos
   // were all deleted can say so. Only the live ones are shown.
-  const allPhotos = useLiveQuery(() => db.photos.where('projectId').equals(projectId).sortBy('takenAt'), [projectId])
-  useScrollToHash(!!project && entries !== undefined)
+  const allPhotos = useLiveQuery(() => db.photos.where('projectId').equals(projectId).toArray(), [projectId])
+  useScrollToHash(!!project && project.slug === slug && entries !== undefined)
 
   if (project === undefined) return null
   if (project === null) return <ProjectNotFound />
+  if (project.slug !== slug) return <SlugRedirect slug={project.slug} />
   return <ProjectView project={project} entries={entries} allPhotos={allPhotos} readOnly={false} />
 }
 
 function VisitorProjectPage() {
-  const { projectId } = useParams({ from: '/projects/$projectId' })
-  const loaded = usePublic((source) => source.project(projectId), `project:${projectId}`)
-  useScrollToHash(loaded.state === 'ready' && loaded.data !== null)
+  const { slug } = useParams({ from: '/projects/$slug' })
+  const loaded = usePublic((source) => source.project(slug), `project:${slug}`)
+  const ready = loaded.state === 'ready' && loaded.data !== null && loaded.data.project.slug === slug
+  useScrollToHash(ready)
 
   if (loaded.state === 'loading') return null
   if (loaded.state === 'unreachable') return <Unreachable />
   if (loaded.data === null) return <ProjectNotFound />
+  if (loaded.data.project.slug !== slug) return <SlugRedirect slug={loaded.data.project.slug} />
   const { entries, photos } = visitorTimeline(loaded.data)
   return <ProjectView project={loaded.data.project} entries={entries} allPhotos={photos} readOnly />
 }
@@ -89,7 +93,9 @@ function ProjectView({
   /** A visitor: no create, edit, import, cover or delete controls (T-0026). */
   readOnly: boolean
 }) {
-  const photos = allPhotos?.filter((ph) => ph.deletedAt === null)
+  const photos = allPhotos?.filter((ph) => ph.deletedAt === null).sort(comparePhotos)
+  // T-0027: an entry is named by its day, in its anchor and its photos' addresses (D-0029).
+  const days = entryDays(entries ?? [])
   return (
     <article>
       <Link to="/" className={backLink}>
@@ -98,7 +104,7 @@ function ProjectView({
       <header>
         <div className="flex items-start justify-between gap-3">
           <AccentHeading>{project.title}</AccentHeading>
-          {!readOnly && <EditProjectLink projectId={project.id} />}
+          {!readOnly && <EditProjectLink slug={project.slug} />}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-grey italic">
           <StatusBadge status={project.status} />
@@ -106,15 +112,16 @@ function ProjectView({
         </div>
         <p className="mt-3">{project.description}</p>
       </header>
-      {!readOnly && <AddEntryLink projectId={project.id} />}
+      {!readOnly && <AddEntryLink slug={project.slug} />}
       {!readOnly && <ImportPhotos projectId={project.id} />}
       <ol className="timeline m-0 mt-8 list-none p-0">
         {(entries ?? []).map((e) => {
           const entryPhotos = (photos ?? []).filter((ph) => ph.entryId === e.id)
           const allDeleted =
             entryPhotos.length === 0 && e.note === '' && (allPhotos ?? []).some((ph) => ph.entryId === e.id)
+          const day = days.get(e.id) ?? e.date
           return (
-            <li key={e.id} id={`entry-${e.id}`} className="mb-8 scroll-mt-20">
+            <li key={e.id} id={day} className="mb-8 scroll-mt-20">
               <AccentHeading level={2}>
                 <time dateTime={e.date}>{formatDate(e.date)}</time>
               </AccentHeading>
@@ -127,11 +134,11 @@ function ProjectView({
                 <EntryNote entry={e} actions={<DeleteEntryButton entry={e} photos={entryPhotos.length} />} />
               )}
               <div className="grid grid-cols-2 gap-2">
-                {entryPhotos.map((ph) => (
+                {entryPhotos.map((ph, i) => (
                   <Link
                     key={ph.id}
-                    to="/projects/$projectId/photos/$photoId"
-                    params={{ projectId: project.id, photoId: ph.id }}
+                    to="/projects/$slug/$day/$n"
+                    params={{ slug: project.slug, day, n: photoNumber(i) }}
                     className="block"
                   >
                     <PhotoImage

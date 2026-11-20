@@ -10,7 +10,7 @@ None.
 
 ## Doing
 
-None.
+- [T-0027 Address projects by slug, and entries and photos by date and place, never by id](T-0027-project-slugs.md): D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices.
 
 ## Done
 

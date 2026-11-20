@@ -1,5 +1,6 @@
-import PocketBase, { BaseAuthStore, ClientResponseError } from 'pocketbase'
+import PocketBase, { BaseAuthStore } from 'pocketbase'
 import type { Entry, Project } from '../db/db'
+import { isSlug } from '../db/slug'
 import { buildDemoData } from '../seed/demo'
 import { downloadable } from '../sync/photos'
 import { entryFromServer, projectFromServer, type ServerRecord } from '../sync/records'
@@ -38,8 +39,12 @@ export interface PublicProject {
 
 export interface PublicSource {
   overview(): Promise<PublicOverview>
-  /** null when there's no such public project (private, tombstoned or never there). */
-  project(id: string): Promise<PublicProject | null>
+  /**
+   * The public project at `slug`, or the one that had it before a rename (T-0027, D-0029):
+   * its `project.slug` then differs, and the page redirects. null when there's no such public
+   * project (private, tombstoned or never there).
+   */
+  project(slug: string): Promise<PublicProject | null>
 }
 
 /** A visitor's timeline: newest entry first, photos by date taken, as the owner's (T-0005). */
@@ -62,14 +67,16 @@ export class UnreachableError extends Error {
 export interface PublicClient {
   collection(name: string): {
     getFullList(options?: Record<string, unknown>): Promise<ServerRecord[]>
-    getOne(id: string, options?: Record<string, unknown>): Promise<ServerRecord>
   }
   files: { getURL(record: { [key: string]: unknown }, filename: string): string }
   filter(raw: string, params?: Record<string, unknown>): string
 }
 
-/** Only what's shown; never `owner` or the original's file name. */
-const PROJECT_FIELDS = 'id,title,description,status,tags,coverPhotoId,public,createdAt,updatedAt,deletedAt'
+/**
+ * Only what's shown; never `owner` or the original's file name. Not `oldSlugs` either: a
+ * project found with a slug other than its own was found by an earlier one.
+ */
+const PROJECT_FIELDS = 'id,title,description,status,tags,coverPhotoId,public,slug,createdAt,updatedAt,deletedAt'
 const ENTRY_FIELDS = 'id,projectId,date,note,createdAt,updatedAt,deletedAt'
 const PHOTO_FIELDS =
   'id,collectionId,collectionName,projectId,entryId,takenAt,createdAt,width,height,copy,thumbnail,deletedAt'
@@ -132,18 +139,19 @@ export function createPocketBaseSource(client: PublicClient, now: () => number =
         return { projects: projects.map(projectFromServer).filter(shown), photos: photos(photoRecords) }
       }),
 
-    project: (id) =>
-      cached(`project:${id}`, async () => {
-        let record: ServerRecord
-        try {
-          record = await client.collection('projects').getOne(id, { fields: PROJECT_FIELDS })
-        } catch (err) {
-          if (err instanceof ClientResponseError && err.status === 404) return null
-          throw err
-        }
+    project: (slug) =>
+      cached(`project:${slug}`, async () => {
+        if (!isSlug(slug)) return null
+        // T-0027: by its slug, or an earlier one (a JSON list on the NAS, matched as "slug").
+        const records = await client.collection('projects').getFullList({
+          filter: client.filter('slug = {:slug} || oldSlugs ~ {:quoted}', { slug, quoted: `"${slug}"` }),
+          fields: PROJECT_FIELDS,
+        })
+        const record = records.find((r) => r.slug === slug) ?? records[0]
+        if (!record) return null
         const project = projectFromServer(record)
         if (!shown(project)) return null
-        const filter = client.filter('projectId = {:id} && deletedAt = ""', { id })
+        const filter = client.filter('projectId = {:id} && deletedAt = ""', { id: project.id })
         const [entries, photoRecords] = await Promise.all([
           client.collection('entries').getFullList({ filter, fields: ENTRY_FIELDS }),
           client.collection('photos').getFullList({ filter, fields: PHOTO_FIELDS }),
@@ -185,10 +193,11 @@ export function createDemoSource(mode: 'on' | 'unreachable'): PublicSource {
       const { projects, photos } = await load()
       return { projects, photos }
     },
-    async project(id) {
+    async project(slug) {
       const { projects, entries, photos } = await load()
-      const project = projects.find((p) => p.id === id)
+      const project = projects.find((p) => p.slug === slug) ?? projects.find((p) => p.oldSlugs.includes(slug))
       if (!project) return null
+      const id = project.id
       return { project, entries: entries.filter((e) => e.projectId === id), photos: photos.filter((p) => p.projectId === id) }
     },
   }

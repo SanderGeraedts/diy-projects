@@ -40,7 +40,7 @@ test('a visitor sees projects, timelines and photos read-only, and the app never
   await viewer.getByRole('button', { name: 'Sluiten' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Tuinbank' })).toBeVisible()
 
-  for (const path of ['/projects/new', '/projects/demo-garden-bench/edit', '/projects/demo-garden-bench/entries/new', '/zoeken']) {
+  for (const path of ['/projects/new', '/projects/tuinbank/edit', '/projects/tuinbank/entries/new', '/zoeken']) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name: 'Niet gevonden' })).toBeVisible()
     await expect(page.getByRole('main').locator('input, textarea, select, form')).toHaveCount(0)
@@ -53,7 +53,7 @@ test('a visitor sees projects, timelines and photos read-only, and the app never
 test('a visitor is told when the projects can’t be reached', async ({ page }) => {
   await page.goto('/?bezoeker=onbereikbaar')
   await expect(page.getByRole('main').getByText('Projecten zijn nu niet bereikbaar.')).toBeVisible()
-  await page.goto('/projects/demo-garden-bench')
+  await page.goto('/projects/tuinbank')
   await expect(page.getByRole('main').getByText('Projecten zijn nu niet bereikbaar.')).toBeVisible()
   expect(await databases(page)).not.toContain('diy-projects')
 })

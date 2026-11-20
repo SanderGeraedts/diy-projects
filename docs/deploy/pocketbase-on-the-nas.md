@@ -213,6 +213,13 @@ Hooks (`deploy/nas/pb_hooks/*.pb.js`):
 - Hook files load in file-name order, so `bin.pb.js` registers before
   `last_write_wins.pb.js`. Should the latter ever answer first (an older edit of a purged
   record, answered with the stored marker), the app drops its copy all the same.
+- **Project slugs** (T-0027, D-0029) are settled in `pb_hooks/slugs.pb.js`, after the two
+  above: on every create and update of a project it makes the device's slug unique among the
+  owner's other projects (earlier slugs count as taken, purge markers don't) and keeps a
+  rename's previous slug in `oldSlugs`. Shared code lives in `pb_hooks/slug.js` (no `.pb.js`,
+  so it isn't a hook) and is loaded inside the handler with
+  ``require(`${__hooks}/slug.js`)``, since top-level helpers aren't visible to handlers. A
+  JSON list is matched in a filter as text: `oldSlugs ~ "\"kast\""`.
 
 ## 6. Running it
 

@@ -6,7 +6,9 @@ import { expect, test, type Page } from '@playwright/test'
 // src/sync/*.pocketbase.test.ts). Tuinbank has three entries: 4 okt (3 photos), 11 okt (2)
 // and 25 okt (1).
 
+// Record ids (in IndexedDB) and the address (D-0029: a slug, never an id).
 const bench = 'demo-garden-bench'
+const benchUrl = '/projects/tuinbank'
 const cards = (page: Page) => page.locator('section > ul > li h2')
 
 async function deleteProject(page: Page, title: string) {
@@ -18,7 +20,7 @@ async function deleteProject(page: Page, title: string) {
 }
 
 async function deleteEntry(page: Page, day: string) {
-  await page.goto(`/projects/${bench}`)
+  await page.goto(benchUrl)
   await page.getByRole('button', { name: `Notitie van ${day} verwijderen` }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Verwijderen' }).click()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
@@ -57,7 +59,7 @@ test('restores a deleted project with its entries and photos, and it stays after
   await expect(page.getByText('De prullenbak is leeg.')).toBeVisible()
   await page.goto('/')
   await expect(cards(page)).toHaveCount(4)
-  await page.goto(`/projects/${bench}`)
+  await page.goto(benchUrl)
   await expect(page.getByRole('heading', { level: 1, name: 'Tuinbank' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Tuinbank, 4 okt 2026' })).toHaveCount(3)
   await expect(page.getByRole('link', { name: 'Tuinbank, 11 okt 2026' })).toHaveCount(2)
@@ -109,7 +111,7 @@ test('deletes an entry for good after asking, and it doesn’t come back after a
 
   await page.reload()
   await expect(page.getByText('De prullenbak is leeg.')).toBeVisible()
-  await page.goto(`/projects/${bench}`)
+  await page.goto(benchUrl)
   await expect(page.getByRole('link', { name: 'Tuinbank, 11 okt 2026' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Tuinbank, 4 okt 2026' })).toHaveCount(3)
   // Its photos are gone from this device, not just hidden.

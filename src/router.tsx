@@ -21,13 +21,16 @@ const overviewRoute = createRoute({
   validateSearch: validateOverviewSearch,
 })
 
+// T-0027 (D-0029): projects are addressed by their slug, never their id; an earlier slug
+// redirects to the current one (routes/projectBySlug.tsx). No address holds an id.
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/projects/$projectId',
+  path: '/projects/$slug',
   component: ProjectPage,
 })
 
-// T-0004: the project form. A static segment outranks $projectId, so /projects/new is the form.
+// T-0004: the project form. A static segment outranks $slug, so /projects/new is the form;
+// `new` is never a slug (src/db/slug.ts).
 // T-0026: pages that write, and search over the device's copy, are the owner's only; a
 // visitor gets "Niet gevonden" (D-0025).
 const newProjectRoute = createRoute({
@@ -37,21 +40,23 @@ const newProjectRoute = createRoute({
 })
 const editProjectRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/projects/$projectId/edit',
+  path: '/projects/$slug/edit',
   component: ownerOnly(EditProjectPage),
 })
 
 // T-0005: add a note to a project's timeline.
 const addEntryRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/projects/$projectId/entries/new',
+  path: '/projects/$slug/entries/new',
   component: ownerOnly(AddEntryPage),
 })
 
 // T-0008: the full-screen photo viewer has its own URL, so back closes it and reload reopens it.
+// T-0027: the entry's day and the photo's place in it, /projects/tuinbank/2026-10-04/2
+// (routes/paths.ts). `entries` is a static segment, so it outranks $day.
 const photoRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/projects/$projectId/photos/$photoId',
+  path: '/projects/$slug/$day/$n',
   component: PhotoViewer,
 })
 

@@ -42,7 +42,7 @@ test('opens offline once loaded', async ({ page, context }) => {
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.reload() // now controlled by the service worker
   await context.setOffline(true)
-  await page.goto('/projects/demo-bathroom-shelf')
+  await page.goto('/projects/badkamerplank')
   await expect(page.getByRole('heading', { level: 1, name: 'Badkamerplank' })).toBeVisible()
   // D-0011: Poppins comes from the precache, so it is in use with the network off.
   const poppins = await page.evaluate(async () => {

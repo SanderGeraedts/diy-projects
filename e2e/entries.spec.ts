@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test'
 // edit the note, and see the timeline newest first; once online and once offline.
 
 async function addEditEntries(page: Page) {
-  await page.goto('/projects/demo-garden-bench')
+  await page.goto('/projects/tuinbank')
   await expect(page.getByRole('heading', { level: 1, name: 'Tuinbank' })).toBeVisible()
   const dates = page.locator('.timeline time')
   const entries = page.locator('.timeline > li')
@@ -27,7 +27,7 @@ async function addEditEntries(page: Page) {
   await page.getByRole('button', { name: 'Opslaan' }).click()
 
   // Back on the project, the new entry sits between the older and newer ones.
-  await expect(page).toHaveURL(/\/projects\/demo-garden-bench$/)
+  await expect(page).toHaveURL(/\/projects\/tuinbank$/)
   await expect(dates).toHaveText(['25 okt 2026', '18 okt 2026', '11 okt 2026', '4 okt 2026'])
   const added = entries.nth(1)
   // Line breaks are kept.

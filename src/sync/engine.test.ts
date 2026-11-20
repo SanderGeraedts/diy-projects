@@ -796,6 +796,83 @@ describe('runs', () => {
   })
 })
 
+describe('slugs (T-0027, D-0029)', () => {
+  it('two devices offline with the same title end up as x and x-2, the same on both', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    at('2026-11-20T10:00:00.000Z')
+    const first = await createProject({ title: 'Kast für Sanne' }, phone.db)
+    at('2026-11-20T10:05:00.000Z')
+    const second = await createProject({ title: 'Kast für Sanne' }, laptop.db)
+    expect([first.slug, second.slug]).toEqual(['kast-fur-sanne', 'kast-fur-sanne'])
+
+    await phone.sync()
+    await laptop.sync() // the NAS answers its push with kast-fur-sanne-2, and it takes that over
+    expect(await laptop.db.projects.get(second.id)).toMatchObject({ slug: 'kast-fur-sanne-2', updatedAt: second.updatedAt })
+    expect(await countUnsynced(laptop.db)).toBe(0)
+    await phone.sync()
+    for (const d of [phone.db, laptop.db]) {
+      expect((await d.projects.get(first.id))?.slug).toBe('kast-fur-sanne')
+      expect((await d.projects.get(second.id))?.slug).toBe('kast-fur-sanne-2')
+    }
+  })
+
+  it('a rename moves the old slug to oldSlugs on every device, and it is never given away', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const project = await createProject({ title: 'Kast' }, phone.db)
+    await phone.sync()
+    await laptop.sync()
+    at('2099-01-01T00:00:00.000Z')
+    await updateProject(project.id, { title: 'Bank' }, phone.db)
+    await phone.sync()
+    await laptop.sync()
+    expect(await laptop.db.projects.get(project.id)).toMatchObject({ slug: 'bank', oldSlugs: ['kast'] })
+    expect(server.get('projects', project.id)).toMatchObject({ slug: 'bank', oldSlugs: ['kast'] })
+
+    // A new Kast on the laptop doesn't take the old address.
+    const other = await createProject({ title: 'Kast' }, laptop.db)
+    expect(other.slug).toBe('kast-2')
+  })
+
+  it('takes slugs the NAS set without a new updatedAt (its backfill), unless a change is pending', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const a = await createProject({ title: 'Kast' }, phone.db)
+    const b = await createProject({ title: 'Bank' }, phone.db)
+    await phone.sync()
+    // The NAS's migration: new slugs, `updated` moved, `updatedAt` as it was.
+    server.put('projects', { ...server.get('projects', a.id)!, slug: 'kast-nas', oldSlugs: [] })
+    server.put('projects', { ...server.get('projects', b.id)!, slug: 'bank-nas', oldSlugs: [] })
+    at('2099-01-01T00:00:00.000Z')
+    await updateProject(b.id, { description: 'Pending' }, phone.db)
+    vi.useRealTimers()
+    await phone.sync()
+    // a, unchanged here, takes the NAS's slug from the pull.
+    expect((await phone.db.projects.get(a.id))?.slug).toBe('kast-nas')
+    // b had a change pending: its push sent the device's slug, which the NAS kept (it is
+    // free), keeping bank-nas as an earlier one; the device took that answer over.
+    expect(await phone.db.projects.get(b.id)).toMatchObject({ slug: 'bank', oldSlugs: ['bank-nas'] })
+    expect(server.get('projects', b.id)).toMatchObject({ slug: 'bank', oldSlugs: ['bank-nas'] })
+  })
+
+  it('keeps or makes a slug for projects from a NAS without slugs (before its migration)', async () => {
+    const server = new FakePocketBase()
+    const phone = device(server)
+    const laptop = device(server)
+    const project = await createProject({ title: 'Kast' }, phone.db)
+    await phone.sync()
+    const { slug: _slug, oldSlugs: _old, ...withoutSlugs } = server.get('projects', project.id)!
+    server.put('projects', withoutSlugs)
+    await phone.sync()
+    expect((await phone.db.projects.get(project.id))?.slug).toBe('kast')
+    await laptop.sync()
+    expect(await laptop.db.projects.get(project.id)).toMatchObject({ slug: 'kast', oldSlugs: [] })
+  })
+})
+
 describe('the bin (T-0022, D-0014)', () => {
   /** A project with an entry and two photos, synced from the phone and pulled by the laptop. */
   async function shared(server: FakePocketBase) {
