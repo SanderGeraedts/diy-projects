@@ -10,7 +10,7 @@ None.
 
 ## Doing
 
-- [T-0027 Address projects by slug, and entries and photos by date and place, never by id](T-0027-project-slugs.md): D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices.
+None.
 
 ## Done
 
@@ -39,6 +39,7 @@ None.
 - [T-0024 Switch the project to pnpm](T-0024-switch-to-pnpm.md): Move from npm to pnpm (D-0019): pnpm-lock.yaml converted from the npm lockfile, packageManager pinned, CI, Netlify and Playwright on pnpm, npm installs refused, and the docs' commands updated.
 - [T-0025 Check whether the repository can go public](T-0025-check-whether-the-repo-can-go-public.md): Audit the whole git history, every branch and the open PRs for secrets, personal and infrastructure details, real photos and licence problems, and write a findings report with a proposed fix for each, so Sander can decide what blocks going public.
 - [T-0026 Show public projects read-only to visitors who aren't signed in](T-0026-public-read-only-view.md): A per-project public switch (on by default, D-0025), PocketBase rules that let anyone read public projects, their entries and photo copies and thumbnails but never originals, and a read-only online view for visitors.
+- [T-0027 Address projects by slug, and entries and photos by date and place, never by id](T-0027-project-slugs.md): D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices.
 
 ## Dropped
 
