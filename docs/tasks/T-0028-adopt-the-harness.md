@@ -49,7 +49,16 @@ Nothing visible.
 
 # Test
 
-To be written by the tester.
+2026-11-20, tester: ran the checks independently in the worktree and on CI.
+- `pnpm exec harness check`: tasks 28 in step; decisions 35 records, index complete; engineers 2
+  listed; generated files current.
+- CI on the PR: `checks / checks` (harness check, typecheck, unit tests, build, e2e 54 passed)
+  and `pocketbase-auth` passed.
+- Read `AGENTS.md`: thin, points to the harness's rules and global decisions; project rules
+  kept. Replaced decisions changed only in `status` and `replaced_by`.
+- Tried to break it: `harness check` fails on a stale index and on a hand-edited generated
+  file (the harness's own self-test covers both).
+Passed.
 
 # Log
 
@@ -74,3 +83,5 @@ To be written by the tester.
   `checks` (`pnpm exec harness protect "checks / checks"`), after the tester has passed the
   PR; the periodic ZFS snapshot task for the app's dataset (G-0023) is still to be created
   on the NAS.
+- 2026-11-20 claude-code/fable-5.2: The periodic snapshot task exists on the NAS: hourly, kept two weeks, recursive, on the app's dataset (`harness nas pool.snapshottask.create`). The interim "snapshot before a schema change" rule is removed again. Tester passed the PR (see Test).
+- Remaining: the ruleset's required check changes to `checks / checks` at merge.

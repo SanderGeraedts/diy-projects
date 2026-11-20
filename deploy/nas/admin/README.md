@@ -62,8 +62,8 @@ pnpm exec harness nas app.update '["diy-projects", {"custom_compose_config_strin
 
 Methods are in the TrueNAS API reference for the NAS's version (`/api/docs/` on the NAS).
 
-- **Snapshots** (G-0023): the app's dataset gets a periodic ZFS snapshot task. Until that
-  task exists (T-0028), take a snapshot before a schema change or any other risky change:
+- **Snapshots** (G-0023): the app's dataset gets a periodic ZFS snapshot task: every
+  hour, kept two weeks. Before another kind of risky change, an extra one costs nothing:
   `pnpm exec harness nas pool.snapshot.create '[{"dataset":"<dataset>","name":"before-<change>"}]'`.
   Creating one runs without asking; deleting, rolling back or cloning one still asks.
 - Never touch Immich or the other apps on the NAS unless a task names them.

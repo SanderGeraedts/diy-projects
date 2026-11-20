@@ -27,7 +27,5 @@ Rules that hold only for this project. Each one points at the decision behind it
 - **The NAS** (G-0022): the setup for `pnpm exec harness nas` on this project is in
   [deploy/nas/admin/README.md](deploy/nas/admin/README.md). Never commit the NAS's host, a
   tailnet name or a pool name.
-- **Before merging a schema change** (`deploy/nas/pb_migrations/`, `deploy/nas/pb_hooks/` or
-  the PocketBase version): until the periodic snapshot task of G-0023 exists on the NAS
-  (T-0028), take a snapshot of the app's dataset first with
-  `pnpm exec harness nas pool.snapshot.create`.
+- **Backups** (G-0023): the NAS snapshots the app's dataset every hour and keeps each for two
+  weeks, so a schema change needs no manual backup first.

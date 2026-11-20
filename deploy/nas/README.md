@@ -145,9 +145,8 @@ this is set the production app simply works offline.
   on start-up (~10 minutes after the merge). The app on Netlify deploys first, so schema
   changes must be ones the running app tolerates (add first, use later; D-0005).
 - **Snapshots, not manual backups** (G-0023): the app's dataset gets a periodic ZFS snapshot
-  task. Until that task exists (T-0028), take a snapshot before merging a schema change
-  (anything in `pb_migrations/`, `pb_hooks/` or the PocketBase version in `Dockerfile`):
-  `pnpm exec harness nas pool.snapshot.create '[{"dataset":"<dataset>","name":"before-<change>"}]'`
+  task: every hour, kept two weeks (created 2026-11-20). A schema change needs no manual
+  backup first; to go back, roll the dataset back to a snapshot
   ([admin/README.md](admin/README.md)).
 - **Rollback:** in the app's YAML, pin the pocketbase image to the last good tag, e.g.
   `ghcr.io/sandergeraedts/diy-projects-pocketbase:sha-1a2b3c4` (the `backend` run's summary
