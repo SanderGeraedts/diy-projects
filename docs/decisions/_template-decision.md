@@ -4,7 +4,8 @@ title: "The decision, as a statement"
 description: "One sentence saying what was decided, for the index."
 status: Accepted            # Accepted | Replaced
 date: YYYY-MM-DD
-decided_by: sander
+decided_by: engineer        # engineer | requester | the agent role, e.g. architect
+overrules: []               # global decisions this project sets aside, e.g. [G-0017]
 replaces: []
 replaced_by: []
 resolves: []                # questions this answers, e.g. [Q-001]
@@ -13,7 +14,8 @@ tags: []
 
 # Context
 
-What forced a choice: the problem, the constraint, what was considered.
+What forced a choice: the problem, the constraint, what was considered. When this overrules
+a global decision: what that decision says and why it doesn't fit this project.
 
 # Decision
 

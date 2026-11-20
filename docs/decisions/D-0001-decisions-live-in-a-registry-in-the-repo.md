@@ -2,11 +2,11 @@
 id: D-0001
 title: "Decisions and open questions live as files in this repository"
 description: "Every lasting choice is a D-NNNN file and every unanswered one a Q-NNN file under docs/decisions/, listed in its index, so agents work from recorded decisions instead of chat history."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [process]
 ---

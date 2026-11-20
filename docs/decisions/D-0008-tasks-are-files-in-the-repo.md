@@ -2,11 +2,11 @@
 id: D-0008
 title: "Tasks are T-NNNN files in docs/tasks, each with a check that proves it done"
 description: "Work for agents is one file per task under docs/tasks, listed in its index, with a Done-when check and the decisions it must follow; there is no claim mechanism while Sander is the only contributor."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [process]
 ---

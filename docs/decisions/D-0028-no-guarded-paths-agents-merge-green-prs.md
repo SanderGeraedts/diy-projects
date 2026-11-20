@@ -2,11 +2,11 @@
 id: D-0028
 title: "No guarded paths: every green PR merges, and agents may merge green PRs themselves; pushing to main and skipping hooks stay blocked"
 description: "Replaces D-0017: Sander no longer reviews decisions, the backend or any other path; the auto-merge workflow merges every green non-draft PR into main, agents may run gh pr merge on a green PR, and only direct pushes to main and skipped git hooks stay blocked by the local guard."
-status: Accepted
+status: Replaced
 date: 2026-11-19
 decided_by: sander
 replaces: [D-0017]
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [process]
 ---

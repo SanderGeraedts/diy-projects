@@ -4,8 +4,9 @@ title: "The question, as a question"
 description: "One sentence on what needs answering, for the index."
 status: Open                # Open | Resolved
 raised_on: YYYY-MM-DD
-raised_by: sander           # or the agent, e.g. claude-code/opus-5.5
-blocks: []                  # what waits on it
+raised_by: architect        # the agent role, or engineer
+issue: ""                   # the GitHub issue assigned to the Engineer
+blocks: []                  # what waits on it, e.g. [T-0012]
 resolved_by: []             # the decision that answers it, e.g. [D-0004]
 tags: []
 ---

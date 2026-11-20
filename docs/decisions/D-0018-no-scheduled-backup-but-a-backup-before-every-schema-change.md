@@ -2,11 +2,11 @@
 id: D-0018
 title: "No scheduled backup of the NAS data in v1, but a PocketBase backup before every schema change"
 description: "v1 still relies on the NAS's two-disk redundancy and on Immich for the photos, with losing the NAS an accepted risk; but before merging any PR that changes PocketBase's migrations, hooks or version, Sander takes a backup in the admin screen, because CI only proves a migration on an empty database."
-status: Accepted
+status: Replaced
 date: 2026-11-17
 decided_by: sander
 replaces: [D-0016]
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [backend, backup, nas]
 ---

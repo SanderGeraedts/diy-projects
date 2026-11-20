@@ -2,11 +2,11 @@
 id: D-0019
 title: "pnpm is the package manager, pinned in package.json"
 description: "Dependencies are installed with pnpm at the version in package.json's packageManager field, with pnpm-lock.yaml as the only lockfile, so parallel worktrees share one content-addressed store instead of each copying node_modules; npm installs are refused."
-status: Accepted
+status: Replaced
 date: 2026-11-17
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [stack, tooling]
 ---

@@ -2,11 +2,11 @@
 id: D-0006
 title: "Deploy previews and local dev run offline with seeded data; only production syncs"
 description: "Netlify PR previews and the local dev server use seeded demo projects in the browser with sync switched off; only the production build can reach the NAS, and CI tests sync against a throwaway PocketBase."
-status: Accepted
+status: Replaced
 date: 2026-11-16
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [environments, testing]
 ---

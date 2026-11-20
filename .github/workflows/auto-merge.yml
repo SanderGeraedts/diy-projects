@@ -1,4 +1,5 @@
-# D-0028: every green PR that isn't a draft merges itself. No paths are guarded.
+# G-0011: every green PR that isn't a draft merges itself, through the harness's reusable
+# workflow. Keep the tag the same as the harness dependency in package.json (D-0030).
 #
 # GitHub runs workflow_run workflows from the default branch, so a PR can't change how its
 # own merge is decided.
@@ -12,63 +13,13 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write # to start backend.yml after a merge (see the last step)
+  actions: write # to start backend.yml after a merge
 
 jobs:
   merge:
-    if: >-
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REPO: ${{ github.repository }}
-      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-    steps:
-      - name: Find the PR for this run
-        id: pr
-        run: |
-          pr=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
-            --jq '[.[] | select(.state == "open" and .head.sha == env.HEAD_SHA)][0] // empty')
-          if [ -z "$pr" ]; then
-            echo "No open PR has $HEAD_SHA as its head; nothing to do."
-            exit 0
-          fi
-          echo "number=$(jq -r .number <<<"$pr")" >> "$GITHUB_OUTPUT"
-          echo "draft=$(jq -r .draft <<<"$pr")" >> "$GITHUB_OUTPUT"
-          echo "branch=$(jq -r .head.ref <<<"$pr")" >> "$GITHUB_OUTPUT"
-          echo "base=$(jq -r .base.ref <<<"$pr")" >> "$GITHUB_OUTPUT"
-
-      - name: Merge
-        # Only PRs into main: a PR stacked on another branch waits until its base merges
-        # and GitHub retargets it (see #42).
-        if: >-
-          steps.pr.outputs.number != '' && steps.pr.outputs.draft != 'true' &&
-          steps.pr.outputs.base == github.event.repository.default_branch
-        env:
-          PR: ${{ steps.pr.outputs.number }}
-          BRANCH: ${{ steps.pr.outputs.branch }}
-        run: |
-          # --match-head-commit: refuse if the PR moved on after this CI run.
-          gh pr merge "$PR" --repo "$REPO" --squash --match-head-commit "$HEAD_SHA"
-          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" || true
-
-      - name: Publish the backend image
-        # A merge made with GITHUB_TOKEN starts no push workflows, so backend.yml wouldn't
-        # publish the PocketBase image (#52's migration sat unpublished). Start it by hand
-        # when the PR touched what backend.yml's push trigger watches.
-        if: >-
-          steps.pr.outputs.number != '' && steps.pr.outputs.draft != 'true' &&
-          steps.pr.outputs.base == github.event.repository.default_branch
-        env:
-          PR: ${{ steps.pr.outputs.number }}
-        run: |
-          if gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' |
-            grep -Eq '^(deploy/nas/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'; then
-            gh workflow run backend.yml --repo "$REPO" --ref "${{ github.event.repository.default_branch }}"
-            echo "Started backend.yml on main."
-          else
-            echo "No backend change; nothing to publish."
-          fi
+    uses: SanderGeraedts/harness/.github/workflows/auto-merge.yml@v0.1.0
+    with:
+      # A merge made with GITHUB_TOKEN starts no push workflows, so backend.yml wouldn't
+      # publish the PocketBase image. These are the paths its push trigger watches.
+      backend-workflow: backend.yml
+      backend-paths: '^(deploy/nas/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'

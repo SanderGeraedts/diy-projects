@@ -2,11 +2,11 @@
 id: D-0024
 title: "A task's status moves in the PR that does the work; the task index is generated and checked in CI"
 description: "Adds to D-0008: the PR that starts, delivers or finishes a task updates its status, Log and result in the same PR, checks Sander confirms later are recorded as soon as he does, and docs/tasks/index.md is generated from the task files with pnpm test failing when the two drift."
-status: Accepted
+status: Replaced
 date: 2026-11-19
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0030]
 resolves: []
 tags: [process]
 ---

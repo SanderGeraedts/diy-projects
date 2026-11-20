@@ -19,6 +19,7 @@ enable` picks it up). npm is refused.
 ```sh
 pnpm install
 pnpm run dev          # http://localhost:5173, with seeded demo data and sync off
+pnpm run check        # the decision and task registries (harness check)
 pnpm run typecheck
 pnpm test             # unit tests (Vitest)
 pnpm run build        # static build in dist/
@@ -45,15 +46,21 @@ Container Registry; in a fork it publishes to yours.
 
 ## How it's built
 
-AI-first: coding agents write most of the code, working from recorded decisions and
-tasks rather than chat history.
+AI-first, with [the harness](https://github.com/SanderGeraedts/harness): a package this
+project installs that holds its way of working. Coding agents write most of the code,
+working from recorded decisions and tasks rather than chat history.
 
-- [`docs/decisions/`](docs/decisions/index.md): every lasting choice as a decision record,
-  and every open question.
+- The harness: the rules agents follow, the global decisions that hold in every project
+  that installs it, a team of four agents (architect, UX designer, developer, tester) and
+  the reusable CI and auto-merge workflows. Every change is a PR, and a PR merges once CI is
+  green and a tester has passed it.
+- [`docs/decisions/`](docs/decisions/index.md): the choices specific to this project, as
+  decision records, and every open question.
 - [`docs/tasks/`](docs/tasks/index.md): one file per piece of work, each with a check that
   proves it done.
-- [`AGENTS.md`](AGENTS.md): the rules agents follow: every change is a PR, and a PR merges
-  once CI is green.
+- [`AGENTS.md`](AGENTS.md): what agents read first, and the few rules that hold only here.
+
+`pnpm run check` (`harness check`) verifies the registries and the generated files.
 
 ## Licence
 

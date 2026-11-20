@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 // D-0020: screenshot tests of /design in both colour schemes. Baselines come from CI's
 // Linux runner, so the comparison is skipped elsewhere. CI runs with
 // --update-snapshots=missing: committed baselines are compared, a missing one is written and
-// uploaded as the screenshot-baselines artifact; commit its files under
+// uploaded in the ci-artifacts artifact; commit its files under
 // e2e/design.spec.ts-snapshots/. To replace a baseline, delete it and let CI make a new one.
 
 for (const colorScheme of ['light', 'dark'] as const) {

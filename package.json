@@ -14,9 +14,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "preinstall": "node -e \"if(!/^pnpm\\//.test(process.env.npm_config_user_agent||'')){console.error('Use pnpm (D-0019): pnpm install');process.exit(1)}\"",
-    "prepare": "node -e \"const fs=require('fs');if(fs.existsSync('.git')){try{require('child_process').execSync('git config core.hooksPath .githooks',{stdio:'inherit'})}catch{console.warn('prepare: could not set core.hooksPath (D-0017)')}}\"",
-    "tasks:index": "node scripts/tasks-index.mjs"
+    "preinstall": "node -e \"if(!/^pnpm\\//.test(process.env.npm_config_user_agent||'')){console.error('Use pnpm (G-0016): pnpm install');process.exit(1)}\"",
+    "prepare": "harness hooks",
+    "tasks:index": "harness tasks-index",
+    "check": "harness check"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.46",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@fontsource/poppins": "^5.3.0",
     "@playwright/test": "^1.65.1",
+    "@sandergeraedts/harness": "github:SanderGeraedts/harness#v0.1.0",
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -44,8 +46,7 @@
     "vite": "^8.3.8",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.1.0",
-    "workbox-window": "^7.4.1",
-    "ws": "^8.23.0"
+    "workbox-window": "^7.4.1"
   },
   "packageManager": "pnpm@12.18.0"
 }

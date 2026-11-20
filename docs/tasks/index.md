@@ -1,7 +1,7 @@
 # Tasks
 
-Generated from the task files by `pnpm run tasks:index`; don't edit by hand (D-0024).
-One file per task (D-0008), from [_template.md](_template.md). Pick from *Open* a task whose
+Generated from the task files by `harness tasks-index`; don't edit by hand (G-0012).
+One file per task, from [_template.md](_template.md). Pick from *Open* a task whose
 `depends_on` are all Done. One task per session.
 
 ## Open
@@ -10,7 +10,7 @@ None.
 
 ## Doing
 
-None.
+- [T-0028 Adopt the harness](T-0028-adopt-the-harness.md): D-0030: install the harness as a pinned dev dependency, keep only the project-specific rules and decisions here, and use its task index, checks, NAS tool, agent team and reusable CI and auto-merge workflows.
 
 ## Done
 

@@ -144,14 +144,15 @@ this is set the production app simply works offline.
   polls every 5 minutes, pulls it and restarts `pocketbase`, which applies new migrations
   on start-up (~10 minutes after the merge). The app on Netlify deploys first, so schema
   changes must be ones the running app tolerates (add first, use later; D-0005).
-- **Before merging a schema change** (anything in `pb_migrations/`, `pb_hooks/` or the
-  PocketBase version in `Dockerfile`), take a backup: `:8443/_/` → **Settings → Backups →
-  Backup now** (D-0018). It stays in `pb_data/backups`.
+- **Snapshots, not manual backups** (G-0023): the app's dataset gets a periodic ZFS snapshot
+  task: every hour, kept two weeks (created 2026-11-20). A schema change needs no manual
+  backup first; to go back, roll the dataset back to a snapshot
+  ([admin/README.md](admin/README.md)).
 - **Rollback:** in the app's YAML, pin the pocketbase image to the last good tag, e.g.
   `ghcr.io/sandergeraedts/diy-projects-pocketbase:sha-1a2b3c4` (the `backend` run's summary
-  names each tag); Watchtower leaves a pinned image alone. Restore the backup taken before
-  the change (**Settings → Backups → Restore**). Fix forward on `main` with a *new*
-  migration, then go back to `:stable`.
+  names each tag); Watchtower leaves a pinned image alone. Roll the dataset back to the
+  snapshot taken before the change (destructive: an agent asks Sander first, G-0022). Fix
+  forward on `main` with a *new* migration, then go back to `:stable`.
 - **The YAML on the NAS is a copy.** Changes to `compose.yml` in the repo reach the NAS only
   when you paste it again (**Apps → diy-projects → Edit**); when you do, fill in `DIY_DIR`'s
   path and `APP_ORIGIN` again as in step 4. Watchtower only updates the pocketbase image.
@@ -163,4 +164,4 @@ this is set the production app simply works offline.
   log means an update landed; "unauthorized" means the GHCR package is private and the
   token is missing.
 - **Never** deploy to the NAS from a machine, and never point anything but production at it
-  (D-0005, D-0006).
+  (D-0005, G-0019).
