@@ -4,8 +4,9 @@ import { useState, type FormEvent } from 'react'
 import { Button, Field, inputClass, StatusSelect, TagInput } from '../components/form'
 import { normalizeTags } from '../components/tags'
 import { AccentHeading } from '../components/ui'
-import { db, type Project, type ProjectStatus } from '../db/db'
+import { db, type ProjectStatus } from '../db/db'
 import { createProject, updateProject } from '../db/write'
+import { SlugRedirect, useProjectBySlug } from './projectBySlug'
 
 // T-0004: one form to start a project and to edit its title, description, status and tags.
 // Writes go through the write API (T-0003); reads are plain Dexie queries.
@@ -159,7 +160,7 @@ export function NewProjectPage() {
         onCancel={() => void navigate({ to: '/' })}
         onSave={async (fields) => {
           const project = await createProject(fields)
-          await navigate({ to: '/projects/$projectId', params: { projectId: project.id }, replace: true })
+          await navigate({ to: '/projects/$slug', params: { slug: project.slug }, replace: true })
         }}
       />
     </section>
@@ -167,15 +168,14 @@ export function NewProjectPage() {
 }
 
 export function EditProjectPage() {
-  const { projectId } = useParams({ from: '/projects/$projectId/edit' })
+  const { slug } = useParams({ from: '/projects/$slug/edit' })
   const navigate = useNavigate()
-  const project = useLiveQuery(
-    () => db.projects.get(projectId).then((p): Project | null => (p && p.deletedAt === null ? p : null)),
-    [projectId],
-  )
-  const toProject = () => navigate({ to: '/projects/$projectId', params: { projectId } })
+  // T-0027: found by its slug, or an earlier one, which redirects (D-0029).
+  const project = useProjectBySlug(slug)
+  const toProject = () => navigate({ to: '/projects/$slug', params: { slug } })
 
   if (project === undefined) return null
+  if (project && project.slug !== slug) return <SlugRedirect slug={project.slug} />
   if (project === null) {
     return (
       <section>
@@ -191,7 +191,7 @@ export function EditProjectPage() {
 
   return (
     <section>
-      <Link to="/projects/$projectId" params={{ projectId }} className={backLink}>
+      <Link to="/projects/$slug" params={{ slug }} className={backLink}>
         ← {project.title}
       </Link>
       <AccentHeading>Project bewerken</AccentHeading>
@@ -202,8 +202,9 @@ export function EditProjectPage() {
         submitLabel="Opslaan"
         onCancel={() => void toProject()}
         onSave={async (fields) => {
-          await updateProject(projectId, fields)
-          await navigate({ to: '/projects/$projectId', params: { projectId }, replace: true })
+          // A new title can mean a new slug (D-0029): go to the address it has now.
+          const updated = await updateProject(project.id, fields)
+          await navigate({ to: '/projects/$slug', params: { slug: updated.slug }, replace: true })
         }}
       />
     </section>

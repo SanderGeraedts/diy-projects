@@ -51,7 +51,7 @@ const samplePhoto: Photo = {
 }
 
 function sampleProject(title: string, status: ProjectStatus): Project {
-  return { id: title, title, description: '', status, tags: ['hout', 'tuin'], public: true, createdAt: T, updatedAt: T, deletedAt: null }
+  return { id: title, title, description: '', status, tags: ['hout', 'tuin'], public: true, slug: 'design', oldSlugs: [], createdAt: T, updatedAt: T, deletedAt: null }
 }
 
 export function DesignPage() {

@@ -6,6 +6,10 @@ import { expect, test, type Page } from '@playwright/test'
 
 const bench = 'demo-garden-bench'
 const benchPhoto = (entry: number, n: number) => `${bench}-entry-${entry}-photo-${n}`
+// D-0029 (T-0027): addresses are the slug, the entry's day and the photo's place.
+const benchUrl = '/projects/tuinbank'
+const DAYS = ['', '2026-10-04', '2026-10-11', '2026-10-25']
+const benchPhotoUrl = (entry: number, n: number) => `${benchUrl}/${DAYS[entry]}/${n}`
 
 async function goOffline(page: Page) {
   await page.goto('/')
@@ -35,7 +39,7 @@ test('a photo becomes the cover, and the overview card shows it, offline', async
 
   await openProject(page, 'Tuinbank')
   await page.getByRole('link', { name: 'Tuinbank, 4 okt 2026' }).nth(1).click()
-  await expect(page).toHaveURL(`/projects/${bench}/photos/${benchPhoto(1, 2)}`)
+  await expect(page).toHaveURL(benchPhotoUrl(1, 2))
   await page.getByRole('button', { name: 'Als omslagfoto gebruiken' }).click()
   await expect(page.getByRole('button', { name: 'Dit is de omslagfoto' })).toBeDisabled()
 
@@ -62,7 +66,7 @@ test('deleting the cover asks first, then falls back to the newest remaining pho
   // Verwijderen deletes it; it was the entry's only photo, so the viewer closes.
   await page.getByRole('button', { name: 'Verwijderen' }).click()
   await confirm.getByRole('button', { name: 'Verwijderen' }).click()
-  await expect(page).toHaveURL(`/projects/${bench}`)
+  await expect(page).toHaveURL(benchUrl)
   await expect(page.getByRole('link', { name: 'Tuinbank, 25 okt 2026' })).toHaveCount(0)
   // The entry keeps its date and note.
   await expect(page.getByText('Eerste laag olie. Na een droge week nog een tweede.')).toBeVisible()
@@ -73,7 +77,7 @@ test('deleting the cover asks first, then falls back to the newest remaining pho
   await expect(cardImage(page, 'Tuinbank')).toHaveAttribute('data-photo-id', benchPhoto(2, 2))
 
   // A deleted photo is gone from the viewer too: its URL no longer opens it.
-  await page.goto(`/projects/${bench}/photos/${benchPhoto(3, 1)}`)
+  await page.goto(benchPhotoUrl(3, 1))
   await expect(page.getByRole('heading', { name: 'Foto niet gevonden' })).toBeVisible()
   expect(await page.evaluate(() => navigator.onLine)).toBe(false)
 })
@@ -86,8 +90,10 @@ test('deleting a photo shows the next one of the entry, and leaves the others', 
 
   await page.getByRole('button', { name: 'Verwijderen' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Verwijderen' }).click()
-  await expect(page).toHaveURL(`/projects/${bench}/photos/${benchPhoto(1, 2)}`)
+  // The next photo takes the deleted one's place, so the address stays.
+  await expect(page).toHaveURL(benchPhotoUrl(1, 1))
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 2, 4 okt 2026' })).toBeVisible()
+  await expect(page.locator('img[data-current]')).toHaveAttribute('data-photo-id', benchPhoto(1, 2))
 
   await page.getByRole('button', { name: 'Sluiten' }).click()
   await expect(page.getByRole('link', { name: 'Tuinbank, 4 okt 2026' })).toHaveCount(2)
@@ -110,7 +116,7 @@ test("an entry left without photos or note says Geen foto's meer; the card shows
   await page.getByRole('link', { name: `${title}, 1 nov 2026` }).click()
   await page.getByRole('button', { name: 'Verwijderen' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Verwijderen' }).click()
-  await expect(page).toHaveURL('/projects/demo-bike-rack')
+  await expect(page).toHaveURL('/projects/fietsenrek-voor-de-schuur')
 
   await expect(page.getByRole('heading', { level: 2, name: '1 nov 2026' })).toBeVisible()
   await expect(page.getByText("Geen foto's meer")).toBeVisible()

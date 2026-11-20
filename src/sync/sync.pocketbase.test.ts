@@ -22,6 +22,7 @@ import {
 } from '../db/write'
 import { createSyncEngine, type SyncEngine } from './engine'
 import { purgeOnNas } from './purge'
+import { createPocketBaseSource, visitorClient } from '../public/source'
 
 const URL = process.env.POCKETBASE_TEST_URL ?? ''
 const SU_EMAIL = process.env.POCKETBASE_TEST_SUPERUSER_EMAIL ?? ''
@@ -379,5 +380,68 @@ describe.skipIf(!URL)('sync against a real PocketBase (T-0016)', { timeout: 120_
     await expect(purgeOnNas(phone.pb, 'project', live.id)).rejects.toMatchObject({ status: 400 })
     await purgeOnNas(phone.pb, 'project', project.id)
     expect((await su.collection('projects').getOne(project.id)).purgedAt).not.toBe('')
+  })
+  it('two devices offline with the same title end up as x and x-2 (T-0027, D-0029)', async () => {
+    const { email } = await user()
+    const phone = await device(email)
+    const laptop = await device(email)
+    at('2026-11-20T10:00:00.000Z')
+    const first = await createProject({ title: 'Kast für Sanne' }, phone.db)
+    at('2026-11-20T10:05:00.000Z')
+    const second = await createProject({ title: 'Kast für Sanne' }, laptop.db)
+    vi.useRealTimers()
+    expect([first.slug, second.slug]).toEqual(['kast-fur-sanne', 'kast-fur-sanne'])
+
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    // pb_hooks/slugs.pb.js settles the clash; the laptop takes the answer over.
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await su.collection('projects').getOne(first.id)).toMatchObject({ slug: 'kast-fur-sanne', oldSlugs: [] })
+    expect(await su.collection('projects').getOne(second.id)).toMatchObject({ slug: 'kast-fur-sanne-2', oldSlugs: [] })
+    for (const d of [phone, laptop]) {
+      expect((await d.db.projects.get(first.id))?.slug).toBe('kast-fur-sanne')
+      expect((await d.db.projects.get(second.id))?.slug).toBe('kast-fur-sanne-2')
+      expect(await countUnsynced(d.db)).toBe(0)
+    }
+  })
+
+  it('a rename keeps the old slug leading to the project, on the devices and for visitors (T-0027)', async () => {
+    const { email } = await user()
+    const phone = await device(email)
+    const laptop = await device(email)
+    // Visitors look a slug up across all public projects: keep this run's apart from others'.
+    const tag = Date.now().toString(36)
+    const [kast, bank] = [`kast-${tag}`, `bank-${tag}`]
+    const project = await createProject({ title: `Kast ${tag}` }, phone.db)
+    await phone.sync()
+    await laptop.sync()
+    at('2099-01-01T00:00:00.000Z')
+    await updateProject(project.id, { title: `Bank ${tag}` }, phone.db)
+    vi.useRealTimers()
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect(await su.collection('projects').getOne(project.id)).toMatchObject({ slug: bank, oldSlugs: [kast] })
+
+    // The laptop finds it by the old slug, as the project page does before it redirects.
+    const byOld = await laptop.db.projects.where('oldSlugs').equals(kast).toArray()
+    expect(byOld.map((p) => [p.id, p.slug])).toEqual([[project.id, bank]])
+    // A visitor too, through PocketBase's filter within the public rules (src/public/source.ts).
+    const visitor = createPocketBaseSource(visitorClient(URL))
+    expect((await visitor.project(kast))?.project).toMatchObject({ id: project.id, slug: bank })
+    expect((await visitor.project(bank))?.project).toMatchObject({ id: project.id, slug: bank })
+    expect(await visitor.project(`kas-${tag}`)).toBeNull()
+
+    // The old slug is never given to another project, not even from a device that was offline.
+    const other = await createProject({ title: `Kast ${tag}` }, laptop.db)
+    expect(await laptop.sync()).toMatchObject({ lastError: null })
+    expect((await su.collection('projects').getOne(other.id)).slug).toBe(`${kast}-2`)
+    // A private project isn't found by a visitor, by either slug.
+    at('2099-01-02T00:00:00.000Z')
+    await updateProject(project.id, { public: false }, phone.db)
+    vi.useRealTimers()
+    expect(await phone.sync()).toMatchObject({ lastError: null })
+    const later = createPocketBaseSource(visitorClient(URL))
+    expect(await later.project(kast)).toBeNull()
+    expect(await later.project(bank)).toBeNull()
   })
 })

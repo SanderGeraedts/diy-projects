@@ -1,4 +1,5 @@
 import { PROJECT_STATUSES, type Entry, type Photo, type Project, type ProjectStatus, type SyncedTable } from '../db/db'
+import { isSlug } from '../db/slug'
 
 // T-0016: how a local record (src/db/db.ts) maps to its PocketBase record
 // (deploy/nas/pb_migrations/). A record keeps the id its device gave it (a UUID), on the NAS
@@ -37,6 +38,9 @@ export function toServer(table: SyncedTable, record: LocalRecord): Record<string
         tags: p.tags,
         coverPhotoId: p.coverPhotoId ?? '',
         public: p.public,
+        // D-0029: the device's choice; the NAS may change it (pb_hooks/slugs.pb.js).
+        slug: p.slug,
+        oldSlugs: p.oldSlugs,
         ...common,
       }
     }
@@ -68,6 +72,9 @@ export function projectFromServer(r: ServerRecord): Project {
     tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === 'string') : [],
     // D-0025: on by default; a NAS from before T-0026's migration has no such field.
     public: typeof r.public === 'boolean' ? r.public : true,
+    // A NAS from before T-0027's migration has none: see `serverSlugs`.
+    slug: isSlug(r.slug) ? r.slug : '',
+    oldSlugs: slugList(r.oldSlugs),
     createdAt: text(r.createdAt),
     updatedAt: text(r.updatedAt),
     deletedAt: orNull(r.deletedAt),
@@ -75,6 +82,18 @@ export function projectFromServer(r: ServerRecord): Project {
   const cover = orNull(r.coverPhotoId)
   if (cover) project.coverPhotoId = cover
   return project
+}
+
+const slugList = (value: unknown): string[] => (Array.isArray(value) ? value.filter(isSlug) : [])
+
+/**
+ * A project's slug and earlier slugs as the NAS has them (D-0029), or null when it has none
+ * (a NAS from before T-0027's migration). The NAS settles slugs (pb_hooks/slugs.pb.js), so
+ * a device takes these over whenever it has no change of its own pending, whatever
+ * `updatedAt` says: the NAS changes them without a new `updatedAt`.
+ */
+export function serverSlugs(r: ServerRecord): Pick<Project, 'slug' | 'oldSlugs'> | null {
+  return isSlug(r.slug) ? { slug: r.slug, oldSlugs: slugList(r.oldSlugs) } : null
 }
 
 export function entryFromServer(r: ServerRecord): Entry {

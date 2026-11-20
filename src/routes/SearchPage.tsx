@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { AccentHeading } from '../components/ui'
 import { db } from '../db/db'
 import { buildIndex, highlight, search } from '../search/search'
+import { entryDays } from './paths'
 
 export interface SearchParams {
   q?: string
@@ -41,6 +42,13 @@ export function SearchPage() {
   const entries = useLiveQuery(() => db.entries.toArray(), [])
   const index = useMemo(() => (projects && entries ? buildIndex(projects, entries) : null), [projects, entries])
   const results = useMemo(() => (index ? search(index, query) : []), [index, query])
+  // T-0027: a hit in a note opens its project at the entry's day, as the hash, never an id.
+  const days = useMemo(() => {
+    const live = (entries ?? []).filter((e) => e.deletedAt === null)
+    const byProject = new Map<string, typeof live>()
+    for (const e of live) byProject.set(e.projectId, [...(byProject.get(e.projectId) ?? []), e])
+    return new Map([...byProject.values()].flatMap((list) => [...entryDays(list)]))
+  }, [entries])
 
   return (
     <section>
@@ -77,8 +85,8 @@ export function SearchPage() {
         {results.map((r) => (
           <li key={r.project.id} className="mb-6">
             <Link
-              to="/projects/$projectId"
-              params={{ projectId: r.project.id }}
+              to="/projects/$slug"
+              params={{ slug: r.project.slug }}
               className="text-lg font-semibold text-text no-underline"
             >
               <Highlighted text={r.project.title} query={query} />
@@ -105,9 +113,9 @@ export function SearchPage() {
                 {r.entries.map((e) => (
                   <li key={e.id} className="mb-2">
                     <Link
-                      to="/projects/$projectId"
-                      params={{ projectId: r.project.id }}
-                      hash={`entry-${e.id}`}
+                      to="/projects/$slug"
+                      params={{ slug: r.project.slug }}
+                      hash={days.get(e.id) ?? e.date}
                       className="block text-text no-underline"
                     >
                       <time dateTime={e.date} className="text-sm font-semibold">

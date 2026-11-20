@@ -35,7 +35,8 @@ onRecordDeleteRequest((e) => {
   const name = record.collection().name
   const now = new Date().toISOString()
   const EMPTY = {
-    projects: { title: "", description: "", tags: [], coverPhotoId: "", public: false },
+    // T-0027: a marker keeps no slug, so its addresses are free for another project.
+    projects: { title: "", description: "", tags: [], coverPhotoId: "", public: false, slug: "", oldSlugs: [] },
     entries: { note: "" },
     photos: { original: "", copy: "", thumbnail: "", takenAt: "", width: 0, height: 0 },
   }

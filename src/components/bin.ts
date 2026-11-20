@@ -14,6 +14,8 @@ export interface BinItem {
   id: string
   /** The project: its own; an entry: the project it belongs to. */
   projectId: string
+  /** The project's address (D-0029), for "Bekijken" after a restore. */
+  projectSlug: string
   projectTitle: string
   /** An entry's day, YYYY-MM-DD. */
   date?: string
@@ -36,6 +38,7 @@ export function binItems(projects: Project[], entries: Entry[], photos: PhotoRef
       kind: 'project',
       id: p.id,
       projectId: p.id,
+      projectSlug: p.slug,
       projectTitle: p.title,
       deletedAt: p.deletedAt,
       entries: entries.filter((e) => e.projectId === p.id && e.deletedAt === p.deletedAt).length,
@@ -54,6 +57,7 @@ export function binItems(projects: Project[], entries: Entry[], photos: PhotoRef
       kind: 'entry',
       id: e.id,
       projectId: project.id,
+      projectSlug: project.slug,
       projectTitle: project.title,
       date: e.date,
       deletedAt: e.deletedAt,

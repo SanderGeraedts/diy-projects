@@ -4,8 +4,10 @@ import { expect, test, type Page } from '@playwright/test'
 // Tuinbank has three entries: 4 okt (3 photos), 11 okt (2) and 25 okt (1). It is the only
 // project tagged #tuin. A delete is a tombstone, so a reload must not bring anything back.
 
-const bench = 'demo-garden-bench'
-const benchPhoto = (entry: number, n: number) => `${bench}-entry-${entry}-photo-${n}`
+// D-0029 (T-0027): addresses are the slug, the entry's day and the photo's place.
+const benchUrl = '/projects/tuinbank'
+const DAYS = ['', '2026-10-04', '2026-10-11', '2026-10-25']
+const benchPhotoUrl = (entry: number, n: number) => `${benchUrl}/${DAYS[entry]}/${n}`
 const cards = (page: Page) => page.locator('section > ul > li h2')
 
 async function goOffline(page: Page) {
@@ -51,7 +53,7 @@ test('deletes an entry and its photos offline, and it stays gone after a reload'
   await expect(note).toHaveCount(0)
 
   // Gone from the viewer and from search too.
-  await page.goto(`/projects/${bench}/photos/${benchPhoto(2, 1)}`)
+  await page.goto(benchPhotoUrl(2, 1))
   await expect(page.getByRole('heading', { name: 'Foto niet gevonden' })).toBeVisible()
   await searchFor(page, 'haaks')
   await expect(page.getByText('Niets gevonden.')).toBeVisible()
@@ -85,9 +87,9 @@ test('deletes a project with its entries and photos offline, and it stays gone a
   await expect(cards(page)).toHaveText(['Badkamerplank'])
 
   // Gone from the project page, the viewer and search too.
-  await page.goto(`/projects/${bench}`)
+  await page.goto(benchUrl)
   await expect(page.getByRole('heading', { name: 'Project niet gevonden' })).toBeVisible()
-  await page.goto(`/projects/${bench}/photos/${benchPhoto(1, 1)}`)
+  await page.goto(benchPhotoUrl(1, 1))
   await expect(page.getByRole('heading', { name: 'Foto niet gevonden' })).toBeVisible()
   await searchFor(page, 'olie')
   await expect(page.getByText('Niets gevonden.')).toBeVisible()

@@ -145,8 +145,8 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     return response.blob()
   }
 
-  async function entryOn(db: DiyDb) {
-    const project = await createProject({ title: 'Werkbank' }, db)
+  async function entryOn(db: DiyDb, title = 'Werkbank') {
+    const project = await createProject({ title }, db)
     return addEntry({ projectId: project.id, date: '2026-11-17' }, db)
   }
 
@@ -315,9 +315,11 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
   it('a visitor reads a public project online: copy and thumbnail load, the original never (T-0026)', async () => {
     const email = await user()
     const phone = await device(email)
-    const entry = await entryOn(phone.db)
+    // T-0027: visitors find a project by its slug among all public ones: keep this run's apart.
+    const tag = Date.now().toString(36)
+    const entry = await entryOn(phone.db, `Werkbank ${tag}`)
     const [p] = await addPhotos(entry.id, [photo(7)], phone.db)
-    const hidden = await createProject({ title: 'Privé', public: false }, phone.db)
+    const hidden = await createProject({ title: `Privé ${tag}`, public: false }, phone.db)
     expect(await phone.sync()).toMatchObject({ lastError: null, uploaded: 3 })
 
     const visitor = visitorClient(URL)
@@ -326,9 +328,11 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     const overview = await source.overview()
     expect(overview.projects.map((x) => x.id)).toContain(entry.projectId)
     expect(overview.projects.map((x) => x.id)).not.toContain(hidden.id)
-    expect(await source.project(hidden.id)).toBeNull()
+    expect(await source.project(hidden.slug)).toBeNull()
 
-    const shown = (await source.project(entry.projectId))!
+    const slug = `werkbank-${tag}`
+    expect((await phone.db.projects.get(entry.projectId))?.slug).toBe(slug)
+    const shown = (await source.project(slug))!
     expect(shown.entries.map((e) => e.id)).toEqual([entry.id])
     expect(shown.photos.map((x) => x.id)).toEqual([p!.id])
     const [seen] = shown.photos
@@ -341,7 +345,7 @@ describe.skipIf(!URL)('photo files against a real PocketBase (T-0017)', { timeou
     // Switched off: gone for visitors, files included (a fresh source: no cache).
     await updateProject(entry.projectId, { public: false }, phone.db)
     expect(await phone.sync()).toMatchObject({ lastError: null })
-    expect(await createPocketBaseSource(visitor).project(entry.projectId)).toBeNull()
+    expect(await createPocketBaseSource(visitor).project(slug)).toBeNull()
     expect((await fetch(seen!.copyUrl)).status).toBe(404)
   })
 

@@ -25,6 +25,8 @@ const RECORDS: Record<string, Record<string, unknown>[]> = {
       tags: ['hout'],
       coverPhotoId: '',
       public: true,
+      slug: 'tuinbank',
+      oldSlugs: ['bank'],
       createdAt: T,
       updatedAt: T,
       deletedAt: '',
@@ -73,8 +75,13 @@ async function fakePocketBase(input: RequestInfo | URL, init?: RequestInit): Pro
     const record = items.find((r) => r.id === id)
     return record ? respond(200, record) : respond(404, { status: 404, message: 'Not found.', data: {} })
   }
-  const projectId = /projectId = '([^']*)'/.exec(url.searchParams.get('filter') ?? '')?.[1]
+  const filter = url.searchParams.get('filter') ?? ''
+  const projectId = /projectId = '([^']*)'/.exec(filter)?.[1]
   if (projectId) items = items.filter((r) => r.projectId === projectId)
+  // T-0027: a project by its slug, or an earlier one.
+  // The SDK sends `slug = "x" || oldSlugs ~ "\"x\""` (the list holds "x", quotes included).
+  const slug = /^slug = "([a-z0-9-]*)" \|\| oldSlugs ~ "\\"\1\\""$/.exec(filter)?.[1]
+  if (slug) items = items.filter((r) => r.slug === slug || (r.oldSlugs as string[]).includes(slug))
   return respond(200, { page: 1, perPage: 1000, totalItems: -1, totalPages: -1, items })
 }
 
@@ -150,9 +157,12 @@ describe('visitor mode in production (T-0026)', () => {
   })
 
   it('shows a project and its timeline without any edit, delete, import or add controls', async () => {
-    await show('/projects/p1')
+    await show('/projects/tuinbank')
     expect(await screen.findByRole('heading', { level: 1, name: 'Tuinbank' })).toBeInTheDocument()
     expect(screen.getByText('Poten op lengte gezaagd.')).toBeInTheDocument()
+    // T-0027: addresses by slug, day and place, never an id.
+    const hrefs = [...main().querySelectorAll('a')].map((a) => a.getAttribute('href'))
+    expect(hrefs).toEqual(['/', '/projects/tuinbank/2026-10-04/1', '/projects/tuinbank/2026-10-04/2'])
     expect(screen.getByText('Frame gelijmd.')).toBeInTheDocument()
     const dates = [...main().querySelectorAll('.timeline time')].map((t) => t.textContent)
     expect(dates).toEqual(['11 okt 2026', '4 okt 2026'])
@@ -169,7 +179,7 @@ describe('visitor mode in production (T-0026)', () => {
   })
 
   it('opens a photo full screen without the cover and delete actions', async () => {
-    await show('/projects/p1/photos/f1')
+    await show('/projects/tuinbank/2026-10-04/1')
     const viewer = await screen.findByRole('dialog', { name: /Foto 1 van 2/ })
     expect(within(viewer).getByText('Poten op lengte gezaagd.')).toBeInTheDocument()
     expect(within(viewer).queryByRole('button', { name: /omslagfoto/ })).toBeNull()
@@ -179,12 +189,18 @@ describe('visitor mode in production (T-0026)', () => {
     expect(current.getAttribute('src')).toBe('https://pb.test/api/files/pbc_photos/f1/copy_1.webp')
   })
 
+  it('redirects an earlier slug to the current one, keeping the rest of the address (T-0027)', async () => {
+    await show('/projects/bank/2026-10-04/2')
+    expect(await screen.findByRole('dialog', { name: /Foto 2 van 2/ })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/projects/tuinbank/2026-10-04/2')
+  })
+
   it('says a project that isn’t public isn’t there', async () => {
     await show('/projects/private-one')
     expect(await screen.findByRole('heading', { name: 'Project niet gevonden' })).toBeInTheDocument()
   })
 
-  it.each(['/projects/new', '/projects/p1/edit', '/projects/p1/entries/new', '/zoeken', '/prullenbak'])(
+  it.each(['/projects/new', '/projects/tuinbank/edit', '/projects/tuinbank/entries/new', '/zoeken', '/prullenbak'])(
     'has no owner page at %s',
     async (path) => {
       await show(path)

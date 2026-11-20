@@ -1,4 +1,5 @@
 import type { DiyDb, Entry, Photo, Project, ProjectStatus } from '../db/db'
+import { slugify } from '../db/slug'
 
 // D-0006: previews and local dev start with these demo projects. The photos are drawn here,
 // so the seed never contains real photos or location data.
@@ -10,7 +11,8 @@ interface DemoEntry {
 }
 
 interface DemoProject {
-  slug: string
+  /** Makes the record ids (`demo-<key>`); the address is the title's slug (D-0029). */
+  key: string
   title: string
   description: string
   status: ProjectStatus
@@ -21,7 +23,7 @@ interface DemoProject {
 
 const DEMO: DemoProject[] = [
   {
-    slug: 'garden-bench',
+    key: 'garden-bench',
     title: 'Tuinbank',
     description: 'Een tweezitsbank van overgebleven vlonderplanken, geolied voor de winter.',
     status: 'in progress',
@@ -34,7 +36,7 @@ const DEMO: DemoProject[] = [
     ],
   },
   {
-    slug: 'bathroom-shelf',
+    key: 'bathroom-shelf',
     title: 'Badkamerplank',
     description: 'Zwevende eiken plank boven de wastafel, met verborgen dragers.',
     status: 'done',
@@ -46,7 +48,7 @@ const DEMO: DemoProject[] = [
     ],
   },
   {
-    slug: 'bike-rack',
+    key: 'bike-rack',
     title: 'Fietsenrek voor de schuur',
     description: 'Wandrek voor drie fietsen, van stalen buis.',
     status: 'idea',
@@ -55,7 +57,7 @@ const DEMO: DemoProject[] = [
     entries: [{ date: '2026-11-01', note: 'Schuurmuur opgemeten: 2,4 m vrij.', photos: 1 }],
   },
   {
-    slug: 'attic-insulation',
+    key: 'attic-insulation',
     title: 'Zolderisolatie',
     description: 'Minerale wol tussen de sporen, dampremmende folie, dan gipsplaat.',
     status: 'paused',
@@ -95,7 +97,7 @@ export function buildDemoData(): DemoData {
   const photos: Photo[] = []
 
   for (const p of DEMO) {
-    const projectId = `demo-${p.slug}`
+    const projectId = `demo-${p.key}`
     let coverPhotoId: string | undefined
     p.entries.forEach((e, ei) => {
       const entryId = `${projectId}-entry-${ei + 1}`
@@ -139,6 +141,9 @@ export function buildDemoData(): DemoData {
       tags: p.tags,
       coverPhotoId,
       public: true,
+      // D-0029, D-0006: previews and dev use addresses like production's: /projects/tuinbank.
+      slug: slugify(p.title),
+      oldSlugs: [],
       createdAt: SEED_TIME,
       updatedAt: SEED_TIME,
       deletedAt: null,

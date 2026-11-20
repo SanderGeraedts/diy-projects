@@ -1,6 +1,7 @@
 import { ClientResponseError } from 'pocketbase'
 import { REAUTH_MESSAGE } from '../auth/auth'
-import type { DiyDb, OutboxItem, SyncedTable } from '../db/db'
+import type { DiyDb, OutboxItem, Project, SyncedTable } from '../db/db'
+import { slugify, slugsOf, uniqueSlug } from '../db/slug'
 import { forgetPurged, markPhotoFileUploaded } from '../db/write'
 import { startBusy } from '../sw/busy'
 import {
@@ -20,6 +21,7 @@ import {
   fromServer,
   isNewer,
   isPurged,
+  serverSlugs,
   SYNCED_TABLES,
   toServer,
   type LocalRecord,
@@ -52,6 +54,11 @@ import {
 // a push older than the stored record is kept in `history` and answered with the stored
 // record, which this device then takes over. A newer push overwrites, and the NAS keeps the
 // overwritten version in `history` (history.pb.js). So nothing is lost silently either way.
+//
+// Slugs (T-0027, D-0029): the NAS settles a project's slug and oldSlugs
+// (deploy/nas/pb_hooks/slugs.pb.js) without a new `updatedAt`, so a device takes them from
+// every project the NAS sends (a push's answer, a pull) unless it has a change of its own
+// pending. A NAS from before T-0027 sends none: the device keeps its own, or makes one.
 //
 // One run at a time, across tabs (Web Locks). A refused sign-in (401/403) pauses sync and
 // keeps the outbox (D-0013).
@@ -344,11 +351,43 @@ export function createSyncEngine(options: SyncEngineOptions) {
         const local = await table.get(head.recordId)
         if (local && isNewer(String(stored.updatedAt ?? ''), local.updatedAt)) {
           const next = fromServer(head.table, stored, local)
-          if (next) await table.put(next)
+          if (next) await table.put(await withSlug(head.table, next, local))
+        } else if (local && head.table === 'projects') {
+          await takeSlugs(head.recordId, stored, local as Project)
         }
       })
       counts.pushed += rowIds.length
     }
+  }
+
+  // --- Slugs (T-0027) ---
+
+  /**
+   * A project from a NAS without slugs (before T-0027's migration) keeps this device's slug,
+   * or gets one made here, unique on this device. Call inside a transaction on projects.
+   */
+  async function withSlug(tableName: SyncedTable, next: LocalRecord, local: LocalRecord | undefined): Promise<LocalRecord> {
+    if (tableName !== 'projects') return next
+    const project = next as Project
+    if (project.slug) return project
+    const own = local as Project | undefined
+    if (own?.slug) return { ...project, slug: own.slug, oldSlugs: own.oldSlugs ?? [] }
+    const others = await db.projects.filter((p) => p.id !== project.id).toArray()
+    return { ...project, slug: uniqueSlug(slugify(project.title), new Set(others.flatMap(slugsOf))) }
+  }
+
+  /**
+   * Takes the NAS's slug and oldSlugs for a project this device has, unless a change of its
+   * own is pending. Returns whether anything changed. Call inside a transaction on projects
+   * and the outbox.
+   */
+  async function takeSlugs(id: string, remote: ServerRecord, local: Project): Promise<boolean> {
+    const slugs = serverSlugs(remote)
+    if (!slugs) return false
+    if (slugs.slug === local.slug && slugs.oldSlugs.join(' ') === (local.oldSlugs ?? []).join(' ')) return false
+    if ((await db.outbox.where('[table+recordId]').equals(['projects', id]).count()) > 0) return false
+    await db.projects.update(id, slugs)
+    return true
   }
 
   // --- Pull ---
@@ -388,10 +427,13 @@ export function createSyncEngine(options: SyncEngineOptions) {
           const pending = await db.outbox.where('[table+recordId]').equals([tableName, remote.id]).count()
           if (pending > 0) continue // the push settles it
           const local = await table.get(remote.id)
-          if (local && !isNewer(String(remote.updatedAt ?? ''), local.updatedAt)) continue
+          if (local && !isNewer(String(remote.updatedAt ?? ''), local.updatedAt)) {
+            if (tableName === 'projects' && (await takeSlugs(remote.id, remote, local as Project))) counts.pulled++
+            continue
+          }
           const next = fromServer(tableName, remote, local)
           if (!next) continue // a photo whose files aren't on the NAS yet: it comes again when they are
-          await table.put(next)
+          await table.put(await withSlug(tableName, next, local))
           counts.pulled++
         }
         const last = items[items.length - 1]!

@@ -13,6 +13,8 @@ function project(id: string, title: string, extra: Partial<Project> = {}): Proje
     status: 'idea',
     tags: [],
     public: true,
+    slug: id,
+    oldSlugs: [],
     createdAt: T,
     updatedAt: T,
     deletedAt: null,

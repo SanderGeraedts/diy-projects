@@ -1,4 +1,5 @@
 import { ClientResponseError } from 'pocketbase'
+import { hasBase, isSlug, slugify, uniqueSlug } from '../db/slug'
 import type { RecordApi, SyncAuth, SyncClient } from './engine'
 import type { PurgeClient } from './purge'
 import type { ServerRecord } from './records'
@@ -18,6 +19,10 @@ import type { ServerRecord } from './records'
 // project, entry or photo deletes it and what it holds for good: each record becomes a marker
 // with `purgedAt`, without content or files, and its history rows go. A marker answers every
 // later update, upload or create (also of a new record under it) with 410 Gone.
+//
+// Slugs (T-0027): like deploy/nas/pb_hooks/slugs.pb.js, a project's slug is made unique
+// among its owner's other projects (purge markers left out, earlier slugs taken) on every
+// create and update, and a rename's stored slug joins `oldSlugs`, without a new `updatedAt`.
 //
 // Files (T-0017): a multipart update stores each file under a new name, as PocketBase does
 // (replacing the field's earlier file), and protected downloads need a file token.
@@ -134,7 +139,7 @@ export class FakePocketBase {
     if (collection === 'projects') targets.push(...holds('entries', 'projectId'), ...holds('photos', 'projectId'))
     if (collection === 'entries') targets.push(...holds('photos', 'entryId'))
     const EMPTY: Record<string, Record<string, unknown>> = {
-      projects: { title: '', description: '', tags: [], coverPhotoId: '', public: false },
+      projects: { title: '', description: '', tags: [], coverPhotoId: '', public: false, slug: '', oldSlugs: [] },
       entries: { note: '' },
       photos: { original: '', copy: '', thumbnail: '', takenAt: '', width: 0, height: 0 },
     }
@@ -148,6 +153,20 @@ export class FakePocketBase {
     }
     const ids = new Set(targets.map(([, r]) => r.id))
     for (let i = this.history.length - 1; i >= 0; i--) if (ids.has(this.history[i]!.recordId)) this.history.splice(i, 1)
+  }
+
+  /** What slugs.pb.js does to a project before it is saved (`stored`: the version before). */
+  settleSlug(record: ServerRecord, stored: ServerRecord | undefined): void {
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter(isSlug) : [])
+    const others = [...this.table('projects').values()].filter((r) => r.owner === record.owner && r.id !== record.id && !r.purgedAt)
+    const taken = new Set(others.flatMap((r) => [String(r.slug ?? ''), ...list(r.oldSlugs)]))
+    const current = new Set(others.map((r) => String(r.slug ?? '')))
+    const base = slugify(String(record.title ?? ''))
+    const wanted = isSlug(record.slug) ? record.slug : isSlug(stored?.slug) ? stored.slug : base
+    const slug = uniqueSlug(wanted, taken, hasBase(wanted, base) ? base : wanted)
+    const old = [...list(stored?.oldSlugs), ...list(record.oldSlugs), ...(isSlug(stored?.slug) ? [stored.slug] : [])]
+    record.slug = slug
+    record.oldSlugs = [...new Set(old)].filter((s) => s !== slug && !current.has(s))
   }
 
   /** Readable by anyone, as the T-0026 list rules have it (deploy/nas/pb_migrations/). */
@@ -199,6 +218,7 @@ export class FakePocketBase {
             if (table.has(id)) throw responseError(400)
             if (body.owner !== userId) throw responseError(400)
             const record = { ...clone(body), id, updated: server.now() } as ServerRecord
+            if (name === 'projects') server.settleSlug(record, undefined)
             table.set(id, record)
             return clone(record)
           },
@@ -238,6 +258,7 @@ export class FakePocketBase {
             // history.pb.js (projects and entries only)
             if (name !== 'photos') server.history.push({ sourceCollection: name, recordId: id, data: clone(stored) })
             const record = { ...incoming, id, updated: server.now() }
+            if (name === 'projects') server.settleSlug(record, stored)
             table.set(id, record)
             return clone(record)
           },

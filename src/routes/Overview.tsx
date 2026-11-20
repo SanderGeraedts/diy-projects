@@ -78,7 +78,7 @@ function OverviewView({
       <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4 p-0">
         {projects.map((p) => (
           <li key={p.id}>
-            <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block text-text no-underline">
+            <Link to="/projects/$slug" params={{ slug: p.slug }} className="block text-text no-underline">
               <ProjectCard project={p} cover={covers?.get(p.id)} coverFile={readOnly ? 'thumbnail' : 'copy'} />
             </Link>
           </li>

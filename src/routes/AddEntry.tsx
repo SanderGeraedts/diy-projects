@@ -5,8 +5,9 @@ import { Button, Field, inputClass } from '../components/form'
 import { formatDate } from '../components/format'
 import { appendNote, todayIso } from '../components/notes'
 import { AccentHeading } from '../components/ui'
-import { db, type Entry, type Project } from '../db/db'
+import { db, type Entry } from '../db/db'
 import { addEntry, updateEntry } from '../db/write'
+import { SlugRedirect, useProjectBySlug } from './projectBySlug'
 import { secondaryLinkClass } from './ProjectLinks'
 
 // T-0005: add a note to a project's timeline for a chosen day (today by default). There is
@@ -25,10 +26,10 @@ export function findEntry(projectId: string, date: string): Promise<Entry | unde
     .first()
 }
 
-export function AddEntryLink({ projectId }: { projectId: string }) {
+export function AddEntryLink({ slug }: { slug: string }) {
   return (
     <p className="mt-6 mb-0">
-      <Link to="/projects/$projectId/entries/new" params={{ projectId }} className={secondaryLinkClass}>
+      <Link to="/projects/$slug/entries/new" params={{ slug }} className={secondaryLinkClass}>
         + Notitie toevoegen
       </Link>
     </p>
@@ -36,12 +37,11 @@ export function AddEntryLink({ projectId }: { projectId: string }) {
 }
 
 export function AddEntryPage() {
-  const { projectId } = useParams({ from: '/projects/$projectId/entries/new' })
+  const { slug } = useParams({ from: '/projects/$slug/entries/new' })
   const navigate = useNavigate()
-  const project = useLiveQuery(
-    () => db.projects.get(projectId).then((p): Project | null => (p && p.deletedAt === null ? p : null)),
-    [projectId],
-  )
+  // T-0027: found by its slug, or an earlier one, which redirects (D-0029).
+  const project = useProjectBySlug(slug)
+  const projectId = project?.id ?? ''
   const [date, setDate] = useState(todayIso)
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +51,7 @@ export function AddEntryPage() {
     () => (isDate(date) ? findEntry(projectId, date).then((e) => e ?? null) : null),
     [projectId, date],
   )
-  const toProject = () => navigate({ to: '/projects/$projectId', params: { projectId }, replace: true })
+  const toProject = () => navigate({ to: '/projects/$slug', params: { slug }, replace: true })
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -73,6 +73,7 @@ export function AddEntryPage() {
   }
 
   if (project === undefined) return null
+  if (project && project.slug !== slug) return <SlugRedirect slug={project.slug} />
   if (project === null) {
     return (
       <section>
@@ -88,7 +89,7 @@ export function AddEntryPage() {
 
   return (
     <section>
-      <Link to="/projects/$projectId" params={{ projectId }} className={backLink}>
+      <Link to="/projects/$slug" params={{ slug }} className={backLink}>
         ← {project.title}
       </Link>
       <AccentHeading>Notitie toevoegen</AccentHeading>

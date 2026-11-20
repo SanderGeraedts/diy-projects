@@ -9,6 +9,8 @@ import { deletePhoto, updateProject } from '../db/write'
 import { usePublic, useVisitor } from '../public/mode'
 import { visitorTimeline } from '../public/source'
 import { UNREACHABLE } from '../public/ui'
+import { comparePhotos, entryForDay, photoIndex, photoNumber } from '../routes/paths'
+import { SlugRedirect, useProjectBySlug } from '../routes/projectBySlug'
 import { ConfirmDelete, PhotoActions } from './PhotoActions'
 import {
   IDENTITY,
@@ -46,7 +48,7 @@ type Gesture =
 /** What the viewer shows: the photo's entry, its project and the entry's live photos in order. */
 interface ViewerData {
   entry: Pick<Entry, 'date' | 'note'> | undefined
-  project: Pick<Project, 'coverPhotoId'> | undefined
+  project: Pick<Project, 'id' | 'coverPhotoId'> | undefined
   siblings: ShownPhoto[]
 }
 
@@ -54,25 +56,31 @@ export function PhotoViewer() {
   return useVisitor() ? <VisitorPhotoViewer /> : <OwnerPhotoViewer />
 }
 
+// T-0027 (D-0029): the address is the project's slug, the entry's day and the photo's place
+// in it (routes/paths.ts), never an id.
+
 function OwnerPhotoViewer() {
-  const { projectId, photoId } = useParams({ from: '/projects/$projectId/photos/$photoId' })
-  const data = useLiveQuery(async (): Promise<ViewerData | null> => {
-    const photo = await db.photos.get(photoId)
-    if (!photo || photo.deletedAt || photo.projectId !== projectId) return null
-    const [entry, project, all] = await Promise.all([
-      db.entries.get(photo.entryId),
-      db.projects.get(projectId),
-      db.photos.where('entryId').equals(photo.entryId).sortBy('takenAt'),
-    ])
-    return { entry, project, siblings: all.filter((p) => !p.deletedAt) }
-  }, [projectId, photoId])
-  return <PhotoViewerView projectId={projectId} photoId={photoId} data={data} readOnly={false} />
+  const { slug, day, n } = useParams({ from: '/projects/$slug/$day/$n' })
+  const project = useProjectBySlug(slug)
+  const projectId = project?.id ?? ''
+  const found = useLiveQuery(async () => {
+    if (!projectId) return null
+    const entries = (await db.entries.where('projectId').equals(projectId).toArray()).filter((e) => !e.deletedAt)
+    const entry = entryForDay(entries, day)
+    if (!entry) return null
+    const all = await db.photos.where('entryId').equals(entry.id).toArray()
+    return { entry, siblings: all.filter((p) => !p.deletedAt).sort(comparePhotos) }
+  }, [projectId, day])
+  if (project && project.slug !== slug) return <SlugRedirect slug={project.slug} />
+  const data: ViewerData | null | undefined =
+    project === null ? null : project === undefined || found === undefined ? undefined : found && { ...found, project }
+  return <PhotoViewerView slug={slug} day={day} n={n} data={data} readOnly={false} />
 }
 
 function VisitorPhotoViewer() {
-  const { projectId, photoId } = useParams({ from: '/projects/$projectId/photos/$photoId' })
+  const { slug, day, n } = useParams({ from: '/projects/$slug/$day/$n' })
   // The project's timeline, loaded once for all its photos (the source keeps it a minute).
-  const loaded = usePublic((source) => source.project(projectId), `project:${projectId}`)
+  const loaded = usePublic((source) => source.project(slug), `project:${slug}`)
   if (loaded.state === 'unreachable') {
     return (
       <section className="fixed inset-0 z-30 bg-bg p-4">
@@ -80,38 +88,43 @@ function VisitorPhotoViewer() {
           {UNREACHABLE}
         </p>
         <p>
-          <Link to="/projects/$projectId" params={{ projectId }} className="text-grey">
+          <Link to="/projects/$slug" params={{ slug }} className="text-grey">
             ← Terug naar het project
           </Link>
         </p>
       </section>
     )
   }
+  if (loaded.state === 'ready' && loaded.data && loaded.data.project.slug !== slug) {
+    return <SlugRedirect slug={loaded.data.project.slug} />
+  }
   let data: ViewerData | null | undefined
   if (loaded.state === 'ready') {
     const timeline = loaded.data && visitorTimeline(loaded.data)
-    const photo = timeline?.photos.find((p) => p.id === photoId)
+    const entry = timeline && entryForDay(timeline.entries, day)
     data =
-      loaded.data && timeline && photo
+      loaded.data && timeline && entry
         ? {
-            entry: timeline.entries.find((e) => e.id === photo.entryId),
+            entry,
             project: loaded.data.project,
-            siblings: timeline.photos.filter((p) => p.entryId === photo.entryId),
+            siblings: timeline.photos.filter((p) => p.entryId === entry.id).sort(comparePhotos),
           }
         : null
   }
-  return <PhotoViewerView projectId={projectId} photoId={photoId} data={data} readOnly />
+  return <PhotoViewerView slug={slug} day={day} n={n} data={data} readOnly />
 }
 
 function PhotoViewerView({
-  projectId,
-  photoId,
+  slug,
+  day,
+  n,
   data,
   readOnly,
 }: {
-  projectId: string
-  photoId: string
-  /** undefined while loading, null when there's no such photo to show. */
+  slug: string
+  day: string
+  n: string
+  /** undefined while loading, null when there's no such entry to show. */
   data: ViewerData | null | undefined
   /** A visitor: no cover or delete actions (T-0026). */
   readOnly: boolean
@@ -120,10 +133,10 @@ function PhotoViewerView({
   const router = useRouter()
 
   const siblings = data?.siblings ?? []
-  const index = siblings.findIndex((p) => p.id === photoId)
+  const index = photoIndex(n)
   const current = index >= 0 ? siblings[index] : undefined
-  const previous = index > 0 ? siblings[index - 1] : undefined
-  const next = index >= 0 ? siblings[index + 1] : undefined
+  const previous = current && index > 0 ? siblings[index - 1] : undefined
+  const next = current ? siblings[index + 1] : undefined
 
   const ready = current !== undefined
   const stageRef = useRef<HTMLDivElement>(null)
@@ -182,21 +195,22 @@ function PhotoViewerView({
     setAnimating(false)
     setOffset({ x: 0, y: 0 })
     setTransform(IDENTITY)
-  }, [photoId])
+  }, [current?.id])
 
   const close = useCallback(() => {
     if (router.history.canGoBack()) router.history.back()
-    else void navigate({ to: '/projects/$projectId', params: { projectId }, replace: true })
-  }, [router, navigate, projectId])
+    else void navigate({ to: '/projects/$slug', params: { slug }, replace: true })
+  }, [router, navigate, slug])
 
+  /** Shows the entry's photo at `at` (0-based). */
   const show = useCallback(
-    (photo: ShownPhoto) =>
+    (at: number) =>
       void navigate({
-        to: '/projects/$projectId/photos/$photoId',
-        params: { projectId, photoId: photo.id },
+        to: '/projects/$slug/$day/$n',
+        params: { slug, day, n: photoNumber(at) },
         replace: true,
       }),
-    [navigate, projectId],
+    [navigate, slug, day],
   )
 
   /** Slides the strip to a neighbour, then switches the URL to it. */
@@ -208,9 +222,9 @@ function PhotoViewerView({
       setAnimating(true)
       setTransform(IDENTITY)
       setOffset({ x: direction === 'next' ? -stage.width : stage.width, y: 0 })
-      window.setTimeout(() => show(target), SETTLE_MS)
+      window.setTimeout(() => show(direction === 'next' ? index + 1 : index - 1), SETTLE_MS)
     },
-    [next, previous, show, stage.width],
+    [next, previous, show, stage.width, index],
   )
 
   useEffect(() => {
@@ -232,7 +246,8 @@ function PhotoViewerView({
     setBusy(true)
     setError(null)
     try {
-      await updateProject(projectId, { coverPhotoId: current.id })
+      if (!data?.project) return
+      await updateProject(data.project.id, { coverPhotoId: current.id })
     } catch (err) {
       console.error(err)
       setError('Dat is niet gelukt. Probeer het opnieuw.')
@@ -241,17 +256,20 @@ function PhotoViewerView({
     }
   }
 
-  /** Tombstones the photo, then shows the next one in the entry, or the previous, or closes. */
+  /**
+   * Tombstones the photo, then shows the next one in the entry (which takes its place, so the
+   * address stays), or the previous, or closes.
+   */
   const remove = async () => {
     if (!current) return
-    const after = next ?? previous
     setBusy(true)
     setError(null)
     try {
       leaving.current = true
       await deletePhoto(current.id)
       setConfirming(false)
-      if (after) show(after)
+      if (next) show(index)
+      else if (previous) show(index - 1)
       else close()
     } catch (err) {
       console.error(err)
@@ -407,7 +425,7 @@ function PhotoViewerView({
       <section className="fixed inset-0 z-30 bg-bg p-4">
         <AccentHeading>Foto niet gevonden</AccentHeading>
         <p>
-          <Link to="/projects/$projectId" params={{ projectId }} className="text-grey">
+          <Link to="/projects/$slug" params={{ slug }} className="text-grey">
             ← Terug naar het project
           </Link>
         </p>
