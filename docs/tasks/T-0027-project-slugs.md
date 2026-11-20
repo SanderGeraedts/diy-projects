@@ -2,12 +2,12 @@
 id: T-0027
 title: "Address projects by slug, and entries and photos by date and place, never by id"
 description: "D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices."
-status: Doing
+status: Done
 guarded: false
 depends_on: []
 decisions: [D-0002, D-0006, D-0007, D-0018, D-0023, D-0024, D-0025, D-0026, D-0027, D-0028, D-0029]
 raised_on: 2026-11-20
-done_on: ""
+done_on: "2026-11-20"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/52"]
 ---
 
@@ -56,3 +56,4 @@ holds an id, for the owner or for visitors:
 - Remaining: before merging, a PocketBase backup on the NAS (D-0018), then mark the PR ready; after the deploy, Sander opens a project by its slug on his phone and in a private window.
 - 2026-11-20 claude-code/opus-5.5: ZFS snapshots `before-slugs-2026-11-20` and `before-slugs-merge-2026-11-20` of the app dataset taken first (D-0018, D-0027). #52 merged; backend.yml did not run on the bot merge, so it was started by hand (#53 makes the auto-merge workflow do that). The NAS now serves `slug`: the public project answers as `travel-keeb`.
 - Remaining: Sander opens a project by its slug on his phone and in a private window.
+- 2026-11-20 claude-code/opus-5.5: Done. Sander opened projects by their slug on his phone and in a private window ("Slug addresses work on my phone and in private").
