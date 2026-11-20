@@ -2,12 +2,12 @@
 id: T-0021
 title: "Prepare the repository to go public under MIT"
 description: "Once v1 works, make the deploy docs generic, check the history for secrets, tailnet names and real photos, add the MIT licence and a README, and turn on branch protection."
-status: Doing
+status: Done
 guarded: true
 depends_on: [T-0025, T-0002, T-0004, T-0005, T-0007, T-0008, T-0009, T-0010, T-0011, T-0012, T-0014, T-0015, T-0016, T-0017, T-0018, T-0019]
 decisions: [D-0023, D-0010, D-0018, D-0028]
 raised_on: 2026-11-17
-done_on: ""
+done_on: "2026-11-20"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/46"]
 ---
 
@@ -75,3 +75,4 @@ D-0010: private until v1 works and the deploy docs are generic, then public unde
   it into the app's YAML the next time `compose.yml` is pasted, README step 4); make the
   repository public; turn on branch protection on `main` (required CI check `checks`, no
   review), per D-0028.
+- 2026-11-20 claude-code/opus-5.5: Done. Sander made the repository public and enabled the "Main Protection" ruleset on the default branch; the agent added the required status check `checks` (GitHub Actions) through the API. `gh api repos/SanderGeraedts/diy-projects/rules/branches/main` now lists deletion, non_fast_forward, pull_request (0 approvals, no code-owner review) and required_status_checks; visibility PUBLIC.
