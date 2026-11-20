@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write # to start backend.yml after a merge (see the last step)
 
 jobs:
   merge:
@@ -53,3 +54,21 @@ jobs:
           # --match-head-commit: refuse if the PR moved on after this CI run.
           gh pr merge "$PR" --repo "$REPO" --squash --match-head-commit "$HEAD_SHA"
           gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH" || true
+
+      - name: Publish the backend image
+        # A merge made with GITHUB_TOKEN starts no push workflows, so backend.yml wouldn't
+        # publish the PocketBase image (#52's migration sat unpublished). Start it by hand
+        # when the PR touched what backend.yml's push trigger watches.
+        if: >-
+          steps.pr.outputs.number != '' && steps.pr.outputs.draft != 'true' &&
+          steps.pr.outputs.base == github.event.repository.default_branch
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          if gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' |
+            grep -Eq '^(deploy/nas/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'; then
+            gh workflow run backend.yml --repo "$REPO" --ref "${{ github.event.repository.default_branch }}"
+            echo "Started backend.yml on main."
+          else
+            echo "No backend change; nothing to publish."
+          fi
