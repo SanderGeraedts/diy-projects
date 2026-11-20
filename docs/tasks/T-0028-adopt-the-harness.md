@@ -2,11 +2,11 @@
 id: T-0028
 title: "Adopt the harness"
 description: "D-0030: install the harness as a pinned dev dependency, keep only the project-specific rules and decisions here, and use its task index, checks, NAS tool, agent team and reusable CI and auto-merge workflows."
-status: Doing
+status: Done
 depends_on: []
 decisions: [D-0030, G-0001, G-0002, G-0004, G-0011, G-0012, G-0016, G-0019, G-0022, G-0023, G-0025]
 raised_on: 2026-11-20
-done_on: ""
+done_on: "2026-11-20"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/56"]
 ---
 
@@ -85,3 +85,4 @@ Passed.
   on the NAS.
 - 2026-11-20 claude-code/fable-5.2: The periodic snapshot task exists on the NAS: hourly, kept two weeks, recursive, on the app's dataset (`harness nas pool.snapshottask.create`). The interim "snapshot before a schema change" rule is removed again. Tester passed the PR (see Test).
 - Remaining: the ruleset's required check changes to `checks / checks` at merge.
+- 2026-11-20 claude-code/fable-5.2: Done. The ruleset on main (now named "harness: default branch") requires `checks / checks`; PR #56 merged under it.
