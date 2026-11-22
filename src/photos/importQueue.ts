@@ -23,6 +23,11 @@ export interface ImportStatus {
   /** Photos handled so far, added or failed. */
   done: number
   added: number
+  /**
+   * Dropped items that were never photos (or folders), known before the import runs (T-0031,
+   * D-0033). Listed in the summary before `failed`; not counted in `total` or `done`.
+   */
+  notAdded: ImportFailure[]
   failed: ImportFailure[]
   /** Names of photos without an EXIF date, filed under the file's date (D-0003). */
   fromFileDate: string[]
@@ -102,16 +107,26 @@ export function dismissImport(projectId: string): void {
 /**
  * Queues photos for import into a project and returns at once. Resolves the returned
  * promise when this batch is done. Batches run one after another.
+ *
+ * `notAdded` are dropped items that aren't photos (T-0031): they join the summary at once.
+ * A batch with only those has nothing to import and goes straight to the summary.
  */
-export function startImport(projectId: string, files: readonly File[], deps: ImportDeps = browserDeps): Promise<void> {
+export function startImport(
+  projectId: string,
+  files: readonly File[],
+  deps: ImportDeps = browserDeps,
+  notAdded: readonly ImportFailure[] = [],
+): Promise<void> {
   const list = [...files]
   const previous = statuses.get(projectId)
   const base: ImportStatus =
     previous?.running
       ? previous
-      : { projectId, total: 0, done: 0, added: 0, failed: [], fromFileDate: [], lowStorage: false, running: true }
-  statuses.set(projectId, { ...base, total: base.total + list.length, running: true })
+      : { projectId, total: 0, done: 0, added: 0, notAdded: [], failed: [], fromFileDate: [], lowStorage: false, running: true }
+  const running = list.length > 0 || base.total > base.done
+  statuses.set(projectId, { ...base, total: base.total + list.length, notAdded: [...base.notAdded, ...notAdded], running })
   for (const listener of [...listeners]) listener()
+  if (list.length === 0) return previous?.running ? chain : Promise.resolve()
 
   const release = startBusy('de foto-import')
   const batch = chain.then(() => runBatch(projectId, list, deps)).finally(release)

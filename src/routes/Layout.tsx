@@ -4,6 +4,7 @@ import { SearchLink } from '../components/SearchLink'
 import { SyncStatusBar } from '../components/SyncStatus'
 import { UpdateBar } from '../components/UpdateBar'
 import { useVisitor } from '../public/mode'
+import { FileDropGuard } from './DropPhotos'
 import { deployContext, syncConfig } from '../sync/config'
 
 const ACCOUNT_LINK = { 'signed-out': 'Inloggen', expired: 'Opnieuw inloggen', 'signed-in': 'Account' } as const
@@ -25,6 +26,8 @@ export function Layout() {
   const visitor = useVisitor()
   return (
     <>
+      {/* T-0031: a file dropped anywhere in the app is never opened by the browser (D-0033). */}
+      <FileDropGuard />
       <header className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-bg px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
         <Link to="/" className="inline-block text-xl font-semibold text-text no-underline">
           DIY projects

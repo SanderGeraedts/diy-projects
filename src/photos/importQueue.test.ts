@@ -94,6 +94,36 @@ describe('startImport', () => {
     expect((await db.projects.get(project.id))!.coverPhotoId).toBe(cover)
   })
 
+  it('lists dropped non-photos at once, before failed photos (T-0031)', async () => {
+    const project = await createProject({ title: 'Tafel' })
+    const notes = { name: 'notes.txt', reason: 'is geen foto' }
+    await startImport(project.id, [photo('kapot.jpg'), photo('2026-09-01.jpg')], fakeDeps, [notes])
+    const status = getImportStatus(project.id)!
+    expect(status).toMatchObject({ total: 2, done: 2, added: 1, running: false })
+    expect(status.notAdded).toEqual([notes])
+    expect(status.failed).toEqual([{ name: 'kapot.jpg', reason: 'kon niet worden gelezen' }])
+  })
+
+  it('goes straight to the summary when only non-photos were dropped', async () => {
+    const project = await createProject({ title: 'Stoel' })
+    const done = startImport(project.id, [], fakeDeps, [{ name: 'plan.pdf', reason: 'is geen foto' }])
+    expect(getImportStatus(project.id)).toMatchObject({ total: 0, done: 0, added: 0, running: false })
+    expect(isBusy()).toBe(false)
+    await done
+    expect(getImportStatus(project.id)!.notAdded).toEqual([{ name: 'plan.pdf', reason: 'is geen foto' }])
+  })
+
+  it('joins a running import: one summary with both drops', async () => {
+    const project = await createProject({ title: 'Kist' })
+    const first = startImport(project.id, [photo('2026-09-01.jpg')], fakeDeps, [{ name: 'a.txt', reason: 'is geen foto' }])
+    const second = startImport(project.id, [], fakeDeps, [{ name: 'b.txt', reason: 'is geen foto' }])
+    expect(getImportStatus(project.id)).toMatchObject({ total: 1, running: true })
+    await Promise.all([first, second])
+    const status = getImportStatus(project.id)!
+    expect(status).toMatchObject({ total: 1, done: 1, added: 1, running: false })
+    expect(status.notAdded.map((f) => f.name)).toEqual(['a.txt', 'b.txt'])
+  })
+
   it('warns when storage is short', async () => {
     const project = await createProject({ title: 'Schuur' })
     await startImport(project.id, [photo('2026-09-01.jpg')], { ...fakeDeps, estimate: async () => ({ usage: 90, quota: 100 }) })
