@@ -279,6 +279,79 @@ a narrow window, the long "uit" names and the "uitpakken" line wrap inside the b
   part of the path and carrying the label separately is one way. Give the `File` the image
   type that matches its extension (`image/jpeg` etc.), as a picked file has.
 
+## Review
+
+Reviewed 2026-11-23 by the ux-designer on PR #64 (`t-0032-drop-zip`): the production build
+on the demo data (`vite preview`), with drops made in the page as `e2e/drop.spec.ts` makes
+them, at laptop width (1280 × 800 and 1280 × 600, mouse) and on the Pixel 7 profile. A
+throwaway script (not committed) logged every text the import block showed during each drop
+and took screenshots.
+
+**Matches the design:**
+
+- **"uitpakken" line:** a drop of only a zip shows just `<zip> uitpakken: 0%`, with no progress
+  line before it. The progress line appears with the first image found ("Foto's importeren:
+  0 van 1"), and the "uitpakken" line sits under it with the small gap. The percent only
+  goes up, in whole numbers, and reaches 100%. A 74-character zip name wraps inside the block
+  on the Pixel and stays on one line at laptop width. "0 van 0" never showed in any drop.
+- **Total grows, no early summary:** "1 van 1" became "1 van 2" as the next image came out of
+  the zip. In a zip whose images come before 30 to 60 MB of other data, the block stayed at
+  "3 van 3 | … uitpakken: N%" through to 100%, and the summary showed only after that.
+- **Several zips plus loose photos:** dropping `eerste.zip`, `los.jpg` and `tweede.zip`
+  showed "Foto's importeren: 0 van 1 | eerste.zip uitpakken: 0%" straight away (the loose
+  photo doesn't wait). The zips were read in the order dropped, the line switched to
+  `tweede.zip` after the first, and there was one summary at the end: "4 foto's toegevoegd."
+- **Summary, word for word:** the design's example drop (`a.jpg`, `notes.txt`, `fotos.zip`
+  with `IMG_1.jpg` without EXIF, `vakantie/IMG_2.jpg`, a 52 MB `vakantie/IMG_9.heic`,
+  `readme.txt`, `__MACOSX/._IMG_1.jpg`, `.DS_Store`, `inner.zip`, then `leeg.zip` and
+  `kapot.zip`) gave exactly the design's summary, in the same order. On both profiles:
+  "3 foto's toegevoegd." / "4 bestanden niet toegevoegd:" / `notes.txt: is geen foto` /
+  `vakantie/IMG_9.heic uit fotos.zip: is groter dan 40 MB` / `leeg.zip: bevat geen foto's` /
+  `kapot.zip: kon niet worden uitgepakt` / "Zonder opnamedatum, ingedeeld op de datum van het
+  bestand:" / `IMG_1.jpg uit fotos.zip`.
+- **Junk skipped without a word:** `readme.txt`, `__MACOSX/._IMG_1.jpg`, `.DS_Store` and
+  `inner.zip` (which holds a JPEG) appear nowhere and aren't counted.
+- **Zip cut off partway:** a zip cut at 80% gave "2 foto's toegevoegd." and
+  `<zip>: kon niet helemaal worden uitgepakt`. The two photos that came out stay added.
+- **`break-words` on both lists:** a deep path
+  (`een/heel/diepe/…/IMG_20260901_091500_zonder_exif.jpg uit afgebroken-download-….zip`) in
+  "Zonder opnamedatum" and the long zip name in "niet toegevoegd" wrap inside the block on the
+  Pixel. Nothing runs past the edge.
+- **Hint and overlay:** the hint reads "of sleep foto's of zipbestanden naar deze pagina" at
+  laptop width, in the same place and style, and is hidden on the Pixel. The overlay is
+  unchanged word for word ("Laat los om foto's toe te voegen" / "aan Tuinbank" / "Ze komen
+  bij de dag waarop ze zijn gemaakt.").
+- **Scroll margin (T-0031):** after a zip drop low on Tuinbank at 1280 × 600, the block's top
+  is at 80 px and the sticky header ends at 64 px. The block is in view, below the header.
+- Keyboard and screen reader: nothing new can be focused, and the "uitpakken" line sits
+  inside the block's `role="status"`.
+
+**The developer's two deviations, judged:**
+
+- **(a) A photo without EXIF from a zip gets the zip file's own date,** not the entry's own
+  modification time, because fflate's streaming reader doesn't give that time. Seen: such a
+  photo landed on the zip's date and was listed under "Zonder opnamedatum …" as
+  `IMG_1.jpg uit fotos.zip`. D-0034 and this design both allow it ("otherwise by the zip
+  file's own date"), and the list tells Sander which photos to check. **Accepted, not a
+  difference.**
+- **(b) An entry with old-style ZipCrypto password protection that is stored, not
+  compressed, is listed as `<pad> uit <zip>: kon niet worden gelezen`** rather than
+  `kon niet worden uitgepakt`. Its scrambled bytes come out of the zip as they are and only
+  fail when the import reads them as a photo. This falls under the design's own rule that an
+  image which comes out of the zip but can't be read gets the import's reasons in the "uit"
+  form. The line still names the exact file and says it wasn't added, and the fix (zip it
+  again without a password) is the same. A ZipCrypto entry that is compressed, and AES
+  encryption, still get "kon niet worden uitgepakt". The case is rare: Windows Explorer can't
+  make password zips, and password tools compress by default. **Accepted, not a difference.**
+
+**Noted, not a difference:** the percent is counted after each piece the browser reads, so it
+can stay at 0% while the first few images of a zip are already imported ("3 van 3 | fotos.zip
+uitpakken: 0%"). After that it rises steadily. The design asks for the part of the zip read so
+far, and that piece counts as read only once it has been handed on. This doesn't need a change.
+
+**Verdict: matches the design. No differences to fix.** *Done when* 6 holds. Handed to the
+tester.
+
 # Test
 
 # Log
@@ -287,3 +360,4 @@ a narrow window, the long "uit" names and the "uitpakken" line wrap inside the b
 - 2026-11-22 architect: harness v0.9.0 (T-0033, G-0031): sized full, a new dependency and new summary lines on top of T-0031's design. *Done when* 1 is now CI's run. Still with the UX designer, after T-0031's design.
 - 2026-11-22 ux-designer: designed: the "<zip> uitpakken: N%" line while a zip is read (total grows, no summary until every zip is read), names as "<pad> uit <zip>", four zip reasons (groter dan 40 MB, kon (niet helemaal) worden uitgepakt, bevat geen foto's, kan nu niet worden uitgepakt), junk skipped silently, hint names zipbestanden, overlay unchanged; *Done when* 7-9 added. Handed to the developer.
 - 2026-11-23 developer: built: `fflate` 0.8.3 (exact, `pnpm add -E`; `pnpm why fflate` shows only `diy-projects (dependencies)`, the lockfile adds only `fflate@0.8.3`); `src/photos/unzip.ts` (lazy chunk `unzip-*.js`, 9.6 kB) reads a zip with fflate's streaming `Unzip` in 16 kB pieces, one entry at a time, yielding the next image only when the import asks for it; entries it doesn't take go to a decoder that drops them (fflate would otherwise keep an unstarted entry in memory); an image stops unpacking past 40 MB; a zip is checked by its first bytes and its end-of-directory record. fflate's streaming `Unzip` gives no entry modification time, so a photo without EXIF gets the zip file's `lastModified` (D-0034). `startZipImport` in the import queue reads the zips one after another on the import chain under `startBusy`; `ImportStatus` gained `zips` and `zipPercent`, and `running` stays true until every zip is read. The photo's `File` is named by the last part of its path with the type of its extension; the summary shows `<pad> uit <zip>`. Hint updated in `ImportPhotos.tsx`, `e2e/drop.spec.ts` and `e2e/import.spec.ts`; the file-date list has `break-words`. Local: `tsc --noEmit` clean; `vitest run src/photos src/routes src/sw`: 8 files, 68 tests passed (new: `unzip.test.ts` 12, `importQueue.test.ts` 9 zip tests, `ImportPhotos.test.tsx` 5, `drop.test.ts` 4); `pnpm run build`: fflate only in `assets/unzip-*.js`, not in `index.html`'s preloads, imported by the entry only through `import()`, and named in `dist/sw.js`; `playwright test e2e/drop.spec.ts e2e/import.spec.ts`: 8 passed; the two new zip tests with `--repeat-each 10`: 20 passed; `harness check`: all ✓.
+- 2026-11-23 ux-designer: reviewed: matches the design, no differences; deviations (a) zip's own date for photos without EXIF and (b) stored ZipCrypto entry as "kon niet worden gelezen" accepted. Handed to the tester.
