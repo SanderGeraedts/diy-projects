@@ -1,4 +1,4 @@
-import { PROJECT_STATUSES, type Project, type ProjectStatus } from './db/db'
+import { PROJECT_STATUSES, type Photo, type Project, type ProjectStatus } from './db/db'
 
 // T-0011 (D-0004): the overview filters by status and tag. The filters live in the URL search
 // params so back, reload and a home-screen shortcut keep them. Statuses combine as "any of",
@@ -33,15 +33,49 @@ export function hasFilters(filters: OverviewFilters): boolean {
   return (filters.status?.length ?? 0) > 0 || (filters.tag?.length ?? 0) > 0
 }
 
-/** Live projects matching the filters, newest update first. Tombstoned projects never show. */
-export function filterProjects(projects: readonly Project[], filters: OverviewFilters): Project[] {
+/** What ordering the overview needs of a photo: a stored one or a visitor's (T-0030). */
+export type OrderingPhoto = Pick<Photo, 'projectId' | 'takenAt'> & { deletedAt: string | null }
+
+/**
+ * T-0030 (D-0032): the overview's order, the only place projects are sorted for display. By
+ * each project's newest live photo (latest `takenAt`, compared as text), newest first; ties by
+ * `updatedAt`, then id, descending. Projects without a live photo come last, by `updatedAt`,
+ * then id, descending.
+ */
+function orderProjects<P extends Project>(projects: readonly P[], photos: readonly OrderingPhoto[]): P[] {
+  const newest = new Map<string, string>()
+  for (const photo of photos) {
+    if (photo.deletedAt !== null) continue
+    const current = newest.get(photo.projectId)
+    if (current === undefined || photo.takenAt > current) newest.set(photo.projectId, photo.takenAt)
+  }
+  return [...projects].sort((a, b) => {
+    const ta = newest.get(a.id)
+    const tb = newest.get(b.id)
+    if (ta !== tb) {
+      if (ta === undefined) return 1
+      if (tb === undefined) return -1
+      return tb.localeCompare(ta)
+    }
+    return b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id)
+  })
+}
+
+/** Live projects matching the filters, in the overview's order. Tombstoned projects never show. */
+export function filterProjects(
+  projects: readonly Project[],
+  filters: OverviewFilters,
+  photos: readonly OrderingPhoto[],
+): Project[] {
   const statuses = filters.status ?? []
   const tags = filters.tag ?? []
-  return projects
-    .filter((p) => p.deletedAt === null)
-    .filter((p) => statuses.length === 0 || statuses.includes(p.status))
-    .filter((p) => tags.every((t) => p.tags.includes(t)))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  return orderProjects(
+    projects
+      .filter((p) => p.deletedAt === null)
+      .filter((p) => statuses.length === 0 || statuses.includes(p.status))
+      .filter((p) => tags.every((t) => p.tags.includes(t))),
+    photos,
+  )
 }
 
 /** The tags used by live projects, sorted for display. */

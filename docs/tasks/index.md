@@ -6,7 +6,6 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Open
 
-- [T-0030 List projects on the overview by their newest photo](T-0030-sort-projects-by-newest-photo.md) (small): D-0032: the overview, the owner's and a visitor's, orders projects by the latest time taken among their live photos, newest first; projects without photos come last, by last edit.
 - [T-0031 Add photos by dropping them onto a project page](T-0031-drop-photos-onto-a-project.md): D-0033: image files dragged from the computer and dropped anywhere on the owner's project page go through the same import as "Foto's toevoegen"; non-images are listed as not added, and a stray drop anywhere in the app never opens the file in the browser.
 - [T-0032 Add the photos in a zip file by dropping it onto a project page](T-0032-drop-a-zip-of-photos-onto-a-project.md): D-0034: a .zip dropped onto the owner's project page is unpacked on the device with fflate, one file at a time, and its images go through the normal import; other files are skipped, an image over 40 MB and an unreadable zip are listed as not added.
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and, as Q-006 decides, either drop the laptop's own TrueNAS key or keep it under a recorded overrule.
@@ -14,7 +13,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Doing
 
-None.
+- [T-0030 List projects on the overview by their newest photo](T-0030-sort-projects-by-newest-photo.md) (small): D-0032: the overview, the owner's and a visitor's, orders projects by the latest time taken among their live photos, newest first; projects without photos come last, by last edit.
 
 ## Done
 
