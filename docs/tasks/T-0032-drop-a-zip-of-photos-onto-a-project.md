@@ -354,6 +354,112 @@ tester.
 
 # Test
 
+Tested 2026-11-23 by the tester on PR #64 at `ac6bd8d`, after `pnpm install
+--frozen-lockfile` ("Lockfile is up to date ... Done").
+
+**Verdict: sent back.** Every *Done when* check holds, but a valid zip made with data
+descriptors can lose a photo, can cut a photo short without a word, and has its inner zip
+opened. Details under *Failed*.
+
+## Done when, checked
+
+1. CI run 45081932053 on `ac6bd8d`: `checks / checks` pass (1m8s), `pocketbase-auth` pass.
+   The log shows `Test Files  30 passed | 3 skipped (33)` and `69 passed (35.2s)` for
+   Playwright, with no `flaky` line (the workflow fails on one). No test passed on a retry.
+2. `pnpm why fflate` prints `fflate@0.8.3 └── diy-projects@0.0.0 (dependencies)` / `Found 1
+   version of fflate`. `git diff main -- pnpm-lock.yaml` adds only the `fflate` importer
+   entry (`specifier: 0.8.3`), `fflate@0.8.3: resolution ...` and `fflate@0.8.3: {}`.
+   `package.json` has `"fflate": "0.8.3"` under `dependencies`, an exact version.
+3. `pnpm run build`: `precache 23 entries (674.38 KiB)`. fflate's code (`UnzipInflate`,
+   `unknown compression type`) is only in `dist/assets/unzip-Bsxn6mOh.js`. `dist/index.html`
+   loads only `assets/index-Bi8HN-U0.js` and `assets/ui-B5mzZvYH.js`. The entry chunk
+   refers to it only as `loadUnzip:()=>Af(()=>import('./unzip-Bsxn6mOh.js'),[])`.
+   `dist/sw.js` names `unzip-Bsxn6mOh.js`. The e2e test also checks that `/` and the
+   project page don't request the chunk.
+   - `src/photos/zipFixture.ts` is used only in tests. Only `unzip.test.ts` and
+     `importQueue.test.ts` import it. Its code (`ZipDeflate`, the `1103515245` constant)
+     is in no file in `dist/`.
+   - **Offline after a fresh install:** `offlineWithNewProject` installs the service worker
+     and goes offline before the first zip drop, so the chunk comes from the precache, not
+     from an earlier drop. That test passed 10 times in a row (below).
+4. and 7. `pnpm exec vitest run src/photos/unzip.test.ts src/photos/importQueue.test.ts
+   src/photos/drop.test.ts src/routes/ImportPhotos.test.tsx`, three times: `Test Files  4
+   passed (4)` / `Tests  44 passed (44)` each time. The cases asked for are there: the
+   junk list, over the limit and then the next entry, not a zip, and the five summary lines
+   word for word, including `running` staying true until the zip is read.
+5. and 8. `pnpm exec playwright test e2e/drop.spec.ts -g "zip" --repeat-each 10 --workers 4
+   --retries 0`: `20 passed (12.5s)`. `pnpm exec playwright test e2e/drop.spec.ts
+   e2e/import.spec.ts --repeat-each 5 --workers 4 --retries 0`: `40 passed (19.5s)`.
+6. The UX review in *Design* finds no differences and accepts deviations (a) and (b).
+9. The hint is checked in both e2e files and in `ImportPhotos.test.tsx` ("names zip files in
+   the hint").
+
+`pnpm exec harness check`: `✓ tasks: 35 tasks, index in step` / `✓ decisions: 40 records,
+index complete, 0 overrules valid` / `✓ engineers: 2 listed` / `✓ generated files: current`.
+
+## Tried (with a throwaway vitest file calling `readZip`, not committed)
+
+- **Zip-slip names:** `../evil.jpg`, `a/../../b.jpg`, `..\c.jpg` and `d/..` are skipped,
+  because a `..` part starts with a dot. `/abs/x.jpg` comes out as a File named `x.jpg`
+  with label `/abs/x.jpg`. A `/` or `\` never ends up in a File name. A
+  `<img src=x onerror=alert(1)>.jpg` name only appears as text (React escapes it). A
+  5000-character name passes through to the label. Holds.
+- **Empty zip** gives `bevat geen foto's`. **0 bytes** and **text** give `kon niet worden
+  uitgepakt`. A zip holding **only an inner zip** and `notes.txt` gives `bevat geen foto's`.
+- **Truncated** at 10% gives `kon niet worden uitgepakt`. At 50%, 80% and 99%, the images
+  read so far come out, then `kon niet helemaal worden uitgepakt`. Holds.
+- **Corrupt deflate data** gives `a.jpg uit …: kon niet worden uitgepakt`. Corrupt bytes
+  inside a **stored** entry come out as an image without a word: fflate's `Unzip` checks
+  no CRC. That is a minor gap next to the failures below.
+- **Zip bomb:** 200 MB of zeros as `bomb.jpg`, also with a lying size in the local header
+  and also with a data descriptor, gives `is groter dan 40 MB`, and `after.jpg` is still
+  yielded. Holds.
+- **Memory with a big non-image:** a 150 MB stored `film.mov`, then `after.jpg`, with
+  sizes in the header and with a data descriptor. I measured `arrayBuffers` after a forced
+  GC every 200 pieces, and the growth was `0.0 MB` in both cases. The video is drained,
+  not held. Holds. (Without GC the data-descriptor case showed about 150 MB of garbage
+  waiting to be collected, not retained.)
+- **Leaving the page mid-unpack:** the reading runs in the module-level queue under
+  `startBusy`, not in the component. Read from the code; the UX review saw it carry on.
+- **Several zips plus loose photos:** covered by `importQueue.test.ts` ("reads zips one
+  after another") and the UX review. Not repeated.
+
+## Failed
+
+Zips in which entries have a **data descriptor** (general-purpose flag bit 3: sizes after
+the data). Streaming zippers write these, macOS's "Compress" among them, and so does
+fflate's own `Zip`, which `zipFixture.streamedZip` uses. fflate 0.8.3's streaming `Unzip`
+can't know where such an entry ends. It scans the entry's bytes for the signatures
+`PK\x07\x08`, `PK\x01\x02` and `PK\x03\x04` and ends the entry at the first one it finds
+(`node_modules/fflate/esm/browser.js`, `Unzip.prototype.push`). A photo whose bytes happen
+to contain one of these signatures breaks:
+
+| Zip made with data descriptors | What `readZip` yields |
+| --- | --- |
+| deflated `a.jpg` (200,000 bytes, a signature at byte 100,000), then `b.jpg` | `entry-failure a.jpg kon niet worden uitgepakt`, then `b.jpg`: a valid photo is lost |
+| the same, stored | `image a.jpg size=100000` (or `99984` / `99988`): **cut short and imported without a word**, not the original (D-0015) |
+| stored `inner.zip` (holding `secret.jpg`), then `ok.jpg` | `image secret.jpg`, then `ok.jpg`: **the inner zip is opened**, against D-0034 and the design |
+
+This isn't contrived. Compressed photo data is close to random, so each 4-byte window has a
+3 in 2^32 chance of looking like a signature. That is about 0.35% for a 5 MB photo, or
+roughly one lost photo in every 300 from a macOS-made zip, and the same drop gives the same
+result every time. The unit tests miss it: Done when 4 builds its zips with `zipSync`
+(sizes in the header), and `streamedZip` is only used with noise that holds no signature.
+
+**How to see it:** build a zip with `new Zip()` + `ZipPassThrough('a.jpg')` (stored) or
+`ZipDeflate` (deflated). Put in 200,000 bytes of `noise()` with `[0x50,0x4b,0x07,0x08]`
+written at byte 100,000, then a second entry. Run `readZip` and compare the yielded bytes
+with the input. For the inner zip, put `zipSync({'secret.jpg': noise(5000)}, {level: 0})`
+in as a stored `inner.zip`.
+
+**What a fix must make true, with a test for each:** a valid zip with data descriptors gives
+every image byte for byte, even when its data holds those signatures (stored and deflated).
+An inner zip in such a zip is never opened. Reading an image doesn't lean on scanning for
+signatures, for example by taking sizes and offsets from the central directory (the
+dropped `File` can be read at any offset), or by checking each image against the CRC-32
+and size in its data descriptor. The approach is the developer's. If it means leaving
+fflate's streaming `Unzip`, check it with the architect against D-0034.
+
 # Log
 
 - 2026-11-22 architect: raised from Sander's request as a follow-up to T-0031, so image drop doesn't wait on it; recorded D-0034: zips are unpacked on the device with fflate (MIT, no dependencies of its own), lazily loaded and precached, one entry at a time, images only, 40 MB per image, unreadable zips listed as not added. Handed to the UX designer.
@@ -361,3 +467,4 @@ tester.
 - 2026-11-22 ux-designer: designed: the "<zip> uitpakken: N%" line while a zip is read (total grows, no summary until every zip is read), names as "<pad> uit <zip>", four zip reasons (groter dan 40 MB, kon (niet helemaal) worden uitgepakt, bevat geen foto's, kan nu niet worden uitgepakt), junk skipped silently, hint names zipbestanden, overlay unchanged; *Done when* 7-9 added. Handed to the developer.
 - 2026-11-23 developer: built: `fflate` 0.8.3 (exact, `pnpm add -E`; `pnpm why fflate` shows only `diy-projects (dependencies)`, the lockfile adds only `fflate@0.8.3`); `src/photos/unzip.ts` (lazy chunk `unzip-*.js`, 9.6 kB) reads a zip with fflate's streaming `Unzip` in 16 kB pieces, one entry at a time, yielding the next image only when the import asks for it; entries it doesn't take go to a decoder that drops them (fflate would otherwise keep an unstarted entry in memory); an image stops unpacking past 40 MB; a zip is checked by its first bytes and its end-of-directory record. fflate's streaming `Unzip` gives no entry modification time, so a photo without EXIF gets the zip file's `lastModified` (D-0034). `startZipImport` in the import queue reads the zips one after another on the import chain under `startBusy`; `ImportStatus` gained `zips` and `zipPercent`, and `running` stays true until every zip is read. The photo's `File` is named by the last part of its path with the type of its extension; the summary shows `<pad> uit <zip>`. Hint updated in `ImportPhotos.tsx`, `e2e/drop.spec.ts` and `e2e/import.spec.ts`; the file-date list has `break-words`. Local: `tsc --noEmit` clean; `vitest run src/photos src/routes src/sw`: 8 files, 68 tests passed (new: `unzip.test.ts` 12, `importQueue.test.ts` 9 zip tests, `ImportPhotos.test.tsx` 5, `drop.test.ts` 4); `pnpm run build`: fflate only in `assets/unzip-*.js`, not in `index.html`'s preloads, imported by the entry only through `import()`, and named in `dist/sw.js`; `playwright test e2e/drop.spec.ts e2e/import.spec.ts`: 8 passed; the two new zip tests with `--repeat-each 10`: 20 passed; `harness check`: all ✓.
 - 2026-11-23 ux-designer: reviewed: matches the design, no differences; deviations (a) zip's own date for photos without EXIF and (b) stored ZipCrypto entry as "kon niet worden gelezen" accepted. Handed to the tester.
+- 2026-11-23 tester: sent back: in a zip with data descriptors (as macOS and streaming zippers make), fflate's streaming `Unzip` ends an entry at the first `PK` signature in its data, so a deflated photo is lost ("kon niet worden uitgepakt"), a stored photo is cut short and imported without a word, and a stored inner zip is opened; Done when 1-9 otherwise hold. Back to the developer.
