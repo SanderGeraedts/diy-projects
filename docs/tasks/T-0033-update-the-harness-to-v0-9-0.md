@@ -163,3 +163,4 @@ sharded e2e job skipped because `e2e-shards` is 1, so the end-to-end tests ran i
 
 - 2026-11-22 architect: updated the harness to v0.9.0 on branch `harness-v0.9.0`: `pnpm add -D github:SanderGeraedts/harness#v0.9.0`, `harness sync` (agents, grill skill, templates, ask rules), both workflows at `@v0.9.0`, `workflow_dispatch` on CI, auto-merge waits for `backend`, the skills line in `CLAUDE.md`, the NAS rule in `AGENTS.md` on G-0026 and G-0027. Per changed global decision: T-0034 (G-0026, G-0027) with Q-006 (#60), T-0035 (G-0032), none for G-0028, G-0029, G-0030; G-0031 conformed here and T-0030 to T-0032 sized. Small. Handed to the tester.
 - 2026-11-22 tester: passed
+- 2026-11-22 tester: after #62 merged (7857da5), a workflow_dispatch CI run on main followed: run 45075883066, success.
