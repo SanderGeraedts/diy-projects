@@ -146,6 +146,28 @@ test('dropped non-photos are listed as not added, each with a reason', async ({ 
   await expect(status).not.toContainText('importeren')
 })
 
+test('after a drop low on the page, the import block shows below the sticky header', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 })
+  await page.goto('/projects/tuinbank')
+  await expect(page.locator('.timeline img')).toHaveCount(6)
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+
+  await dropFiles(page, [dropped('notes.txt', 'text/plain', new TextEncoder().encode('lijm kopen'))])
+  const status = page.getByTestId('import-status')
+  await expect(status).toContainText('1 bestand niet toegevoegd:')
+  // Wait for the (smooth) scroll to settle, then the block's top must clear the header.
+  const position = () =>
+    page.evaluate(() => ({
+      header: document.querySelector('header.sticky')!.getBoundingClientRect().bottom,
+      block: document.querySelector('[data-testid="import-status"]')!.getBoundingClientRect().top,
+    }))
+  await expect.poll(async () => {
+    const { header, block } = await position()
+    return block >= header && block < 600
+  }).toBe(true)
+})
+
 test('a drag that carries only text shows no overlay', async ({ page }) => {
   await page.goto('/projects/tuinbank')
   await expect(page.getByRole('heading', { level: 1, name: 'Tuinbank' })).toBeVisible()

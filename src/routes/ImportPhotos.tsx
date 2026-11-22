@@ -41,6 +41,7 @@ export function ImportPhotos({ projectId, projectTitle }: { projectId: string; p
   useFileDropTarget(drop, setOver)
 
   // A drop lower on the page brings the import block into view; focus stays where it was.
+  // scroll-mt-20 on the block keeps it below the sticky header, as the timeline's days.
   useEffect(() => {
     if (drops === 0) return
     statusRef.current?.scrollIntoView?.({ block: 'nearest', behavior: reducedMotion() ? 'instant' : 'smooth' })
@@ -67,7 +68,7 @@ export function ImportPhotos({ projectId, projectTitle }: { projectId: string; p
         <div
           ref={statusRef}
           role="status"
-          className="mt-3 rounded-card border border-grey-light px-4 py-3"
+          className="mt-3 scroll-mt-20 rounded-card border border-grey-light px-4 py-3"
           data-testid="import-status"
         >
           {status.lowStorage && (
