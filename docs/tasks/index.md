@@ -14,7 +14,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Doing
 
-- [T-0033 Update the harness from v0.1.0 to v0.9.0](T-0033-update-the-harness-to-v0-9-0.md) (small): G-0005: pin the harness and both reusable workflows at v0.9.0, commit what harness sync writes (agents sized by G-0031, the grill skill, the templates, the ask rules), follow each version's update notes, and per changed global decision open a task or say why none is needed.
+None.
 
 ## Done
 
@@ -46,6 +46,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 - [T-0027 Address projects by slug, and entries and photos by date and place, never by id](T-0027-project-slugs.md): D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices.
 - [T-0028 Adopt the harness](T-0028-adopt-the-harness.md): D-0030: install the harness as a pinned dev dependency, keep only the project-specific rules and decisions here, and use its task index, checks, NAS tool, agent team and reusable CI and auto-merge workflows.
 - [T-0029 Show a day's photos newest first, on the page, in the viewer and in their addresses](T-0029-show-a-days-photos-newest-first.md): D-0031: within an entry, photos are shown newest first like the days, for the owner and for visitors; a photo's place in its address and the viewer's next/previous follow that order.
+- [T-0033 Update the harness from v0.1.0 to v0.9.0](T-0033-update-the-harness-to-v0-9-0.md) (small): G-0005: pin the harness and both reusable workflows at v0.9.0, commit what harness sync writes (agents sized by G-0031, the grill skill, the templates, the ask rules), follow each version's update notes, and per changed global decision open a task or say why none is needed.
 
 ## Dropped
 
