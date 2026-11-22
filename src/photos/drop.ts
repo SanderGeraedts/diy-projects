@@ -13,7 +13,7 @@ export interface DroppedItem {
 export interface SplitDrop {
   /** Images, in the order dropped: handed to startImport as picked files are. */
   images: File[]
-  /** Zip files, in the order dropped: unpacked by startZipImport (T-0032, D-0034). */
+  /** Zip files, in the order dropped: unpacked by startZipImport (T-0032, D-0035). */
   zips: File[]
   /** Everything else, in the order dropped: listed in the summary as not added. */
   notAdded: ImportFailure[]
@@ -30,7 +30,7 @@ export function isImage(file: File): boolean {
 export const NOT_A_PHOTO = 'is geen foto'
 export const A_FOLDER = "is een map; sleep de foto's uit de map"
 
-// --- Zip files (T-0032, D-0034) ---
+// --- Zip files (T-0032, D-0035) ---
 
 /** A zip by its name (any case) or by the type browsers give one. */
 export function isZip(file: File): boolean {
@@ -51,7 +51,7 @@ const ZIP_IMAGE_TYPES: Record<string, string> = {
 // Some Windows tools write `\` between folders instead of `/`.
 const pathParts = (path: string) => path.split(/[\\/]/)
 
-/** The image type for a name in a zip, by its extension; undefined when it isn't one D-0034 takes. */
+/** The image type for a name in a zip, by its extension; undefined when it isn't one D-0035 takes. */
 export function zipImageType(path: string): string | undefined {
   const match = /\.([a-z]+)$/i.exec(path)
   return match ? ZIP_IMAGE_TYPES[match[1]!.toLowerCase()] : undefined

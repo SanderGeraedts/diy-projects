@@ -10,7 +10,7 @@ import { secondaryLinkClass } from './ProjectLinks'
 // shows where it is.
 // T-0031 (D-0033): files dropped anywhere on the page take the same import; the overlay shows
 // while they are dragged over it.
-// T-0032 (D-0034): a dropped zip is unpacked in the import queue; its images join the import.
+// T-0032 (D-0035): a dropped zip is unpacked in the import queue; its images join the import.
 
 const photos = (n: number) => (n === 1 ? '1 foto' : `${n} foto's`)
 const files = (n: number) => (n === 1 ? '1 bestand' : `${n} bestanden`)

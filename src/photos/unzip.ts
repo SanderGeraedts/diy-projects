@@ -1,7 +1,7 @@
 import { Inflate } from 'fflate'
 import { CANT_UNZIP, NO_PHOTOS, PARTLY_UNZIPPED, TOO_LARGE, baseName, isZipImage, zipImageType } from './drop'
 
-// T-0032 (D-0034): reads a dropped zip file on the device and yields its images as Files, one
+// T-0032 (D-0035): reads a dropped zip file on the device and yields its images as Files, one
 // at a time. Loaded only when a zip is dropped: the import queue imports this module with a
 // dynamic import(), so fflate stays out of the startup bundle; the chunk is in the service
 // worker's precache like every other .js file.
@@ -304,7 +304,7 @@ async function unpack(zip: Blob, entry: Entry, limit: number, progress: (at: num
  * Reads a zip one image at a time and yields its images in the order of its directory, then,
  * when something is wrong with the zip as a whole, one `zip-failure`. Never throws. Folders,
  * other files, `__MACOSX/`, dotfiles and zips inside the zip are skipped silently and never
- * read. An image without EXIF gets the zip's own date (D-0034).
+ * read. An image without EXIF gets the zip's own date (D-0035).
  */
 export async function* readZip(zip: File, { limit = MAX_ENTRY_BYTES, onProgress }: ReadZipOptions = {}): AsyncGenerator<ZipItem> {
   let reached = 0

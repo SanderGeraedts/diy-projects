@@ -147,7 +147,7 @@ test('dropped non-photos are listed as not added, each with a reason', async ({ 
   await expect(status).not.toContainText('importeren')
 })
 
-// T-0032 (D-0034): a dropped zip is unpacked on the device and its images take the same import.
+// T-0032 (D-0035): a dropped zip is unpacked on the device and its images take the same import.
 test('the photos in a dropped zip land in their days, offline; the unzip code loads only then', async ({ page }) => {
   test.setTimeout(90_000)
   // The page's own requests (served by the service worker once it controls the page); the

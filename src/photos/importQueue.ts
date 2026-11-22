@@ -12,7 +12,7 @@ import type { readZip } from './unzip'
 // at a time (the worker queue in ./index does one at a time too), each stored in its own
 // write so a failed photo never takes the others with it. An app update waits while an
 // import runs (T-0019).
-// T-0032 (D-0034): a dropped zip is read here too, one image at a time; each image joins the
+// T-0032 (D-0035): a dropped zip is read here too, one image at a time; each image joins the
 // running import as it comes out, and the import counts as running until every zip is read.
 
 export interface ImportFailure {

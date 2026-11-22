@@ -84,7 +84,7 @@ describe('splitDrop', () => {
 })
 
 describe('zip entries (T-0032)', () => {
-  it('takes images by the extensions of D-0034, any case, and skips junk and folders', () => {
+  it('takes images by the extensions of D-0035, any case, and skips junk and folders', () => {
     for (const path of ['a.jpg', 'sub/b.JPEG', 'x.png', 'x.webp', 'x.HEIC', 'x.heif', 'x.avif', 'x.gif', 'a/b/c/d.jpg', 'win\\dag\\e.jpg'])
       expect(isZipImage(path), path).toBe(true)
     for (const path of ['notes.txt', 'inner.zip', 'x.bmp', 'x.tiff', 'Tuin/', '__MACOSX/a.jpg', '__MACOSX/._a.jpg', '._a.jpg', '.DS_Store', 'a/.thumbnails/t.jpg', 'Thumbs.db', 'jpg'])
