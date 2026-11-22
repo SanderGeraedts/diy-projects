@@ -316,6 +316,14 @@ difference has to be fixed.
 Verdict: **changes needed** (item 1). Back to the developer. Once it's fixed I'll re-check
 that one item; everything else stands.
 
+**Re-check, 2026-11-22**, on `794d31d` (fix in `7eb79d0`): Tuinbank at 1280×600, scrolled
+to the bottom (scrollY 1769), then a drop. The page scrolled to 300. The header ends at
+64 px and the import block now spans 80 to 244 px, so all of it is visible below the header
+(first line "Geen foto's toegevoegd.", then the list and "Sluiten"). Item 1 is fixed.
+
+Verdict: **matches**. No differences remain at laptop width or on the Pixel 7 profile
+(*Done when* 7). To the tester.
+
 # Test
 
 # Log
@@ -328,3 +336,4 @@ that one item; everything else stands.
 - 2026-11-22 ux-designer: reviewed: changes needed. After a drop lower on the page, the import block scrolls up under the sticky header (its first lines are hidden); give it the timeline's `scroll-mt-20`. Everything else matches at 1280 px, at 360 px and on the Pixel 7. Back to the developer.
 - 2026-11-22 developer: fixed the review's finding: the import block (`role="status"`) has `scroll-mt-20`, so a drop low on the page scrolls it below the sticky header. New e2e test in `e2e/drop.spec.ts` (Tuinbank at 1280×600, scrolled to the bottom, drop): the block's top is at or below the header's bottom; it fails without the fix (1 failed) and passes with it. Local: typecheck clean; `playwright test` drop + import 6 passed; `harness check` green. Lesson added. Back to the UX designer.
 - 2026-11-22 developer: CI `checks / checks` green on 7eb79d0 (e2e: 67 passed, no test flaky or retried).
+- 2026-11-22 ux-designer: reviewed: matches. Re-checked the scroll on `794d31d`: after a drop at the bottom of Tuinbank at 1280×600, the import block sits at 80 px, below the header's 64 px. Done when 7 holds. Handed to the tester.
