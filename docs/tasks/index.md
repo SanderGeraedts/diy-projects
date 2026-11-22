@@ -6,11 +6,13 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Open
 
-None.
+- [T-0030 List projects on the overview by their newest photo](T-0030-sort-projects-by-newest-photo.md): D-0032: the overview, the owner's and a visitor's, orders projects by the latest time taken among their live photos, newest first; projects without photos come last, by last edit.
+- [T-0031 Add photos by dropping them onto a project page](T-0031-drop-photos-onto-a-project.md): D-0033: image files dragged from the computer and dropped anywhere on the owner's project page go through the same import as "Foto's toevoegen"; non-images are listed as not added, and a stray drop anywhere in the app never opens the file in the browser.
+- [T-0032 Add the photos in a zip file by dropping it onto a project page](T-0032-drop-a-zip-of-photos-onto-a-project.md): D-0034: a .zip dropped onto the owner's project page is unpacked on the device with fflate, one file at a time, and its images go through the normal import; other files are skipped, an image over 40 MB and an unreadable zip are listed as not added.
 
 ## Doing
 
-- [T-0029 Show a day's photos newest first, on the page, in the viewer and in their addresses](T-0029-show-a-days-photos-newest-first.md): D-0031: within an entry, photos are shown newest first like the days, for the owner and for visitors; a photo's place in its address and the viewer's next/previous follow that order.
+None.
 
 ## Done
 
@@ -41,6 +43,7 @@ None.
 - [T-0026 Show public projects read-only to visitors who aren't signed in](T-0026-public-read-only-view.md): A per-project public switch (on by default, D-0025), PocketBase rules that let anyone read public projects, their entries and photo copies and thumbnails but never originals, and a read-only online view for visitors.
 - [T-0027 Address projects by slug, and entries and photos by date and place, never by id](T-0027-project-slugs.md): D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices.
 - [T-0028 Adopt the harness](T-0028-adopt-the-harness.md): D-0030: install the harness as a pinned dev dependency, keep only the project-specific rules and decisions here, and use its task index, checks, NAS tool, agent team and reusable CI and auto-merge workflows.
+- [T-0029 Show a day's photos newest first, on the page, in the viewer and in their addresses](T-0029-show-a-days-photos-newest-first.md): D-0031: within an entry, photos are shown newest first like the days, for the owner and for visitors; a photo's place in its address and the viewer's next/previous follow that order.
 
 ## Dropped
 
