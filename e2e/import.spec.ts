@@ -54,7 +54,7 @@ test('imports photos taken on two days into two entries, offline', async ({ page
   await expect(input).toHaveAttribute('accept', 'image/*')
   await expect(input).toHaveAttribute('multiple', '')
   // T-0031: no drop hint on a touch phone; it shows only where a mouse can drop files.
-  await expect(page.getByText("of sleep foto's naar deze pagina")).toBeHidden()
+  await expect(page.getByText("of sleep foto's of zipbestanden naar deze pagina")).toBeHidden()
   const status = page.getByTestId('import-status')
 
   await input.setInputFiles([first, broken, second, third])

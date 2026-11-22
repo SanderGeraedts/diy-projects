@@ -1,4 +1,5 @@
 import { devices, expect, test, type Page } from '@playwright/test'
+import { zipSync } from 'fflate'
 import { withExif, type ExifFields } from '../src/photos/exifFixture'
 
 // T-0031 (D-0033): files dropped on the owner's project page take the same import as
@@ -73,7 +74,7 @@ async function offlineWithNewProject(page: Page, makeFixtures: () => Promise<Dro
 }
 
 const overlay = (page: Page) => page.getByTestId('drop-overlay')
-const hint = (page: Page) => page.getByText("of sleep foto's naar deze pagina")
+const hint = (page: Page) => page.getByText("of sleep foto's of zipbestanden naar deze pagina")
 
 test('dropped photos land in the days they were taken, offline, as picked ones do', async ({ page }) => {
   test.setTimeout(90_000)
@@ -144,6 +145,109 @@ test('dropped non-photos are listed as not added, each with a reason', async ({ 
   await expect(status).toContainText("Geen foto's toegevoegd.")
   await expect(status).toContainText('1 bestand niet toegevoegd:')
   await expect(status).not.toContainText('importeren')
+})
+
+// T-0032 (D-0034): a dropped zip is unpacked on the device and its images take the same import.
+test('the photos in a dropped zip land in their days, offline; the unzip code loads only then', async ({ page }) => {
+  test.setTimeout(90_000)
+  // The page's own requests (served by the service worker once it controls the page); the
+  // service worker's precache downloads aren't the page loading the code.
+  const unzipLoads: string[] = []
+  page.on('request', (request) => {
+    if (/\/assets\/unzip-[^/]*\.js$/.test(request.url())) unzipLoads.push(request.url())
+  })
+  const files = await offlineWithNewProject(page, async () => {
+    const zipped = async (w: number, h: number, color: string, exif: ExifFields) =>
+      withExif(await jpeg(page, w, h, color), exif)
+    const zip = zipSync({
+      'PXL_0901_a.jpg': await zipped(3000, 2000, '#c04020', { dateTimeOriginal: '2026:09:01 09:15:00' }),
+      'werk/PXL_0903.jpg': await zipped(2400, 1800, '#2040c0', { dateTimeOriginal: '2026:09:03 17:40:00' }),
+      'PXL_0901_b.jpg': await zipped(2000, 3000, '#20a040', { dateTimeOriginal: '2026:09:01 16:05:00' }),
+      'readme.txt': new TextEncoder().encode('foto’s van de werkbank'),
+    })
+    return [
+      dropped('fotos.zip', 'application/zip', zip),
+      await photo(page, 'PXL_0903_b.jpg', 1600, 1200, '#808020', { dateTimeOriginal: '2026:09:03 08:00:00' }),
+    ]
+  })
+  const projectUrl = page.url()
+  await expect(hint(page)).toBeVisible()
+  // Not on startup, nor on the project page: only a zip drop loads the unzip code.
+  expect(unzipLoads).toEqual([])
+
+  await dropFiles(page, files)
+  const status = page.getByTestId('import-status')
+  await expect(status).toContainText("4 foto's toegevoegd.", { timeout: 30_000 })
+  await expect(page.getByTestId('import-failed')).toHaveCount(0)
+  await expect(status).not.toContainText('readme.txt')
+  expect(unzipLoads).toHaveLength(1)
+
+  // Two days, newest first, each with its photos as the picker puts them (e2e/import.spec.ts).
+  const entries = page.locator('.timeline > li')
+  await expect(page.locator('.timeline time')).toHaveText(['3 sep 2026', '1 sep 2026'])
+  const widths = (date: string) =>
+    entries
+      .filter({ has: page.locator(`time[datetime="${date}"]`) })
+      .locator('img')
+      .evaluateAll((imgs) => imgs.map((img) => img.getAttribute('width')))
+  await expect.poll(() => widths('2026-09-03')).toEqual(['2400', '1600'])
+  await expect.poll(() => widths('2026-09-01')).toEqual(['1707', '2560'])
+
+  // A damaged zip is listed as not added.
+  await page.getByRole('button', { name: 'Sluiten' }).click()
+  await dropFiles(page, [dropped('kapot.zip', 'application/zip', new TextEncoder().encode('PK dit is geen zip'))])
+  await expect(status).toContainText("Geen foto's toegevoegd.")
+  await expect(status).toContainText('1 bestand niet toegevoegd:')
+  await expect(page.getByTestId('import-failed').getByRole('listitem')).toHaveText(['kapot.zip: kon niet worden uitgepakt'])
+  await expect(page.locator('.timeline img')).toHaveCount(4)
+
+  expect(page.url()).toBe(projectUrl)
+  expect(await page.evaluate(() => navigator.onLine)).toBe(false)
+})
+
+test('while a zip is read, the import block says how far it is, without "0 van 0"', async ({ page }) => {
+  test.setTimeout(60_000)
+  // A stored zip of one large entry that isn't a photo: reading it takes long enough to see the
+  // line. Its 48 MB of zeros are made in the page; only the zip's headers come from here.
+  const size = 48 * 1024 * 1024
+  const small = zipSync({ 'scan.bin': new Uint8Array(0) }, { level: 0 })
+  const sized = zipSync({ 'scan.bin': new Uint8Array(size) }, { level: 0 })
+  const head = Array.from(sized.subarray(0, 30 + 'scan.bin'.length))
+  const tail = Array.from(sized.subarray(head.length + size))
+  expect(small.length).toBe(head.length + tail.length)
+  await offlineWithNewProject(page, async () => [])
+
+  const seen = page.evaluate(
+    () =>
+      new Promise<string[]>((resolve) => {
+        const lines: string[] = []
+        const observer = new MutationObserver(() => {
+          const block = document.querySelector('[data-testid="import-status"]')
+          if (!block) return
+          lines.push(block.textContent ?? '')
+          if (block.textContent?.includes('toegevoegd')) {
+            observer.disconnect()
+            resolve(lines)
+          }
+        })
+        observer.observe(document.body, { subtree: true, childList: true, characterData: true })
+      }),
+  )
+  const dataTransfer = await page.evaluateHandle(
+    ([h, t, n]) => {
+      const dt = new DataTransfer()
+      const parts = [new Uint8Array(h), new Uint8Array(n), new Uint8Array(t)]
+      dt.items.add(new File(parts, 'groot.zip', { type: 'application/zip' }))
+      return dt
+    },
+    [head, tail, size] as const,
+  )
+  for (const type of ['dragenter', 'dragover', 'drop']) await page.dispatchEvent('main', type, { dataTransfer })
+  const lines = await seen
+  expect(lines.some((l) => /^groot\.zip uitpakken: \d{1,3}%$/.test(l))).toBe(true)
+  expect(lines.some((l) => l.includes('importeren'))).toBe(false)
+  await expect(page.getByTestId('import-status')).toContainText("Geen foto's toegevoegd.")
+  await expect(page.getByTestId('import-failed').getByRole('listitem')).toHaveText(["groot.zip: bevat geen foto's"])
 })
 
 test('after a drop low on the page, the import block shows below the sticky header', async ({ page }) => {

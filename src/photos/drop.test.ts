@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { A_FOLDER, NOT_A_PHOTO, isImage, readDrop, splitDrop, type DropData } from './drop'
+import {
+  A_FOLDER,
+  CANT_LOAD_UNZIP,
+  CANT_UNZIP,
+  NOT_A_PHOTO,
+  NO_PHOTOS,
+  PARTLY_UNZIPPED,
+  TOO_LARGE,
+  baseName,
+  fromZip,
+  isImage,
+  isZipImage,
+  readDrop,
+  splitDrop,
+  zipImageType,
+  type DropData,
+} from './drop'
 
 // T-0031 (D-0033): what a drop on the owner's project page hands to startImport.
 
@@ -45,14 +61,52 @@ describe('splitDrop', () => {
   it('treats a folder as a folder even when its name looks like a photo', () => {
     expect(splitDrop([{ file: file('oud.jpg', ''), isDirectory: true }])).toEqual({
       images: [],
+      zips: [],
       notAdded: [{ name: 'oud.jpg', reason: A_FOLDER }],
     })
   })
 
-  it('lists a zip as not a photo until T-0032', () => {
-    expect(splitDrop([{ file: file('fotos.zip', 'application/zip'), isDirectory: false }]).notAdded).toEqual([
-      { name: 'fotos.zip', reason: NOT_A_PHOTO },
-    ])
+  it('passes zip files on to be unpacked, in the order dropped (T-0032)', () => {
+    const a = file('fotos.zip', 'application/zip')
+    const b = file('Vakantie.ZIP', '')
+    const c = file('export', 'application/x-zip-compressed')
+    const photo = file('a.jpg', 'image/jpeg')
+    expect(
+      splitDrop([
+        { file: a, isDirectory: false },
+        { file: photo, isDirectory: false },
+        { file: b, isDirectory: false },
+        { file: c, isDirectory: false },
+        { file: file('map.zip', ''), isDirectory: true },
+      ]),
+    ).toEqual({ images: [photo], zips: [a, b, c], notAdded: [{ name: 'map.zip', reason: A_FOLDER }] })
+  })
+})
+
+describe('zip entries (T-0032)', () => {
+  it('takes images by the extensions of D-0034, any case, and skips junk and folders', () => {
+    for (const path of ['a.jpg', 'sub/b.JPEG', 'x.png', 'x.webp', 'x.HEIC', 'x.heif', 'x.avif', 'x.gif', 'a/b/c/d.jpg', 'win\\dag\\e.jpg'])
+      expect(isZipImage(path), path).toBe(true)
+    for (const path of ['notes.txt', 'inner.zip', 'x.bmp', 'x.tiff', 'Tuin/', '__MACOSX/a.jpg', '__MACOSX/._a.jpg', '._a.jpg', '.DS_Store', 'a/.thumbnails/t.jpg', 'Thumbs.db', 'jpg'])
+      expect(isZipImage(path), path).toBe(false)
+  })
+
+  it('gives the image type of the extension and a name without folders', () => {
+    expect(zipImageType('a/b.JPG')).toBe('image/jpeg')
+    expect(zipImageType('b.heic')).toBe('image/heic')
+    expect(zipImageType('b.txt')).toBeUndefined()
+    expect(baseName('vakantie/dag 2/IMG_7.jpg')).toBe('IMG_7.jpg')
+    expect(baseName('win\\IMG_7.jpg')).toBe('IMG_7.jpg')
+    expect(baseName('IMG_7.jpg')).toBe('IMG_7.jpg')
+  })
+
+  it('names a file from a zip as "<pad> uit <zip>", and has the reasons of the design word for word', () => {
+    expect(fromZip('vakantie/dag 2/IMG_7.jpg', 'fotos.zip')).toBe('vakantie/dag 2/IMG_7.jpg uit fotos.zip')
+    expect(TOO_LARGE).toBe('is groter dan 40 MB')
+    expect(CANT_UNZIP).toBe('kon niet worden uitgepakt')
+    expect(PARTLY_UNZIPPED).toBe('kon niet helemaal worden uitgepakt')
+    expect(NO_PHOTOS).toBe("bevat geen foto's")
+    expect(CANT_LOAD_UNZIP).toBe('kan nu niet worden uitgepakt; probeer het later opnieuw')
   })
 })
 
