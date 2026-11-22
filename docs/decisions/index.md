@@ -33,7 +33,7 @@ then this list, then only the records your work touches. How the registry works 
 
 ## Open questions
 
-None.
+- [Q-006 Does the laptop keep its own TrueNAS key now that NAS work runs through the runner on the NAS?](Q-006-does-the-laptop-keep-its-own-truenas-key.md): G-0026 holds the TrueNAS key only in the infrastructure repository's GitHub environment, but this project's NAS setup still has a key for the claude-agent user in Sander's user environment; decide whether to revoke it and work only through harness nas --remote, or keep it and overrule G-0026 here.
 
 ## Resolved questions
 

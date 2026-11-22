@@ -195,8 +195,8 @@ importers:
         specifier: ^1.65.1
         version: 1.65.1
       '@sandergeraedts/harness':
-        specifier: github:SanderGeraedts/harness#v0.1.0
-        version: https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec
+        specifier: github:SanderGeraedts/harness#v0.9.0
+        version: https://codeload.github.com/SanderGeraedts/harness/tar.gz/c174c19c6188f65652ec4d4acc8402602fe74676
       '@tailwindcss/vite':
         specifier: ^4.3.5
         version: 4.3.5(vite@8.3.8(@types/node@26.6.6)(jiti@2.7.0)(terser@5.51.2))
@@ -1110,9 +1110,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@sandergeraedts/harness@https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec':
-    resolution: {gitHosted: true, integrity: sha512-g/BPq5yW3FGkPTRoSlyFl1vAx4gt/f0M+ZZob1Ux3pzSUhZSwVLOpCBR/ZGDJ2uMDqf+9/2I0AYZksFWyr0gYA==, tarball: https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec}
-    version: 0.1.0
+  '@sandergeraedts/harness@https://codeload.github.com/SanderGeraedts/harness/tar.gz/c174c19c6188f65652ec4d4acc8402602fe74676':
+    resolution: {gitHosted: true, integrity: sha512-gP573kx/MPJXiWj5Ey2EJ2GJ8wRwYvCAw5sWQHX3zRN/uOoaX8rS/3jOLblNbuwmKAfMg2gPuWm7gpWfCFV3nA==, tarball: https://codeload.github.com/SanderGeraedts/harness/tar.gz/c174c19c6188f65652ec4d4acc8402602fe74676}
+    version: 0.9.0
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3687,7 +3687,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.68.4':
     optional: true
 
-  '@sandergeraedts/harness@https://codeload.github.com/SanderGeraedts/harness/tar.gz/8cdfd3f9e3a15fce99d5adf8dc56b982c130eeec':
+  '@sandergeraedts/harness@https://codeload.github.com/SanderGeraedts/harness/tar.gz/c174c19c6188f65652ec4d4acc8402602fe74676':
     dependencies:
       ws: 8.23.0
     transitivePeerDependencies:

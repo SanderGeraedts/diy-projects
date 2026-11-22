@@ -3,6 +3,7 @@ id: T-0032
 title: "Add the photos in a zip file by dropping it onto a project page"
 description: "D-0034: a .zip dropped onto the owner's project page is unpacked on the device with fflate, one file at a time, and its images go through the normal import; other files are skipped, an image over 40 MB and an unreadable zip are listed as not added."
 status: Open
+size: full
 depends_on: [T-0031]
 decisions: [D-0034, D-0033, D-0003, D-0015, G-0016, G-0017, G-0019]
 raised_on: 2026-11-22
@@ -38,8 +39,9 @@ The picker doesn't take zip files (D-0033).
 
 # Done when
 
-1. `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass, and
-   `pnpm exec harness check` passes.
+1. CI on the pull request is green (`checks / checks`: `harness check`, typecheck, unit
+   tests, build and the end-to-end tests), with no test that passed only on a retry
+   (G-0031). Locally the developer runs typecheck and what the change touches.
 2. `package.json` has `fflate` under `dependencies` and `pnpm-lock.yaml` has it, with no
    other new package: `pnpm why fflate` shows it only as a direct dependency, and
    `git diff main -- pnpm-lock.yaml` adds no package besides `fflate`.
@@ -90,3 +92,4 @@ The picker doesn't take zip files (D-0033).
 # Log
 
 - 2026-11-22 architect: raised from Sander's request as a follow-up to T-0031, so image drop doesn't wait on it; recorded D-0034: zips are unpacked on the device with fflate (MIT, no dependencies of its own), lazily loaded and precached, one entry at a time, images only, 40 MB per image, unreadable zips listed as not added. Handed to the UX designer.
+- 2026-11-22 architect: harness v0.9.0 (T-0033, G-0031): sized full, a new dependency and new summary lines on top of T-0031's design. *Done when* 1 is now CI's run. Still with the UX designer, after T-0031's design.
