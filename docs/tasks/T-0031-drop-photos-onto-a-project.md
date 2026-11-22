@@ -2,12 +2,12 @@
 id: T-0031
 title: "Add photos by dropping them onto a project page"
 description: "D-0033: image files dragged from the computer and dropped anywhere on the owner's project page go through the same import as \"Foto's toevoegen\"; non-images are listed as not added, and a stray drop anywhere in the app never opens the file in the browser."
-status: Doing
+status: Done
 size: full
 depends_on: []
 decisions: [D-0033, D-0003, D-0015, D-0023, D-0020, G-0019]
 raised_on: 2026-11-22
-done_on: ""
+done_on: 2026-11-22
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/63"]
 ---
 
@@ -326,6 +326,97 @@ Verdict: **matches**. No differences remain at laptop width or on the Pixel 7 pr
 
 # Test
 
+Tested 2026-11-22 by the tester on `084fe2b` (branch `t-0031-drop-photos`, PR #63), after
+`pnpm install --frozen-lockfile` ("Lockfile is up to date ... Done") and `pnpm run build`.
+
+**CI, read rather than repeated (G-0031)** (Done when 1): run 45079033272 on `084fe2b`,
+`checks / checks` pass (59s): `harness check` all ✓; unit tests "Test Files 28 passed | 3
+skipped (31)", "Tests 348 passed | 26 skipped (374)"; build ok; e2e "Running 67 tests using 2
+workers", "67 passed (31.5s)". No `flaky` line (the only match in the log is the guard's own
+pattern), so nothing passed only on a retry. `pocketbase-auth` pass, Netlify deploy preview
+pass. The `e2e` matrix and `shards` jobs are skipped by design (`e2e-shards` is 1; the e2e
+tests ran inside `checks / checks`, as in T-0033).
+
+**Local runs:**
+
+- `pnpm exec harness check`: "✓ tasks: 35 tasks, index in step", "✓ decisions: 40 records,
+  index complete, 0 overrules valid", "✓ engineers: 2 listed", "✓ generated files: current".
+- `pnpm run typecheck` (`tsc --noEmit`): no output, clean.
+- `pnpm exec vitest run src/photos/drop.test.ts src/photos/importQueue.test.ts`: "Test Files
+  2 passed (2)", "Tests 15 passed (15)" (Done when 5: `isImage`, `splitDrop` order and
+  reasons, folders by entry, zip as "is geen foto", `readDrop` order and fallback).
+- `pnpm exec playwright test e2e/drop.spec.ts e2e/import.spec.ts --repeat-each=5 --workers=4
+  --retries=0`: "30 passed (14.1s)", none failed (Done when 2, 3, 4, 6, 8, 9, 10, and the
+  scroll check from the review).
+- Read `e2e/drop.spec.ts` against *Done when*: 1280×800 desktop `test.use`, offline after
+  `serviceWorker.ready`, generated JPEGs; asserts "3 foto's toegevoegd.", "1 foto niet
+  gelukt:", `kapot.jpg: kon niet worden gelezen`, days `3 sep 2026` / `1 sep 2026`, widths
+  `2400` and `1707, 2560`, the URL unchanged; "2 bestanden niet toegevoegd:" with
+  `notes.txt: is geen foto`, `plan.pdf: is geen foto`; overlay text and `aria-hidden` on a
+  file `dragenter`, gone after `drop`, absent for `text/plain`, on `/` and on
+  `/projects/tuinbank?bezoeker`; Tuinbank still 6 photos; hint visible at desktop, hidden for
+  a visitor. `e2e/import.spec.ts` only gained the hint-hidden assertion on the Pixel 7; its
+  `accept="image/*"` and `multiple` assertions are unchanged.
+
+**Trying to break it** (a throwaway Playwright spec outside the repository, desktop viewport,
+seeded demo data, `--retries=0`; 9 tests, all ran):
+
+- **Mix, offline:** an untyped `IMG_UNTYPED.JPG` (real JPEG), an untyped `IMG_0001.HEIC`, an
+  `image/heic` `IMG_0002.heic`, `fotos.zip`, `octet.jpg` typed `application/octet-stream`, an
+  untyped `Tuin` without extension (not a folder entry), and `normal.jpeg`. Result: "2 foto's
+  toegevoegd." / "5 bestanden niet toegevoegd:" / `fotos.zip: is geen foto`, `octet.jpg: is
+  geen foto`, `Tuin: is geen foto`, `IMG_0001.HEIC: kon niet worden gelezen`,
+  `IMG_0002.heic: kon niet worden gelezen`; not-added items first, days `2 sep 2026`,
+  `1 sep 2026`. As designed: an untyped file with an image extension counts as an image, a
+  typed non-image doesn't, whatever its name.
+- **During a running import, offline:** four 4000×3000 drops, then a photo + `notes.txt`
+  drop ("Foto's importeren: 0 van 5"), then a pick through the input ("0 van 6"): one summary,
+  "6 foto's toegevoegd." / "1 bestand niet toegevoegd:" / `notes.txt: is geen foto`. Picker
+  and drop join the same import.
+- **Twice in a row:** after "Sluiten", dropping `notes.txt` twice: "Geen foto's toegevoegd." /
+  "1 bestand niet toegevoegd:" (the second drop starts a new summary, as the design says for
+  a finished summary).
+- **Empty drop / text drag:** a `DataTransfer` with only `text/plain` shows no overlay and no
+  import block (also in the spec); a text `dragover` on the note field's `<textarea>` is not
+  cancelled (`defaultPrevented` false), so dragging text into a note still works.
+- **Overlay counting:** enter on `main`, enter on `h1`, leave `main`: overlay stays; leave
+  `h1`: gone; an extra leave doesn't push the count below zero (the next enter shows it, the
+  next leave hides it).
+- **Real mouse drags in Chromium:** a thumbnail (dragstart types `text/uri-list,text/html,
+  Files`), the "DIY projects" link, and selected text from the title, each dropped on the
+  page: never an overlay (MutationObserver), no import block, the address unchanged. A file
+  drop from outside right after works ("1 bestand niet toegevoegd:").
+- **Every other route** (`/`, `/projects/new`, `/projects/tuinbank/edit`,
+  `/projects/tuinbank/entries/new`, `/prullenbak`, `/zoeken`, `/account`,
+  `/projects/bestaat-niet`, `/nergens`, the photo viewer `/projects/tuinbank/2026-10-25/1`,
+  `/projects/tuinbank?bezoeker`): a file `dragenter` shows no overlay; the file `dragover`
+  and `drop` are both `defaultPrevented` with `dropEffect` `none`; no import block; the
+  address unchanged. The browser never opens the file.
+- **Navigating inside the app:** from the owner's page to the photo viewer, and to the
+  overview via the header link: a file drop there does nothing (the target is released on
+  unmount); back on the project page the hint is there again.
+- **Picker at desktop:** `accept="image/*"`, `multiple`; one good and one broken pick: "1 foto
+  toegevoegd." / "1 foto niet gelukt:" / `kapot.jpg: kon niet worden gelezen`, as before.
+- **Folders:** an automated browser can't build a dropped folder (as the UX review found);
+  covered by the unit tests on `readDrop` (by `webkitGetAsEntry`) and `splitDrop`.
+
+**Observation, not blocking:** a drag that starts inside the app and whose source element is
+removed before the drag ends (I forced a route change mid-drag of a thumbnail) never delivers
+its `dragend` to the window, so the guard keeps treating drags as internal. The next file drop
+from outside then shows no overlay and adds nothing (the browser still doesn't open it); the
+drop after that works normally. A user can't normally navigate during a drag, so it is hard to
+reach and costs one repeated drop; it doesn't contradict D-0033 or the design. Worth a small
+follow-up if it is ever seen.
+
+**Record:** D-0033 is Accepted and named in `decisions`; the UX design and the review with
+its re-check ("matches", Done when 7) are in *Design*; the lesson for the review's send-back is
+in `docs/lessons.md`; the developer's Log names the unit under test (`src/photos/drop.ts`).
+The T-0033 Log line carried here is accurate: `gh run view 45075883066` is a
+`workflow_dispatch` CI run on `main` at `7857da5` (the merge commit of #62), conclusion
+`success`.
+
+Verdict: **passed.** Every *Done when* item ran and holds; nothing remains for a human.
+
 # Log
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0033 (adds to D-0003): drops anywhere on the owner's project page feed the same `startImport` as the picker, photos land in the day they were taken, non-images and folders are listed as not added, a stray drop never opens the file, picker unchanged. Zip split off into T-0032 (D-0034). Handed to the UX designer.
@@ -337,3 +428,4 @@ Verdict: **matches**. No differences remain at laptop width or on the Pixel 7 pr
 - 2026-11-22 developer: fixed the review's finding: the import block (`role="status"`) has `scroll-mt-20`, so a drop low on the page scrolls it below the sticky header. New e2e test in `e2e/drop.spec.ts` (Tuinbank at 1280×600, scrolled to the bottom, drop): the block's top is at or below the header's bottom; it fails without the fix (1 failed) and passes with it. Local: typecheck clean; `playwright test` drop + import 6 passed; `harness check` green. Lesson added. Back to the UX designer.
 - 2026-11-22 developer: CI `checks / checks` green on 7eb79d0 (e2e: 67 passed, no test flaky or retried).
 - 2026-11-22 ux-designer: reviewed: matches. Re-checked the scroll on `794d31d`: after a drop at the bottom of Tuinbank at 1280×600, the import block sits at 80 px, below the header's 64 px. Done when 7 holds. Handed to the tester.
+- 2026-11-22 tester: passed
