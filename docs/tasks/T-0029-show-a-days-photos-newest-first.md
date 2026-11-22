@@ -2,11 +2,11 @@
 id: T-0029
 title: "Show a day's photos newest first, on the page, in the viewer and in their addresses"
 description: "D-0031: within an entry, photos are shown newest first like the days, for the owner and for visitors; a photo's place in its address and the viewer's next/previous follow that order."
-status: Doing
+status: Done
 depends_on: []
 decisions: [D-0031, D-0025, D-0020, G-0019, G-0021]
 raised_on: 2026-11-22
-done_on: ""
+done_on: "2026-11-22"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/58"]
 ---
 
@@ -274,6 +274,9 @@ differences.
 
 **Verdict: passed.** Done when 1 to 7 hold. Done when 8 (Sander's phone) stays open for him.
 
+**Done when 8:** Sander (the Engineer), on 2026-11-22, after checking on his phone: "Checked
+on my phone, it works."
+
 # Log
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0031 (replaces D-0029): a day's photos are shown newest first and a photo's place in its address follows the shown order, so existing photo links shift once; the viewer's next goes to the older photo. Handed to the UX designer.
@@ -281,3 +284,4 @@ differences.
 - 2026-11-22 developer: built in #58: `comparePhotos` sorts newest first (taken, added, id, each descending); `visitorTimeline` uses it; thumbnails and the viewer's photo carry `data-taken-at`; new `e2e/photo-order.spec.ts` (owner and visitor: order on the page, `/1` = 12:00, arrow right to `/2` 11:00 and `/3` 10:00, swipe, no Vorige on `/1`, no Volgende on `/3`, arrows at the ends keep the address; owner delete at `/1` and at `/3`); updated `e2e/viewer.spec.ts`, `e2e/import.spec.ts`, `src/public/visitor.test.tsx`. Checks: `pnpm run typecheck` clean; `pnpm test` 334 passed, 26 skipped (the new unit tests fail on the old order); `pnpm run build` ok; `pnpm run test:e2e` 56 passed, 2 skipped (photo-order: 4 failed on the old order); `grep -rn "takenAt.localeCompare" src` → only `src/components/cover.ts:14`; `pnpm exec harness check` ✓ tasks, decisions, engineers, generated files. Handed to the UX designer for review. Remaining: Sander checks on his phone (Done when 8).
 - 2026-11-22 ux-designer: reviewed: matches the design (page order, viewer counter, buttons, arrows, swipe direction, delete at first and last place, owner and visitor); no differences. Handed to the tester.
 - 2026-11-22 tester: passed (Done when 1 to 7 ran green, the new tests fail on the old order, edge cases held). Remaining: Sander checks on his phone that a day's photos on a project page run newest first and that swiping in the viewer follows the page (Done when 8).
+- 2026-11-22 architect: Done when 8 confirmed by Sander on 2026-11-22 ("Checked on my phone, it works."); every check has run, so the task is Done.
