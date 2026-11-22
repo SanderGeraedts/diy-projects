@@ -2,11 +2,11 @@ import { Link, useSearch } from '@tanstack/react-router'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ClearFilters, Filters } from '../components/Filters'
 import { pickCover } from '../components/cover'
-import type { ShownPhoto } from '../components/PhotoImage'
 import { ProjectCard } from '../components/ui'
-import { db, type Project } from '../db/db'
+import { db, type Photo, type Project } from '../db/db'
 import { filterProjects, tagsInUse, type OverviewFilters } from '../filters'
 import { usePublic, useVisitor } from '../public/mode'
+import type { PublicPhoto } from '../public/source'
 import { Unreachable } from '../public/ui'
 import { BinLink } from './Bin'
 import { NewProjectLink } from './ProjectLinks'
@@ -18,19 +18,19 @@ export function Overview() {
 
 function OwnerOverview() {
   const filters = useSearch({ from: '/' })
-  const all = useLiveQuery(() => db.projects.toArray(), [])
-  // T-0009: the chosen cover, or the newest remaining photo once it is deleted.
-  const covers = useLiveQuery(async () => {
-    const list = all ?? []
+  // T-0030 (D-0032): the projects and their photos in one query, so the cards render once,
+  // already in order by newest photo. The photos also give the covers (T-0009).
+  const loaded = useLiveQuery(async () => {
+    const all = await db.projects.toArray()
     const photos = await db.photos
       .where('projectId')
-      .anyOf(list.map((p) => p.id))
+      .anyOf(all.map((p) => p.id))
       .toArray()
-    return new Map(list.map((p) => [p.id, pickCover(p, photos)] as const))
-  }, [all])
+    return { all, photos }
+  }, [])
 
-  if (!all) return null
-  return <OverviewView all={all} covers={covers} filters={filters} readOnly={false} />
+  if (!loaded) return null
+  return <OverviewView all={loaded.all} photos={loaded.photos} filters={filters} readOnly={false} />
 }
 
 function VisitorOverview() {
@@ -39,24 +39,24 @@ function VisitorOverview() {
   if (loaded.state === 'loading') return null
   if (loaded.state === 'unreachable') return <Unreachable />
   const { projects, photos } = loaded.data
-  const covers = new Map(projects.map((p) => [p.id, pickCover(p, photos)] as const))
-  return <OverviewView all={projects} covers={covers} filters={filters} readOnly />
+  return <OverviewView all={projects} photos={photos} filters={filters} readOnly />
 }
 
 function OverviewView({
   all,
-  covers,
+  photos,
   filters,
   readOnly,
 }: {
   all: Project[]
-  covers: Map<string, ShownPhoto | undefined> | undefined
+  /** The projects' photos, tombstones included: for the order (D-0032) and the covers (T-0009). */
+  photos: readonly (Photo | PublicPhoto)[]
   filters: OverviewFilters
   /** A visitor: no create controls (T-0026). */
   readOnly: boolean
 }) {
-  const projects = filterProjects(all, filters)
-  if (filterProjects(all, {}).length === 0)
+  const projects = filterProjects(all, filters, photos)
+  if (!all.some((p) => p.deletedAt === null))
     return (
       <section>
         <p className="text-grey italic">Nog geen projecten.</p>
@@ -79,7 +79,7 @@ function OverviewView({
         {projects.map((p) => (
           <li key={p.id}>
             <Link to="/projects/$slug" params={{ slug: p.slug }} className="block text-text no-underline">
-              <ProjectCard project={p} cover={covers?.get(p.id)} coverFile={readOnly ? 'thumbnail' : 'copy'} />
+              <ProjectCard project={p} cover={pickCover(p, photos)} coverFile={readOnly ? 'thumbnail' : 'copy'} />
             </Link>
           </li>
         ))}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Project } from './db/db'
-import { filterProjects, hasFilters, tagsInUse, toggle, validateOverviewSearch } from './filters'
+import { filterProjects, type OrderingPhoto, hasFilters, tagsInUse, toggle, validateOverviewSearch } from './filters'
 
 function project(id: string, over: Partial<Project> = {}): Project {
   return {
@@ -30,26 +30,74 @@ const ids = (ps: Project[]) => ps.map((p) => p.id)
 
 describe('filterProjects', () => {
   it('shows every live project, newest update first, without filters', () => {
-    expect(ids(filterProjects(projects, {}))).toEqual(['shelf', 'bench', 'rack'])
+    expect(ids(filterProjects(projects, {}, []))).toEqual(['shelf', 'bench', 'rack'])
   })
 
   it('never shows tombstoned projects', () => {
-    expect(ids(filterProjects(projects, { status: ['done'] }))).toEqual(['shelf'])
-    expect(ids(filterProjects(projects, { tag: ['oud'] }))).toEqual([])
+    expect(ids(filterProjects(projects, { status: ['done'] }, []))).toEqual(['shelf'])
+    expect(ids(filterProjects(projects, { tag: ['oud'] }, []))).toEqual([])
   })
 
   it('combines statuses as any of', () => {
-    expect(ids(filterProjects(projects, { status: ['idea', 'in progress'] }))).toEqual(['bench', 'rack'])
+    expect(ids(filterProjects(projects, { status: ['idea', 'in progress'] }, []))).toEqual(['bench', 'rack'])
   })
 
   it('combines tags as all of', () => {
-    expect(ids(filterProjects(projects, { tag: ['hout'] }))).toEqual(['shelf', 'bench'])
-    expect(ids(filterProjects(projects, { tag: ['hout', 'tuin'] }))).toEqual(['bench'])
+    expect(ids(filterProjects(projects, { tag: ['hout'] }, []))).toEqual(['shelf', 'bench'])
+    expect(ids(filterProjects(projects, { tag: ['hout', 'tuin'] }, []))).toEqual(['bench'])
   })
 
   it('combines status and tag filters', () => {
-    expect(ids(filterProjects(projects, { status: ['done'], tag: ['hout'] }))).toEqual(['shelf'])
-    expect(ids(filterProjects(projects, { status: ['idea'], tag: ['hout'] }))).toEqual([])
+    expect(ids(filterProjects(projects, { status: ['done'], tag: ['hout'] }, []))).toEqual(['shelf'])
+    expect(ids(filterProjects(projects, { status: ['idea'], tag: ['hout'] }, []))).toEqual([])
+  })
+})
+
+describe('the overview order (T-0030, D-0032)', () => {
+  const photo = (projectId: string, takenAt: string, deletedAt: string | null = null): OrderingPhoto => ({
+    projectId,
+    takenAt,
+    deletedAt,
+  })
+  const day = (date: string) => `${date}T12:00:00.000Z`
+
+  const ordered = [
+    project('A', { tags: ['ac'], updatedAt: day('2026-11-02') }),
+    project('E', { updatedAt: day('2026-11-01') }),
+    project('B', { updatedAt: day('2026-11-20') }),
+    project('C', { tags: ['ac'], updatedAt: day('2026-11-21') }),
+    project('D', { updatedAt: day('2026-11-10') }),
+  ]
+  const photos = [
+    photo('A', '2026-11-01T10:00:00'),
+    photo('E', '2026-11-01T10:00:00'),
+    photo('B', '2026-10-25T09:00:00'),
+    photo('B', '2026-09-01T09:00:00'),
+    photo('D', '2026-12-01T09:00:00', '2026-12-02T00:00:00.000Z'),
+    // A photo of another project counts for none of these.
+    photo('other', '2027-01-01T09:00:00'),
+  ]
+
+  it('orders by the newest live photo, ties by last edit, projects without a live photo last', () => {
+    // In any input order, the result is the same.
+    expect(ids(filterProjects(ordered, {}, photos))).toEqual(['A', 'E', 'B', 'C', 'D'])
+    expect(ids(filterProjects([...ordered].reverse(), {}, [...photos].reverse()))).toEqual(['A', 'E', 'B', 'C', 'D'])
+  })
+
+  it("doesn't count another project's photo for a project", () => {
+    const withC = [...photos, photo('C', '2026-11-30T09:00:00')]
+    expect(ids(filterProjects(ordered, {}, withC))).toEqual(['C', 'A', 'E', 'B', 'D'])
+    // A newer photo of a project not in the list doesn't lift C, which has none, above B.
+    expect(ids(filterProjects([ordered[3]!, ordered[2]!], {}, photos))).toEqual(['B', 'C'])
+  })
+
+  it('ties without photos on last edit, then id', () => {
+    const same = [project('x'), project('z'), project('y')]
+    expect(ids(filterProjects(same, {}, []))).toEqual(['z', 'y', 'x'])
+  })
+
+  it('keeps the order under a filter', () => {
+    expect(ids(filterProjects(ordered, { tag: ['ac'] }, photos))).toEqual(['A', 'C'])
   })
 })
 
