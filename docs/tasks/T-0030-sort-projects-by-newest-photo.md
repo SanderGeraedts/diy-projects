@@ -89,6 +89,49 @@ Nothing is stored: no new field, index, Dexie version, migration or NAS change.
 
 # Design
 
+Small (G-0031): no design before the build. No new look or words were expected; *Done when*
+3 to 5 say what the user sees.
+
+## Review (2026-11-22, ux-designer)
+
+Looked at the production build of this branch (`pnpm run preview`) next to a build of `main`,
+on the seeded demo data, at 412×915 (phone) and 1280×900 (desktop), as the owner (`/`) and
+as a visitor (`/?bezoeker`), each without a filter and with `#hout`. A MutationObserver
+recorded every order of card titles the page showed while loading.
+
+**Matches**
+
+- **Order:** both overviews, both widths: Fietsenrek voor de schuur, Tuinbank,
+  Badkamerplank, Zolderisolatie. `main` showed the owner Zolderisolatie, Badkamerplank,
+  Fietsenrek, Tuinbank (last edit) and the visitor yet another order; owner and visitor now
+  agree.
+- **No reordering while loading:** in all 8 runs the page showed exactly one order, from the
+  first card onwards. The owner's cards also appear with their covers at once, where `main`
+  showed them before the covers had loaded.
+- **Filters:** `#hout` gives Tuinbank, Badkamerplank for owner and visitor at both widths,
+  with the chip marked and "Filters wissen" shown as before.
+- **Nothing else changed:** header, demo bar, "+ Nieuw project", chips, cards (cover, title,
+  status, tags), grid of three on desktop, single column on phone and "Prullenbak" look the
+  same. Where `main` already had the same order (visitor with `#hout`), the screenshots of
+  both builds are identical byte for byte, at both widths.
+- **Keyboard and screen reader:** the cards stay one list in reading order, so tab order and
+  what a screen reader reads follow the new order; no element, label or role changed.
+
+**Differences:** none.
+
+**Should a card hint at the order?** No. The order follows "newest photo", which the cover
+already suggests, and the rule is simple enough to learn from using it. A date on the card
+would be new words and a new look for every card; if Sander finds the order puzzling, that
+is a separate request.
+
+**Not blocking, for later:** the owner's overview now shows nothing until the projects and
+all their photos (with blobs) are loaded, where it used to show the cards first and the
+covers after. On the demo data that's not noticeable; with many large photos it could leave
+the overview blank for a moment. A lighter photos query (the Notes already welcome one)
+would fix it if it shows.
+
+Verdict: **matches; passes the design review.** To the tester.
+
 # Test
 
 # Log
@@ -97,3 +140,4 @@ Nothing is stored: no new field, index, Dexie version, migration or NAS change.
 - 2026-11-22 architect: harness v0.9.0 (T-0033, G-0031): sized small, a change within the existing overview and data, with no new route, collection or outside service; *Done when* 3 and 4 say what the user sees. No design before the build: handed to the developer; the UX designer reviews after, since the order a user sees changes. *Done when* 1 is now CI's run.
 - 2026-11-22 developer: built. `filterProjects(projects, filters, photos)` in `src/filters.ts` now orders by D-0032 (newest live `takenAt` as text, ties `updatedAt` then id descending, projects without a live photo last by `updatedAt` then id); the owner's and the visitor's overview both call it through `OverviewView`, which also picks the covers from the same photos. The owner's overview loads projects and photos in one live query, so the cards render once, in order. Unit tests in `src/filters.test.ts` (the A/E/B/C/D case gives `['A', 'E', 'B', 'C', 'D']`, another project's photo doesn't count, the `ac` tag gives `['A', 'C']`; 4 of them fail on the old code); e2e in `e2e/overview-order.spec.ts` (owner and visitor order read on first render with a MutationObserver, `#hout` filter, edit keeps the place, deleting Fietsenrek's only photo puts it last, a new project comes after the demo four). No existing e2e assumed the old order. Locally: `pnpm run typecheck` clean; `pnpm test` 338 passed, 26 skipped; `pnpm exec playwright test` 60 passed, 2 skipped; *Done when* 6 grep lists only `src/filters.ts:60`.
 - 2026-11-22 developer: CI on #62 green (run 45073299931): `checks / checks` passed: harness check, typecheck, unit 338 passed / 26 skipped, build, e2e 62 passed with no flaky test; `pocketbase-auth` passed. Handed to the UX designer for the review after the build, then the tester.
+- 2026-11-22 ux-designer: reviewed: matches. Owner and visitor, phone and desktop, on the demo data: order by newest photo from the first render with no reordering, `#hout` keeps it, nothing else changed visibly; no hint on the card needed. Handed to the tester.
