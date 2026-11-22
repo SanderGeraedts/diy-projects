@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { db } from '../db/db'
 import { createProject, updateProject } from '../db/write'
 import { isBusy } from '../sw/busy'
-import { dismissImport, getImportStatus, startImport, storageIsShort, subscribeImport, type ImportDeps } from './importQueue'
+import { zipSync } from 'fflate'
+import { dismissImport, getImportStatus, startImport, startZipImport, storageIsShort, subscribeImport, type ImportDeps } from './importQueue'
+import type { ReadZipOptions, ZipItem } from './unzip'
+import { noise, zipFile } from './zipFixture'
 
 // T-0007: the import runs on the app's database with the photo work faked: each test "file"
 // carries its date in its name, and a file named "kapot…" fails to decode.
@@ -27,6 +30,7 @@ const fakeDeps: ImportDeps = {
   makeThumbnail: async () => new Blob(['thumb'], { type: 'image/webp' }),
   imageSize: async () => ({ width: 2560, height: 1920 }),
   estimate: async () => ({ usage: 0, quota: 10 * 1024 * 1024 * 1024 }),
+  loadUnzip: () => import('./unzip'),
 }
 
 afterEach(async () => {
@@ -127,6 +131,157 @@ describe('startImport', () => {
   it('warns when storage is short', async () => {
     const project = await createProject({ title: 'Schuur' })
     await startImport(project.id, [photo('2026-09-01.jpg')], { ...fakeDeps, estimate: async () => ({ usage: 90, quota: 100 }) })
+    expect(getImportStatus(project.id)!.lowStorage).toBe(true)
+  })
+})
+
+describe('startZipImport (T-0032)', () => {
+  const lines = (projectId: string) => {
+    const s = getImportStatus(projectId)!
+    return [...s.notAdded, ...s.failed].map((f) => `${f.name}: ${f.reason}`)
+  }
+
+  it('imports the images of a zip into their days, named "<pad> uit <zip>" in the summary', async () => {
+    const project = await createProject({ title: 'Kast' })
+    const zip = zipFile(
+      zipSync({
+        '2026-09-01-a.jpg': noise(100, 1),
+        'vakantie/2026-09-03.jpg': noise(100, 2),
+        'IMG_1.jpg': noise(100, 3),
+        'readme.txt': noise(10, 4),
+        '__MACOSX/._IMG_1.jpg': noise(10, 5),
+        'vakantie/kapot.jpg': noise(100, 6),
+      }),
+    )
+    await startZipImport(project.id, [zip], fakeDeps)
+
+    const status = getImportStatus(project.id)!
+    expect(status).toMatchObject({ total: 4, done: 4, added: 3, running: false, zips: [] })
+    expect(lines(project.id)).toEqual(['vakantie/kapot.jpg uit fotos.zip: kon niet worden gelezen'])
+    expect(status.fromFileDate).toEqual(['IMG_1.jpg uit fotos.zip'])
+    const dates = (await db.entries.where('projectId').equals(project.id).sortBy('date')).map((e) => e.date)
+    expect(dates).toEqual(['2026-09-01', '2026-09-03', '2026-11-01'])
+    // The original is the bytes as they were zipped (D-0015), in a File without a folder in its name.
+    const originals = (await db.photos.where('projectId').equals(project.id).toArray()).map((p) => p.original as Blob)
+    expect(originals.map((o) => (o as File).name).sort()).toEqual(['2026-09-01-a.jpg', '2026-09-03.jpg', 'IMG_1.jpg'])
+    const first = originals.find((o) => (o as File).name === '2026-09-01-a.jpg')!
+    expect(new Uint8Array(await first.arrayBuffer())).toEqual(noise(100, 1))
+    expect(first.type).toBe('image/jpeg')
+  })
+
+  it('lists a damaged zip: "kapot.zip: kon niet worden uitgepakt"', async () => {
+    const project = await createProject({ title: 'Tafel' })
+    await startZipImport(project.id, [zipFile(new TextEncoder().encode('geen zip'), 'kapot.zip')], fakeDeps)
+    expect(getImportStatus(project.id)).toMatchObject({ total: 0, added: 0, running: false })
+    expect(lines(project.id)).toEqual(['kapot.zip: kon niet worden uitgepakt'])
+  })
+
+  it('lists a zip without images: "leeg.zip: bevat geen foto\'s"', async () => {
+    const project = await createProject({ title: 'Stoel' })
+    const zip = zipFile(zipSync({ 'notes.txt': noise(10), 'inner.zip': zipSync({ 'a.jpg': noise(10) }) }), 'leeg.zip')
+    await startZipImport(project.id, [zip], fakeDeps)
+    expect(lines(project.id)).toEqual(["leeg.zip: bevat geen foto's"])
+  })
+
+  it('lists an image over the limit and still adds the other images of the zip', async () => {
+    const project = await createProject({ title: 'Bank' })
+    const zip = zipFile(
+      zipSync({ '2026-09-01.jpg': noise(500, 1), 'vakantie/groot.jpg': noise(5000, 2), '2026-09-02.jpg': noise(500, 3) }),
+    )
+    await startZipImport(project.id, [zip], fakeDeps, 1000)
+    expect(getImportStatus(project.id)).toMatchObject({ total: 2, done: 2, added: 2, running: false })
+    expect(lines(project.id)).toEqual(['vakantie/groot.jpg uit fotos.zip: is groter dan 40 MB'])
+  })
+
+  it('orders the list: loose non-photos, then zip lines as found, then failed imports', async () => {
+    const project = await createProject({ title: 'Kist' })
+    const fotos = zipFile(
+      zipSync({ 'IMG_1.jpg': noise(100, 1), 'vakantie/2026-09-02.jpg': noise(100, 2), 'vakantie/IMG_9.heic': noise(5000, 3) }),
+    )
+    const leeg = zipFile(zipSync({ 'readme.txt': noise(10) }), 'leeg.zip')
+    const kapot = zipFile(noise(100, 9), 'kapot.zip')
+    const loose = startImport(project.id, [photo('kapot.jpg'), photo('2026-09-01.jpg')], fakeDeps, [{ name: 'notes.txt', reason: 'is geen foto' }])
+    await Promise.all([loose, startZipImport(project.id, [fotos, leeg, kapot], fakeDeps, 1000)])
+
+    const status = getImportStatus(project.id)!
+    expect(status).toMatchObject({ added: 3, running: false })
+    expect(lines(project.id)).toEqual([
+      'notes.txt: is geen foto',
+      'vakantie/IMG_9.heic uit fotos.zip: is groter dan 40 MB',
+      "leeg.zip: bevat geen foto's",
+      'kapot.zip: kon niet worden uitgepakt',
+      'kapot.jpg: kon niet worden gelezen',
+    ])
+    expect(status.fromFileDate).toEqual(['IMG_1.jpg uit fotos.zip'])
+  })
+
+  it('stays running until every zip is read to its end, even with every image so far imported', async () => {
+    const project = await createProject({ title: 'Schuur' })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const zip = zipFile(new Uint8Array(1000))
+    const deps: ImportDeps = {
+      ...fakeDeps,
+      loadUnzip: async () => ({
+        readZip: async function* (_zip: File, options?: ReadZipOptions): AsyncGenerator<ZipItem> {
+          options?.onProgress?.(400, 1000)
+          yield { kind: 'image', path: '2026-09-01.jpg', file: photo('2026-09-01.jpg') }
+          options?.onProgress?.(600, 1000)
+          await gate
+          options?.onProgress?.(1000, 1000)
+        },
+      }),
+    }
+    const done = startZipImport(project.id, [zip], deps)
+    expect(getImportStatus(project.id)).toMatchObject({ total: 0, running: true, zips: ['fotos.zip'], zipPercent: 0 })
+    expect(isBusy()).toBe(true)
+
+    await expect.poll(() => getImportStatus(project.id)!.done).toBe(1)
+    await expect.poll(() => getImportStatus(project.id)!.zipPercent).toBe(60)
+    expect(getImportStatus(project.id)).toMatchObject({ total: 1, done: 1, running: true, zips: ['fotos.zip'] })
+    dismissImport(project.id) // can't dismiss a running import
+    expect(getImportStatus(project.id)).toBeDefined()
+    expect(isBusy()).toBe(true)
+
+    release()
+    await done
+    expect(getImportStatus(project.id)).toMatchObject({ total: 1, done: 1, added: 1, running: false, zips: [], zipPercent: 0 })
+    expect(isBusy()).toBe(false)
+  })
+
+  it('reads zips one after another and shows the one being read, with whole percents', async () => {
+    const project = await createProject({ title: 'Hok' })
+    const a = zipFile(zipSync({ '2026-09-01.jpg': noise(200_000, 1) }, { level: 0 }), 'a.zip')
+    const b = zipFile(zipSync({ '2026-09-02.jpg': noise(100, 2) }), 'b.zip')
+    const seen: string[] = []
+    const unsubscribe = subscribeImport(() => {
+      const s = getImportStatus(project.id)
+      if (s?.zips[0]) seen.push(`${s.zips[0]} ${s.zipPercent}`)
+    })
+    await startZipImport(project.id, [a, b], fakeDeps)
+    unsubscribe()
+    const names = [...new Set(seen.map((l) => l.split(' ')[0]))]
+    expect(names).toEqual(['a.zip', 'b.zip'])
+    for (const line of seen) expect(line).toMatch(/^[ab]\.zip (\d|[1-9]\d|100)$/)
+    expect(seen).toContain('a.zip 100')
+    expect(getImportStatus(project.id)).toMatchObject({ added: 2, running: false })
+  })
+
+  it('lists a zip as "kan nu niet worden uitgepakt" when the unzip code cannot load; loose photos are added', async () => {
+    const project = await createProject({ title: 'Rek' })
+    const deps: ImportDeps = { ...fakeDeps, loadUnzip: () => Promise.reject(new TypeError('Failed to fetch')) }
+    await Promise.all([
+      startImport(project.id, [photo('2026-09-01.jpg')], deps),
+      startZipImport(project.id, [zipFile(zipSync({ 'a.jpg': noise(10) }))], deps),
+    ])
+    expect(getImportStatus(project.id)).toMatchObject({ added: 1, running: false })
+    expect(lines(project.id)).toEqual(['fotos.zip: kan nu niet worden uitgepakt; probeer het later opnieuw'])
+  })
+
+  it('warns about low storage by the size of the zip', async () => {
+    const project = await createProject({ title: 'Zolder' })
+    const zip = zipFile(zipSync({ 'readme.txt': noise(10) }))
+    await startZipImport(project.id, [zip], { ...fakeDeps, estimate: async () => ({ usage: 90, quota: 100 }) })
     expect(getImportStatus(project.id)!.lowStorage).toBe(true)
   })
 })
