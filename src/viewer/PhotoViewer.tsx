@@ -56,8 +56,9 @@ export function PhotoViewer() {
   return useVisitor() ? <VisitorPhotoViewer /> : <OwnerPhotoViewer />
 }
 
-// T-0027 (D-0029): the address is the project's slug, the entry's day and the photo's place
-// in it (routes/paths.ts), never an id.
+// T-0027 (D-0031): the address is the project's slug, the entry's day and the photo's place
+// in it (routes/paths.ts), never an id. Places follow comparePhotos, newest first, so "next"
+// (arrow right, swipe left) is the next photo shown, an older one.
 
 function OwnerPhotoViewer() {
   const { slug, day, n } = useParams({ from: '/projects/$slug/$day/$n' })
@@ -257,8 +258,8 @@ function PhotoViewerView({
   }
 
   /**
-   * Tombstones the photo, then shows the next one in the entry (which takes its place, so the
-   * address stays), or the previous, or closes.
+   * Tombstones the photo, then shows the next one in the entry, the next older (which takes its
+   * place, so the address stays), or else the previous, a newer one, or closes.
    */
   const remove = async () => {
     if (!current) return
@@ -588,6 +589,7 @@ function ViewerImage({
       aria-hidden={current ? undefined : true}
       data-current={current ? '' : undefined}
       data-photo-id={photo.id}
+      data-taken-at={photo.takenAt}
       className="h-full w-full object-contain"
       style={style}
     />

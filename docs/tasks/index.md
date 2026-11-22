@@ -10,7 +10,7 @@ None.
 
 ## Doing
 
-None.
+- [T-0029 Show a day's photos newest first, on the page, in the viewer and in their addresses](T-0029-show-a-days-photos-newest-first.md): D-0031: within an entry, photos are shown newest first like the days, for the owner and for visitors; a photo's place in its address and the viewer's next/previous follow that order.
 
 ## Done
 

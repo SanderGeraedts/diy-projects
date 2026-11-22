@@ -88,11 +88,12 @@ function ProjectView({
   project: Project
   /** Live entries, newest first. */
   entries: Entry[] | undefined
-  /** By date taken; for the owner, deleted ones included. */
+  /** In any order (shown newest first, D-0031); for the owner, deleted ones included. */
   allPhotos: ShownPhoto[] | undefined
   /** A visitor: no create, edit, import, cover or delete controls (T-0026). */
   readOnly: boolean
 }) {
+  // D-0031: a day's photos newest first, numbered in that order in their addresses.
   const photos = allPhotos?.filter((ph) => ph.deletedAt === null).sort(comparePhotos)
   // T-0027: an entry is named by its day, in its anchor and its photos' addresses (D-0029).
   const days = entryDays(entries ?? [])
@@ -139,6 +140,7 @@ function ProjectView({
                     key={ph.id}
                     to="/projects/$slug/$day/$n"
                     params={{ slug: project.slug, day, n: photoNumber(i) }}
+                    data-taken-at={ph.takenAt}
                     className="block"
                   >
                     <PhotoImage
