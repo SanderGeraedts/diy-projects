@@ -3,6 +3,7 @@ id: T-0031
 title: "Add photos by dropping them onto a project page"
 description: "D-0033: image files dragged from the computer and dropped anywhere on the owner's project page go through the same import as \"Foto's toevoegen\"; non-images are listed as not added, and a stray drop anywhere in the app never opens the file in the browser."
 status: Open
+size: full
 depends_on: []
 decisions: [D-0033, D-0003, D-0015, D-0023, D-0020, G-0019]
 raised_on: 2026-11-22
@@ -37,8 +38,9 @@ Zip files are T-0032, not this task.
 
 # Done when
 
-1. `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass, and
-   `pnpm exec harness check` passes.
+1. CI on the pull request is green (`checks / checks`: `harness check`, typecheck, unit
+   tests, build and the end-to-end tests), with no test that passed only on a retry
+   (G-0031). Locally the developer runs typecheck and what the change touches.
 2. An e2e test (`e2e/drop.spec.ts`) at a desktop viewport (1280×800, set in the spec), on
    the seeded demo data (G-0019), offline after the service worker is ready, with generated
    photos only (no real photos): on a new project, dropping three JPEGs with EXIF dates on
@@ -96,3 +98,4 @@ Zip files are T-0032, not this task.
 # Log
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0033 (adds to D-0003): drops anywhere on the owner's project page feed the same `startImport` as the picker, photos land in the day they were taken, non-images and folders are listed as not added, a stray drop never opens the file, picker unchanged. Zip split off into T-0032 (D-0034). Handed to the UX designer.
+- 2026-11-22 architect: harness v0.9.0 (T-0033, G-0031): sized full, a new way to add photos with a hint and new summary lines that need a design first. *Done when* 1 is now CI's run. Still with the UX designer.

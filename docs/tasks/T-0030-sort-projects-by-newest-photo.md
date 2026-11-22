@@ -3,6 +3,7 @@ id: T-0030
 title: "List projects on the overview by their newest photo"
 description: "D-0032: the overview, the owner's and a visitor's, orders projects by the latest time taken among their live photos, newest first; projects without photos come last, by last edit."
 status: Open
+size: small
 depends_on: []
 decisions: [D-0032, D-0031, D-0025, D-0020, G-0019]
 raised_on: 2026-11-22
@@ -32,8 +33,9 @@ Nothing is stored: no new field, index, Dexie version, migration or NAS change.
 
 # Done when
 
-1. `pnpm run typecheck`, `pnpm test`, `pnpm run build` and `pnpm run test:e2e` pass, and
-   `pnpm exec harness check` passes.
+1. CI on the pull request is green (`checks / checks`: `harness check`, typecheck, unit
+   tests, build and the end-to-end tests), with no test that passed only on a retry
+   (G-0031). Locally the developer runs typecheck and what the change touches.
 2. A unit test in `src/filters.test.ts` on the overview's ordering, with these projects and
    photos, gives `['A', 'E', 'B', 'C', 'D']`:
    - A: one photo taken `2026-11-01T10:00:00`, project `updatedAt` 2026-11-02;
@@ -80,8 +82,10 @@ Nothing is stored: no new field, index, Dexie version, migration or NAS change.
   assume the old order. The `/design` screenshots don't show the overview.
 - **No question for the Engineer:** the change is reversible and touches no infrastructure,
   data store, access or outside service.
-- Handed to the UX designer: the order a user sees changes. No new look or words are
-  expected; the designer confirms whether anything on the card should hint at the order.
+- **Small (G-0031):** no new look or words are expected, so there is no design before the
+  build; the developer builds from *Done when*. The UX designer reviews after the build,
+  since the order a user sees changes, and says there whether anything on the card should
+  hint at the order.
 
 # Design
 
@@ -90,3 +94,4 @@ Nothing is stored: no new field, index, Dexie version, migration or NAS change.
 # Log
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0032: the overview, owner's and visitor's, orders projects by their newest live photo by time taken, ties by last edit then id, projects without photos last by last edit; filters keep the order; nothing stored. Handed to the UX designer.
+- 2026-11-22 architect: harness v0.9.0 (T-0033, G-0031): sized small, a change within the existing overview and data, with no new route, collection or outside service; *Done when* 3 and 4 say what the user sees. No design before the build: handed to the developer; the UX designer reviews after, since the order a user sees changes. *Done when* 1 is now CI's run.

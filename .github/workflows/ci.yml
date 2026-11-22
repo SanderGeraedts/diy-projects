@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  # The auto-merge workflow starts CI on main after a merge: a merge made with GITHUB_TOKEN
+  # starts no push workflows (harness 0.2.0).
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +22,7 @@ jobs:
   # The harness's reusable CI: pnpm install, harness check, then the checks below. GitHub
   # reports this job as "checks / checks", the name the ruleset on main requires.
   checks:
-    uses: SanderGeraedts/harness/.github/workflows/ci.yml@v0.1.0
+    uses: SanderGeraedts/harness/.github/workflows/ci.yml@v0.9.0
     with:
       # No CONTEXT here, so this is a "local" build: seeded data, no PocketBase address
       # (G-0019).
