@@ -114,7 +114,7 @@ function ProjectView({
         <p className="mt-3">{project.description}</p>
       </header>
       {!readOnly && <AddEntryLink slug={project.slug} />}
-      {!readOnly && <ImportPhotos projectId={project.id} />}
+      {!readOnly && <ImportPhotos projectId={project.id} projectTitle={project.title} />}
       <ol className="timeline m-0 mt-8 list-none p-0">
         {(entries ?? []).map((e) => {
           const entryPhotos = (photos ?? []).filter((ph) => ph.entryId === e.id)
