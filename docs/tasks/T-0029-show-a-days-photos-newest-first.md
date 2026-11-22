@@ -7,7 +7,7 @@ depends_on: []
 decisions: [D-0031, D-0025, D-0020, G-0019, G-0021]
 raised_on: 2026-11-22
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/58"]
 ---
 
 # Goal
@@ -165,3 +165,4 @@ photo's time taken). Don't put an id in an address, a link or anything else a us
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0031 (replaces D-0029): a day's photos are shown newest first and a photo's place in its address follows the shown order, so existing photo links shift once; the viewer's next goes to the older photo. Handed to the UX designer.
 - 2026-11-22 ux-designer: designed: same look and words; a day's grid runs newest top-left; the viewer's next goes to the older photo and still slides in from the right; delete shows the photo that takes the place, or the newer one when the oldest goes. Added Done when 6 and 7. Handed to the developer.
+- 2026-11-22 developer: built in #58: `comparePhotos` sorts newest first (taken, added, id, each descending); `visitorTimeline` uses it; thumbnails and the viewer's photo carry `data-taken-at`; new `e2e/photo-order.spec.ts` (owner and visitor: order on the page, `/1` = 12:00, arrow right to `/2` 11:00 and `/3` 10:00, swipe, no Vorige on `/1`, no Volgende on `/3`, arrows at the ends keep the address; owner delete at `/1` and at `/3`); updated `e2e/viewer.spec.ts`, `e2e/import.spec.ts`, `src/public/visitor.test.tsx`. Checks: `pnpm run typecheck` clean; `pnpm test` 334 passed, 26 skipped (the new unit tests fail on the old order); `pnpm run build` ok; `pnpm run test:e2e` 56 passed, 2 skipped (photo-order: 4 failed on the old order); `grep -rn "takenAt.localeCompare" src` → only `src/components/cover.ts:14`; `pnpm exec harness check` ✓ tasks, decisions, engineers, generated files. Handed to the UX designer for review. Remaining: Sander checks on his phone (Done when 8).
