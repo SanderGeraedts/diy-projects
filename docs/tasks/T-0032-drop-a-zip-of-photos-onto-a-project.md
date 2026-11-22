@@ -2,12 +2,12 @@
 id: T-0032
 title: "Add the photos in a zip file by dropping it onto a project page"
 description: "D-0034: a .zip dropped onto the owner's project page is unpacked on the device with fflate, one file at a time, and its images go through the normal import; other files are skipped, an image over 40 MB and an unreadable zip are listed as not added."
-status: Doing
+status: Done
 size: full
 depends_on: [T-0031]
 decisions: [D-0035, D-0034, D-0033, D-0003, D-0015, G-0016, G-0017, G-0019]
 raised_on: 2026-11-22
-done_on: ""
+done_on: "2026-11-23"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/64"]
 ---
 
@@ -460,6 +460,86 @@ dropped `File` can be read at any offset), or by checking each image against the
 and size in its data descriptor. The approach is the developer's. If it means leaving
 fflate's streaming `Unzip`, check it with the architect against D-0034.
 
+## Re-test after the send-back
+
+Re-tested 2026-11-23 by the tester on PR #64 at `635993d` (b2c7521 fix, eb6913b D-0035,
+635993d comments), after `pnpm install --frozen-lockfile` ("Lockfile is up to date").
+
+**Verdict: passed.**
+
+- **CI** run 45083330766 on `635993d`: `success`. `checks / checks` pass (1m23s),
+  `pocketbase-auth` pass. The log shows `Test Files  30 passed | 3 skipped (33)` and
+  Playwright `69 passed (36.0s)`, with no `flaky` line, so nothing passed on a retry.
+- **My three repro cases** (throwaway vitest file, deleted afterwards). Zips made with
+  fflate's `Zip` (data descriptors) hold a 200,000-byte `a.jpg` with a signature at byte
+  100,000, then `b.jpg`:
+
+  | Signature in `a.jpg` | stored | deflated |
+  | --- | --- | --- |
+  | `PK\x07\x08` | `a.jpg size=200000`, `b.jpg size=1000`, both byte-identical | same |
+  | `PK\x01\x02` | same | same |
+  | `PK\x03\x04` | same | same |
+
+  `inner.zip` (holding `secret.jpg`), then `ok.jpg`: only `image "ok.jpg"`, whether stored
+  or deflated with data descriptors, or stored with `zipSync`. The same zip cut short (no
+  directory, walked by local headers) gives `ok.jpg`, then `kon niet helemaal worden
+  uitgepakt`. `secret.jpg` never comes out.
+- **The new tests**, `pnpm exec vitest run src/photos/unzip.test.ts
+  src/photos/importQueue.test.ts src/photos/drop.test.ts src/routes/ImportPhotos.test.tsx`,
+  three times: `Test Files  4 passed (4)` / `Tests  54 passed (54)` each time.
+  `unzip.test.ts` in verbose mode: 22 ✓, among them the data-descriptor cases with
+  signatures (stored and deflated), stored and deflated inner zips never opened, CRC
+  mismatch, encryption flag, a cut-short data-descriptor zip, ZIP64, and skipped entries
+  not read.
+- **e2e:** `pnpm exec playwright test e2e/drop.spec.ts e2e/import.spec.ts --repeat-each 5
+  --workers 4 --retries 0` gives `40 passed (19.3s)`. `... e2e/drop.spec.ts -g zip
+  --repeat-each 10 --workers 4 --retries 0` gives `20 passed (12.0s)`.
+- **Lazy chunk and offline:** `pnpm run build` gives `precache 23 entries (673.67 KiB)`.
+  fflate's inflate code (`invalid block type`) is only in `dist/assets/unzip-BVrv10SQ.js`.
+  `dist/index.html` loads only `index-DPHsXRuD.js` and `ui-B5mzZvYH.js`. The entry chunk
+  loads the unzip chunk only as `loadUnzip:()=>Af(()=>import('./unzip-BVrv10SQ.js'),[])`,
+  and `dist/sw.js` names it. The offline e2e test drops its first zip after a fresh
+  install, so the chunk comes from the precache. `zipFixture.ts` is imported only by
+  `unzip.test.ts` and `importQueue.test.ts`, and nothing of it is in `dist/`.
+- **The 40 MB stop:** a 200 MB `bomb.jpg` gives `is groter dan 40 MB` and `after.jpg` still
+  comes out. The same holds when the directory claims a size of 10 bytes, and with data
+  descriptors. With `limit: 1000`, a 1000-byte image is taken and a 1001-byte one isn't.
+- **Big non-image:** a 150 MB stored `film.mov` with a data descriptor, then `after.jpg`:
+  only `after.jpg`, in `0 ms`, with `0.1 MB` growth. The video is never read.
+- **Truncated:** at 10% → `kon niet worden uitgepakt`. At 50%, 80% and 99% → the images
+  read so far, then `kon niet helemaal worden uitgepakt`. A cut-short data-descriptor zip
+  → `kon niet worden uitgepakt`, without guessing, as D-0035 says.
+- **Corrupt:** damaged bytes in a stored image now give `b.jpg …: kon niet worden
+  uitgepakt` (CRC). Before this fix they were imported silently. Damaged deflate data gives
+  the same reason, and the zip goes on.
+- **Encrypted:** an encryption flag gives `a.jpg …: kon niet worden uitgepakt`, and the next
+  image still comes out. Method 99 (AES) gives the same. The UX review's deviation (b), a
+  stored ZipCrypto entry listed as "kon niet worden gelezen", is therefore gone. Such an
+  entry now gets the design's own line. Nothing new to review.
+- **Lying headers:** a directory count of 60,000 or an entry offset past the end → `kon niet
+  worden uitgepakt`, with no hang and no throw.
+- **Other zips:** empty → `bevat geen foto's`. 0 bytes, text, or `PK\x03\x04` plus junk →
+  `kon niet worden uitgepakt`. Only an inner zip plus `notes.txt` → `bevat geen foto's`.
+- **Paths:** `../evil.jpg`, `a/../../b.jpg` and `..\c.jpg` are skipped. `/abs/x.jpg` gives
+  a File named `x.jpg`. `C:\win\y.jpg` gives a File named `y.jpg`, and its label keeps the
+  path. No `/` or `\` ever ends up in a File name.
+- **Against D-0035:** the code matches each point. It finds entries from the end record,
+  ZIP64 and the central directory via `File.slice()`, never by scanning. It inflates with
+  fflate's `Inflate` in 16 kB pieces. It checks size and CRC-32. It never reads entries that
+  aren't images. It walks local headers only while they carry sizes, and stops at a data
+  descriptor. Photos without EXIF get the zip's `lastModified`. fflate is pinned at
+  `0.8.3`. D-0034 is `Replaced` with `replaced_by: [D-0035]`. The task's `decisions` names
+  D-0035.
+- `pnpm exec tsc --noEmit -p .` is clean. `pnpm exec harness check`: `✓ tasks: 35 tasks,
+  index in step` / `✓ decisions: 41 records, index complete, 0 overrules valid` / `✓
+  engineers: 2 listed` / `✓ generated files: current`.
+
+**Noted, not blocking:**
+- A complete zip with bytes appended after its end record gives all its photos plus
+  `kon niet helemaal worden uitgepakt`, because the end record has to run to the end of
+  the file. No photo is lost, and such files are rare.
+- The task's `description` still says "D-0034". That field is the architect's.
+
 # Log
 
 - 2026-11-22 architect: raised from Sander's request as a follow-up to T-0031, so image drop doesn't wait on it; recorded D-0034: zips are unpacked on the device with fflate (MIT, no dependencies of its own), lazily loaded and precached, one entry at a time, images only, 40 MB per image, unreadable zips listed as not added. Handed to the UX designer.
@@ -470,3 +550,4 @@ fflate's streaming `Unzip`, check it with the architect against D-0034.
 - 2026-11-23 tester: sent back: in a zip with data descriptors (as macOS and streaming zippers make), fflate's streaming `Unzip` ends an entry at the first `PK` signature in its data, so a deflated photo is lost ("kon niet worden uitgepakt"), a stored photo is cut short and imported without a word, and a stored inner zip is opened; Done when 1-9 otherwise hold. Back to the developer.
 - 2026-11-23 developer: fixed the send-back: `src/photos/unzip.ts` no longer uses fflate's streaming `Unzip`. It reads the zip's end record (and the ZIP64 end, when the sizes are maxed out) and its central directory with `File.slice()`, then reads each image from its own slice: local header, then data, inflated with fflate's `Inflate` (stored ones passed through), 16 kB at a time, one image per request as before. Each image is checked against the directory's size and CRC-32 (a small table, since fflate 0.8 doesn't export one); a mismatch, an encryption flag or a method other than stored/deflated is listed as `<pad> uit <zip>: kon niet worden uitgepakt`. Entries that aren't images are never read, so no zip inside the zip is opened. A zip without a central directory (cut short) is walked by its local headers while they carry sizes, never past a data descriptor, then listed as `kon niet (helemaal) worden uitgepakt`. The 40 MB cut-off, the lazy chunk (8.85 kB; fflate's code only in `assets/unzip-*.js`, named in `dist/sw.js`, not in `index.html`), progress and labels are unchanged. **For the architect (D-0034):** this follows the Decision section (fflate unpacks, lazily loaded, one entry at a time), but the app now parses the zip's end record and central directory itself, ~150 lines, which D-0034's Context counted as a cost of option 3 ("our own zip reader"). fflate has no random-access reader that doesn't load the whole archive into memory. Tests: 7 new ones in `unzip.test.ts` fail on the previous code and pass now (stored and deflated entries with data descriptors and `PK\x07\x08`/`PK\x01\x02`/`PK\x03\x04` in their data, byte for byte; a stored and a deflated inner zip never opened; CRC mismatch; encryption flag; a cut-short data-descriptor zip; skipped entries not read); also ZIP64 and a directory that understates a size. The fixture `zipFixture.ts` gained `noiseWithSignatures`, a stored option for `streamedZip`, and `zip64Zip`. Two existing tests now patch the first central directory entry, not the last one: the directory decides now, not the local header. Local: `tsc --noEmit` clean; `vitest run src/photos src/routes src/sw`: 8 files, 78 tests passed; `unzip.test.ts` 3 runs, 22 passed each; `playwright test e2e/drop.spec.ts e2e/import.spec.ts --retries 0`: 8 passed; zip e2e `--repeat-each 10`: 20 passed; `harness check`: all ✓.
 - 2026-11-23 architect: the developer's fix (b2c7521) is kept, but it goes beyond D-0034, whose Rationale rejected owning a zip parser; recorded D-0035, replacing D-0034: entries are found from the central directory (and ZIP64) with `File.slice()`, never by scanning for signatures, fflate only inflates (`Inflate`), every image is checked against size and CRC-32, photos without EXIF take the zip's own date. Everything else in D-0034, and Done when 1-9, still holds; the extra 'not added' cases (CRC/size mismatch, encrypted, unknown method) use the existing reason. Size stays full. Handed to the tester.
+- 2026-11-23 tester: passed: the send-back is fixed (b2c7521, D-0035 in eb6913b; 635993d only changes code comments and test names to cite D-0035): data-descriptor zips with `PK` markers in the data give every image byte for byte, stored and deflated; an inner zip is never opened; the 40 MB stop, the lazy precached chunk, the big non-image entries, truncated, corrupt and encrypted zips and the paths hold; CI run 45083330766 green with no retries.
