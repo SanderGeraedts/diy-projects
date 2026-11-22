@@ -159,10 +159,125 @@ thumbnail link and to the viewer's current photo (for example `data-taken-at` wi
 photo's time taken). Don't put an id in an address, a link or anything else a user sees
 (D-0031).
 
+## Review (2026-11-22, ux-designer)
+
+Looked at the production build of #58 (`pnpm run build`, `vite preview`, seeded demo data),
+as the owner and as a visitor (`?bezoeker`), on a Pixel 7 and on desktop Chrome, and ran
+`e2e/photo-order.spec.ts`, `e2e/viewer.spec.ts`, `e2e/delete.spec.ts` and
+`e2e/visitor.spec.ts` (14 passed).
+
+Matches:
+
+- **Project page, owner and visitor:** Tuinbank 4 okt 2026 shows 12:00 | 11:00 on the top
+  row and 10:00 alone on the left below. The top-left links to `/2026-10-04/1`, then `/2`
+  and `/3`. The days keep their order. The alt text is still "Tuinbank, 4 okt 2026". No new
+  words and no change in look.
+- **Viewer:** `/1` opens the 12:00 photo, the counter shows "1 / 3", the dialog is named
+  "Foto 1 van 3, 4 okt 2026", only › is shown, and arrow left keeps the address. Arrow right
+  goes to `/2` (11:00, "2 / 3", ‹ and › both shown), then to `/3` (10:00, no ›, arrow right
+  stays). Arrow left and a swipe right go back to a newer photo; a swipe left goes to an
+  older one. The motion is unchanged. Halfway through "next", the old photo is leaving to
+  the left and the older photo is coming in from the right.
+- **Delete (owner):** deleting at `/1` stays at `/1` and shows the 11:00 photo, "1 / 2".
+  Deleting at `/3` (the oldest) goes to `/2` and shows the 11:00 photo, "2 / 2". In both
+  cases the page then shows the remaining photos, newest top-left. Deleting a day's only
+  photo uses the same code as before (covered by the existing delete tests).
+- **`data-taken-at`** sits on the thumbnail link and on the viewer's current image. It isn't
+  shown on screen and isn't part of an address. No id was added anywhere a user sees.
+
+Differences: none.
+
 # Test
+
+2026-11-22, tester, on `t-0029-photos-newest-first` at d9630fc, Windows, from a clean
+`pnpm install --frozen-lockfile` ("Lockfile is up to date … Done").
+
+**Done when 1:**
+
+```
+$ pnpm run typecheck
+$ tsc --noEmit                      (exit 0, no output)
+$ pnpm test
+      Tests  334 passed | 26 skipped (360)
+$ pnpm run build
+PWA v2.0.0 … precache 22 entries (658.97 KiB) … files generated   (exit 0)
+$ pnpm run test:e2e
+  2 skipped
+  56 passed (16.9s)
+$ pnpm exec harness check
+✓ tasks: 29 tasks, index in step
+✓ decisions: 36 records, index complete, 0 overrules valid
+✓ engineers: 2 listed
+✓ generated files: current
+```
+
+The 2 skipped e2e tests are `e2e/design.spec.ts`'s screenshot baselines, which only run on
+Linux (CI). PR #58 checks: `checks / checks` pass (the only required check),
+`pocketbase-auth` pass, Netlify header/redirect rules and deploy preview pass. "Pages
+changed" is Netlify's informational note: it reports neutral on every PR (#56 and #57 too).
+
+**Done when 2:** `src/routes/paths.test.ts` sorts `x` 09:00, `y` 10:00/added 11:00 and
+`z` 10:00/added 12:00 to `['z', 'y', 'x']`, and ties on both times `a, c, b` to
+`['c', 'b', 'a']`. It passes.
+
+**Done when 3:** `src/public/source.test.ts` › `visitorTimeline` puts five photos (with
+ties on taken time and on both times) in `['w', 'z', 'b', 'a', 'x']` and checks that this
+equals `[...photos].sort(comparePhotos)`. It passes.
+
+**Done when 4, 6, 7:** `e2e/photo-order.spec.ts` (Pixel profile), owner and visitor: the
+order on the page by `data-taken-at` is 12:00, 11:00, 10:00. Clicking the first thumbnail
+opens `/1` at 12:00, "1 / 3". Arrow right goes to `/2` at 11:00, then `/3` at 10:00. At `/1`
+there is no Vorige and arrow left stays; at `/3` there is no Volgende and arrow right stays.
+Arrow left from `/3` goes to `/2` at 11:00, and swipe left/right goes older/newer. Owner
+delete at `/1` stays at `/1`, 11:00, "1 / 2", and the page shows 11:00, 10:00. Delete at
+`/3` goes to `/2`, 11:00, "2 / 2", and the page shows 12:00, 11:00. All 4 pass within the
+full run above.
+
+**Done when 5:**
+
+```
+$ grep -rn "takenAt.localeCompare" src
+src/components/cover.ts:14:  return b.takenAt.localeCompare(a.takenAt) || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)
+```
+
+The project page, the owner's viewer and the visitor's viewer (`PhotoViewer.tsx:73`, `:111`)
+and `visitorTimeline` all sort through `comparePhotos`.
+
+**Do the tests catch the old order?** For a moment I put the old ascending `comparePhotos`
+back, rebuilt and ran the new tests, then restored the file and rebuilt. Both new unit
+tests failed, and all 4 `photo-order` e2e tests failed on `data-taken-at`. (Note: the e2e
+tests run against `dist` via `vite preview`, so they only see a change after `pnpm run build`.)
+
+**Tried to break it** (in a temporary spec, deleted after; 8 passed):
+
+- Owner and visitor: a direct link to `/3` shows 10:00, also after a reload; `/2` shows
+  11:00. `/4`, `/0`, `/abc` and `/01` show "Foto niet gevonden".
+- Arrow right three times without waiting: the address and the photo shown still agree
+  (place n shows the photo at 13-n o'clock).
+- Every demo project, owner and visitor (4 projects, 7 days, 13 photos): within each day
+  the thumbnails' `data-taken-at` never increases, and each thumbnail's address opens the
+  viewer on that same photo.
+- Owner: delete at `/1` three times. It shows 11:00 at `/1`, then 10:00 at `/1` ("Foto 1 van
+  1"), and the last delete closes the viewer back to the project page with no photos left
+  in that day. Delete the middle photo (`/2`): it shows 10:00 at `/2`, "2 / 2".
+- Photos without an EXIF time: `dateTaken` falls back to the file's date in the same
+  `YYYY-MM-DDTHH:mm:ss` local format, and the server returns `takenAt` as the same text, so
+  string comparison holds for imported and synced photos alike. `takenAt` is never empty
+  once stored (`downloadedPhoto`'s `''` is overwritten by `photoFromServer`). The import e2e
+  test (a photo without EXIF on 1 sep 2026) passes with the new order.
+- Ties: the unit tests cover equal taken time (added later comes first) and equal taken and
+  added time (id descending), for the owner's and the visitor's order.
+
+**Record:** status *Doing* with `result` pointing at #58. D-0031 is Accepted and replaces
+D-0029 (in both indexes). The UX designer's build review is in *Design* › *Review*, no
+differences.
+
+**Verdict: passed.** Done when 1 to 7 hold. Done when 8 (Sander's phone) stays open for him.
 
 # Log
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0031 (replaces D-0029): a day's photos are shown newest first and a photo's place in its address follows the shown order, so existing photo links shift once; the viewer's next goes to the older photo. Handed to the UX designer.
 - 2026-11-22 ux-designer: designed: same look and words; a day's grid runs newest top-left; the viewer's next goes to the older photo and still slides in from the right; delete shows the photo that takes the place, or the newer one when the oldest goes. Added Done when 6 and 7. Handed to the developer.
 - 2026-11-22 developer: built in #58: `comparePhotos` sorts newest first (taken, added, id, each descending); `visitorTimeline` uses it; thumbnails and the viewer's photo carry `data-taken-at`; new `e2e/photo-order.spec.ts` (owner and visitor: order on the page, `/1` = 12:00, arrow right to `/2` 11:00 and `/3` 10:00, swipe, no Vorige on `/1`, no Volgende on `/3`, arrows at the ends keep the address; owner delete at `/1` and at `/3`); updated `e2e/viewer.spec.ts`, `e2e/import.spec.ts`, `src/public/visitor.test.tsx`. Checks: `pnpm run typecheck` clean; `pnpm test` 334 passed, 26 skipped (the new unit tests fail on the old order); `pnpm run build` ok; `pnpm run test:e2e` 56 passed, 2 skipped (photo-order: 4 failed on the old order); `grep -rn "takenAt.localeCompare" src` → only `src/components/cover.ts:14`; `pnpm exec harness check` ✓ tasks, decisions, engineers, generated files. Handed to the UX designer for review. Remaining: Sander checks on his phone (Done when 8).
+- 2026-11-22 ux-designer: reviewed: matches the design (page order, viewer counter, buttons, arrows, swipe direction, delete at first and last place, owner and visitor); no differences. Handed to the tester.
+- 2026-11-22 tester: passed (Done when 1 to 7 ran green, the new tests fail on the old order, edge cases held). Remaining: Sander checks on his phone that a day's photos on a project page run newest first and that swiping in the viewer follows the page (Done when 8).
