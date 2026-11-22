@@ -2,12 +2,12 @@
 id: T-0030
 title: "List projects on the overview by their newest photo"
 description: "D-0032: the overview, the owner's and a visitor's, orders projects by the latest time taken among their live photos, newest first; projects without photos come last, by last edit."
-status: Doing
+status: Done
 size: small
 depends_on: []
 decisions: [D-0032, D-0031, D-0025, D-0020, G-0019]
 raised_on: 2026-11-22
-done_on: ""
+done_on: "2026-11-22"
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/62"]
 ---
 
@@ -134,6 +134,94 @@ Verdict: **matches; passes the design review.** To the tester.
 
 # Test
 
+2026-11-22, tester, on `a736804` (the PR's head), after `pnpm install --frozen-lockfile`.
+
+**1. CI (G-0031: CI's run, read, not repeated):** run 45073936627 on `a736804`, conclusion
+`success`. `checks / checks` passed: `harness check` (`✓ tasks: 35 tasks, index in step`,
+`✓ decisions: 40 records, index complete, 0 overrules valid`, `✓ engineers: 2 listed`,
+`✓ generated files: current`), `tsc --noEmit` clean, unit `Test Files 27 passed | 3 skipped
+(30)`, `Tests 338 passed | 26 skipped (364)`, `✓ built in 345ms`, e2e `62 passed (36.8s)`
+with no `flaky` and no `failed` line. `pocketbase-auth` passed. The `shards` and sharded e2e
+jobs are skipped by design (no sharding configured); the e2e ran in `checks / checks`.
+
+**Locally:**
+
+```
+$ pnpm exec harness check
+✓ tasks: 35 tasks, index in step
+✓ decisions: 40 records, index complete, 0 overrules valid
+✓ engineers: 2 listed
+✓ generated files: current
+$ pnpm run typecheck
+$ tsc --noEmit                      (no errors)
+$ pnpm exec vitest run src/filters.test.ts
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+$ pnpm run build && E2E_PORT=4391 pnpm exec playwright test e2e/overview-order.spec.ts \
+    e2e/filters.spec.ts e2e/bin.spec.ts e2e/delete.spec.ts --repeat-each=3
+  45 passed (10.5s)
+$ grep -rn "updatedAt.localeCompare" src --include=*.ts --include=*.tsx | grep -v "\.test\."
+src/filters.ts:60:    return b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id)
+```
+
+**2.** `src/filters.test.ts`, "the overview order": A/E/B/C/D gives `['A', 'E', 'B', 'C', 'D']`
+(also with input reversed); another project's photo (`other`, 2027) lifts none; tag `ac`
+gives `['A', 'C']`. Passes locally and in CI.
+
+**3, 4, 5.** `e2e/overview-order.spec.ts`: owner `/` and visitor `/?bezoeker` read
+Fietsenrek, Tuinbank, Badkamerplank, Zolderisolatie from a MutationObserver on the first
+cards that appear (so on first render, not after settling), `#hout` gives Tuinbank,
+Badkamerplank; editing Zolderisolatie keeps it last; deleting Fietsenrek's only photo puts it
+last; a new project "Werkbank" comes after the four. Passed 3 times in a row locally, once
+in CI. *Done when* 5: the owner's cards come from one live query that returns projects and
+photos together (`OwnerOverview`), so no unordered list can render first.
+
+**6.** The grep lists only `src/filters.ts:60` (`orderProjects`, called by `filterProjects`,
+which `OverviewView` calls for owner and visitor). No other sort of projects for display in
+`src` (`grep -rn "\.sort(" src`).
+
+**Tried to break it** (a scratch e2e on the production build of this branch, deleted
+afterwards; not committed):
+
+- **Tie on the newest photo:** gave Tuinbank a photo with exactly Fietsenrek's `takenAt`
+  (`2026-11-01T10:00:00.000Z`), same `updatedAt` on the demo data: the id decides
+  (`demo-garden-bench` > `demo-bike-rack`, so Tuinbank first), the same after two reloads.
+- **Photos in the bin:** deleted Fietsenrek's entry (its photos go with it): Fietsenrek
+  last. Restored it from Prullenbak: back first.
+- **Deleted project:** deleted Tuinbank: Fietsenrek, Badkamerplank, Zolderisolatie.
+  Restored it: the four in order again, also after a reload.
+- **Filters:** as a visitor, each status chip on and off: what's left keeps the order. A
+  status filter in the URL (`?status=[...]`) too.
+- **Code reading:** tombstoned photos are skipped before the newest is taken; tombstoned
+  projects are filtered out before ordering; a photo of a project not in the list is never
+  looked up; a visitor's photos are only live ones of public projects (PocketBase rules and
+  `downloadable`), so a photo not yet on the NAS counts for the owner and not for a visitor,
+  which matches what each of them can see. A deleted entry tombstones its photos
+  (`src/db/write.ts:250`), so a deleted entry's photos don't count either.
+- **What worked before:** bin, delete and filters e2e unchanged and passing; covers still
+  come from `pickCover` with the same photos.
+
+**The owner's overview waits for all photos (the UX review's note).** It is what *Done
+when* 5 asks: cards only once projects and photos are both loaded, so the order is right on
+first render. The photos query is the one `main` already ran for the covers, so the time
+until the overview is complete is unchanged; what changed is that nothing shows until then,
+where `main` showed cover-less cards first. Measured on the production build (Pixel 7
+emulation, desktop CPU, no throttling), time from navigation to the first card, three
+reloads each:
+
+| | demo data | + 2000 photos (3 blobs of 400 kB each) |
+|---|---|---|
+| `main` | 22-35 ms | 28-38 ms (covers follow later) |
+| this branch | 23-38 ms | 169-183 ms (with covers) |
+
+Reading a photo record hands back its blobs by reference, so the cost grows with the number
+of photos, not their size: about 0.07 ms a photo here, so a few hundred ms on a phone for
+thousands of photos. Not a failure against *Done when*; a lighter photos query (the Notes
+already welcome one) would fix it if Sander ever notices it. Raised to the architect, not
+blocking.
+
+**Verdict: passed.**
+
 # Log
 
 - 2026-11-22 architect: raised from Sander's request; recorded D-0032: the overview, owner's and visitor's, orders projects by their newest live photo by time taken, ties by last edit then id, projects without photos last by last edit; filters keep the order; nothing stored. Handed to the UX designer.
@@ -141,3 +229,4 @@ Verdict: **matches; passes the design review.** To the tester.
 - 2026-11-22 developer: built. `filterProjects(projects, filters, photos)` in `src/filters.ts` now orders by D-0032 (newest live `takenAt` as text, ties `updatedAt` then id descending, projects without a live photo last by `updatedAt` then id); the owner's and the visitor's overview both call it through `OverviewView`, which also picks the covers from the same photos. The owner's overview loads projects and photos in one live query, so the cards render once, in order. Unit tests in `src/filters.test.ts` (the A/E/B/C/D case gives `['A', 'E', 'B', 'C', 'D']`, another project's photo doesn't count, the `ac` tag gives `['A', 'C']`; 4 of them fail on the old code); e2e in `e2e/overview-order.spec.ts` (owner and visitor order read on first render with a MutationObserver, `#hout` filter, edit keeps the place, deleting Fietsenrek's only photo puts it last, a new project comes after the demo four). No existing e2e assumed the old order. Locally: `pnpm run typecheck` clean; `pnpm test` 338 passed, 26 skipped; `pnpm exec playwright test` 60 passed, 2 skipped; *Done when* 6 grep lists only `src/filters.ts:60`.
 - 2026-11-22 developer: CI on #62 green (run 45073299931): `checks / checks` passed: harness check, typecheck, unit 338 passed / 26 skipped, build, e2e 62 passed with no flaky test; `pocketbase-auth` passed. Handed to the UX designer for the review after the build, then the tester.
 - 2026-11-22 ux-designer: reviewed: matches. Owner and visitor, phone and desktop, on the demo data: order by newest photo from the first render with no reordering, `#hout` keeps it, nothing else changed visibly; no hint on the card needed. Handed to the tester.
+- 2026-11-22 tester: passed. CI run 45073936627 on a736804 green (62 e2e, no flaky); *Done when* 2 to 6 checked locally; ties, entry and project to the bin and back, visitor filters hold the order. The owner's overview now shows nothing until all photos are loaded (as *Done when* 5 asks): about 150 ms more before the first card at 2000 photos; a lighter photos query is for the architect to consider, not blocking.
