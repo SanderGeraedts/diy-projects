@@ -245,6 +245,77 @@ not-added items with their own reasons. Until T-0032, a dropped `.zip` reads
 "`fotos.zip: is geen foto`". The overlay, hint and headings are worded to stay right once
 zips are accepted ("bestanden niet toegevoegd" also covers items from a zip).
 
+## Review
+
+Reviewed 2026-11-22 by the ux-designer, on the production build of `da9d73c` with the seeded
+demo data (`pnpm run preview`), in Playwright's Chromium: a laptop (1280×800 and 1280×600,
+mouse, no touch), a narrow desktop window (360×700) and the Pixel 7 profile. Drags were
+`DragEvent`s with a real `DataTransfer` in the page, as in `e2e/drop.spec.ts`. One
+difference has to be fixed.
+
+**Must fix before the task can pass**
+
+1. **After a drop lower on the page, the import block scrolls up under the sticky header.**
+   On Tuinbank at 1280×600, scrolled to the bottom, a drop scrolls the page so the block's
+   top lands at 0 px, while the header ends at 64 px. Only "Sluiten" is visible; the
+   progress line ("Foto's importeren: 1 van 3") and the summary's first lines are behind
+   the header. The design says "scrolls just enough to show it". Fix: give the import
+   block the same top scroll margin as the days in the timeline (`scroll-mt-20` on the
+   `role="status"` block), so `scrollIntoView({ block: 'nearest' })` stops below the
+   header. Check: after that drop, the block's top is below the header's bottom.
+
+**Matches the design**
+
+- **Hint:** "of sleep foto's naar deze pagina" on the same line as "+ Foto's toevoegen" at
+  1280 px, 14 px, grey (`rgb(102,102,102)`), not italic. At 360 px it wraps under the
+  button and the button's text stays on one line. Hidden on the Pixel 7 (`pointer: coarse`).
+  Not there for visitors (`?bezoeker`).
+- **Overlay:** a file `dragenter` on the owner's project page shows the whole-viewport
+  panel above the header and the sync bar (z 30), with the dialog-shaped box, a dashed
+  accent border, and "Laat los om foto's toe te voegen" / "aan Tuinbank" / "Ze komen bij de
+  dag waarop ze zijn gemaakt." in the text colour. Correct in light and dark. A long title
+  without spaces wraps inside the box. `aria-hidden="true"`, and focus stays on the body.
+- **No flicker:** enters and leaves across the page, the overlay and its text (enter on the
+  new element before leaving the old one, as browsers do) never took the overlay out of the
+  page, as seen by a MutationObserver. It goes on a `dragleave` that ends the drag (what a
+  drag out of the window or Escape fires), on `dragend` and on `drop`.
+- **Not shown:** for a drag carrying only `text/plain`; for a thumbnail dragged on the
+  page (no overlay, no import, the address unchanged); on `/projects/new`, edit,
+  "+ Notitie toevoegen", `/prullenbak`, `/zoeken`, `/account`, "Project niet gevonden",
+  the photo viewer, `/` and the visitor page. On all of these a file `dragover` is cancelled
+  (the browser doesn't open the file). The project page mounts the drop target only once
+  the project has loaded (`ImportPhotos` renders after it). I read `copy` and `none` for
+  the cursor in the code: a `DataTransfer` built in the page can't show the value it was
+  set to.
+- **Summary words** (actual text):
+  - photo, broken photo and `notes.txt` dropped during a running import: "4 foto's
+    toegevoegd." / "2 bestanden niet toegevoegd:" / "notes.txt: is geen foto",
+    "kapot.jpg: kon niet worden gelezen". Items that weren't added come first.
+  - `plan.pdf`, `fotos.zip`, a `.docx` with a very long name and an untyped `IMG_0001.HEIC`:
+    "Geen foto's toegevoegd." / "4 bestanden niet toegevoegd:" with "is geen foto" for the
+    first three, and "kon niet worden gelezen" for the HEIC (it counts as an image by its
+    extension, as the Notes say). At 360 px the long name wraps inside the block and the
+    page doesn't scroll sideways (scrollWidth 360).
+  - only a non-photo: straight to the summary with no progress line ("1 bestand niet
+    toegevoegd:"), on the laptop and the Pixel.
+  - folders: I couldn't build a dropped folder in an automated browser. The reason
+    "is een map; sleep de foto's uit de map" is word for word in `src/photos/drop.ts`, its
+    split is unit-tested, and it goes through the same `notAdded` path and heading as
+    "is geen foto". Accepted on that basis.
+- **During a running import:** a second drop joins it ("Foto's importeren: 0 van 3" became
+  "0 van 5"), and one summary follows. A drop while a finished summary is open starts a new
+  summary.
+- **Scroll:** a drop lower on the page scrolls to the block (smooth) and focus doesn't move.
+  Only the stopping point is wrong; see item 1.
+- **Picker:** `accept="image/*"` and `multiple` are unchanged. Two broken picks read "Geen
+  foto's toegevoegd." / "2 foto's niet gelukt:" (both designed wording changes). One pick
+  reads "1 foto toegevoegd." as before.
+- **Pixel 7:** the page is the same as before apart from the import block's new wording. No
+  hint.
+
+Verdict: **changes needed** (item 1). Back to the developer. Once it's fixed I'll re-check
+that one item; everything else stands.
+
 # Test
 
 # Log
@@ -254,3 +325,4 @@ zips are accepted ("bestanden niet toegevoegd" also covers items from a zip).
 - 2026-11-22 ux-designer: designed: drop anywhere on the owner's project page with a full-page overlay while files are dragged, a hint next to "+ Foto's toevoegen" on mouse/trackpad devices only, the existing import block and summary with "is geen foto" / "is een map" reasons, a "bestanden niet toegevoegd" heading and "Geen foto's toegevoegd."; *Done when* 8 to 10 added. Handed to the developer.
 - 2026-11-22 developer: built. `src/photos/drop.ts` turns a drop into files for `startImport`: `readDrop` (items in order, folders via `webkitGetAsEntry`) and `splitDrop` (images vs not added; the seam for T-0032's zips); unit-tested in `src/photos/drop.test.ts` (Done when 5). `src/routes/DropPhotos.tsx`: `FileDropGuard` in Layout cancels every file `dragover`/`drop` on the window (capture) with `dropEffect` none unless a target is registered, ignores drags that start in the app (`dragstart` to `dragend`/`drop`), and counts `dragenter`/`dragleave` for the overlay; `useFileDropTarget` and `DropOverlay` are used by `ImportPhotos`, which also shows the `pointer-fine:` hint and scrolls the import block into view after a drop. `ImportStatus.notAdded` (new) holds non-photos, listed before `failed`; a batch with only those goes straight to the summary; "Geen foto's toegevoegd." and the "bestanden niet toegevoegd" heading. Pixel 7 profile reports `pointer: coarse`, `hover: none`, `pointer: fine` false, so the hint is hidden there for the right reason. Checked the stray-drop test fails with the guard removed. Local: typecheck clean; `vitest run` 28 files passed, 348 tests passed (26 skipped); `playwright test` drop, import, design, visitor, photos, entries, viewer: 17 passed, 2 skipped, none retried; `harness check` all green.
 - 2026-11-22 developer: draft PR #63, CI `checks / checks` green on the first run (harness check, typecheck, unit tests, build, e2e: 66 passed, no test flaky or retried). Handed to the UX designer for the review (*Done when* 7), then the tester.
+- 2026-11-22 ux-designer: reviewed: changes needed. After a drop lower on the page, the import block scrolls up under the sticky header (its first lines are hidden); give it the timeline's `scroll-mt-20`. Everything else matches at 1280 px, at 360 px and on the Pixel 7. Back to the developer.
