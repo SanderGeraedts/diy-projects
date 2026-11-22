@@ -172,9 +172,10 @@ describe('visitor mode in production (T-0026)', () => {
     }
     expect(main().querySelector('input, textarea, select, form')).toBeNull()
     const srcs = [...main().querySelectorAll('img')].map((i) => i.getAttribute('src'))
+    // D-0031: a day's photos newest first (f2 was taken after f1).
     expect(srcs).toEqual([
-      'https://pb.test/api/files/pbc_photos/f1/thumbnail_1.webp',
       'https://pb.test/api/files/pbc_photos/f2/thumbnail_2.webp',
+      'https://pb.test/api/files/pbc_photos/f1/thumbnail_1.webp',
     ])
   })
 
@@ -186,7 +187,8 @@ describe('visitor mode in production (T-0026)', () => {
     expect(within(viewer).queryByRole('button', { name: 'Verwijderen' })).toBeNull()
     expect(within(viewer).getByRole('button', { name: 'Sluiten' })).toBeInTheDocument()
     const current = viewer.querySelector('img[data-current]')!
-    expect(current.getAttribute('src')).toBe('https://pb.test/api/files/pbc_photos/f1/copy_1.webp')
+    // D-0031: place 1 is the newest photo of the day.
+    expect(current.getAttribute('src')).toBe('https://pb.test/api/files/pbc_photos/f2/copy_2.webp')
   })
 
   it('redirects an earlier slug to the current one, keeping the rest of the address (T-0027)', async () => {

@@ -2,11 +2,11 @@
 id: D-0029
 title: "Addresses use a project slug, an entry date and a photo place, never an id"
 description: "No UUID in any URL, for the owner or visitors: a project is at /projects/ plus a slug made from its title and unique per owner (the NAS settles clashes from offline devices with -2, -3), a rename keeps the old slug in oldSlugs and redirects it, and a photo is the entry's date plus its 1-based place in that entry."
-status: Accepted
+status: Replaced
 date: 2026-11-20
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0031]
 resolves: []
 tags: [architecture, product, sync]
 ---

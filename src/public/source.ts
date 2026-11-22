@@ -1,6 +1,7 @@
 import PocketBase, { BaseAuthStore } from 'pocketbase'
 import type { Entry, Project } from '../db/db'
 import { isSlug } from '../db/slug'
+import { comparePhotos } from '../routes/paths'
 import { buildDemoData } from '../seed/demo'
 import { downloadable } from '../sync/photos'
 import { entryFromServer, projectFromServer, type ServerRecord } from '../sync/records'
@@ -47,11 +48,11 @@ export interface PublicSource {
   project(slug: string): Promise<PublicProject | null>
 }
 
-/** A visitor's timeline: newest entry first, photos by date taken, as the owner's (T-0005). */
+/** A visitor's timeline: newest entry first, photos newest first (D-0031), as the owner's (T-0005). */
 export function visitorTimeline({ entries, photos }: Pick<PublicProject, 'entries' | 'photos'>) {
   return {
     entries: [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
-    photos: [...photos].sort((a, b) => a.takenAt.localeCompare(b.takenAt)),
+    photos: [...photos].sort(comparePhotos),
   }
 }
 

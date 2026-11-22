@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // T-0008: the full-screen photo viewer, on the seeded demo data (D-0006). Tuinbank's entry of
-// 4 okt 2026 has three photos.
+// 4 okt 2026 has three photos, shown newest first (D-0031): place 1 is photo-3, taken at 12:00.
 
 // D-0029 (T-0027): the project's slug, the entry's day and the photo's place.
 const project = '/projects/tuinbank'
@@ -33,7 +33,7 @@ test('opens a photo full screen from the project, with its date and note', async
   const dialog = page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByText('Poten en zitregels op lengte gezaagd.')).toBeVisible()
-  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-1')
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-3')
   // Decoded and filling the screen's width.
   const img = await currentImage(page).evaluate((el: HTMLImageElement) => ({
     natural: el.naturalWidth,
