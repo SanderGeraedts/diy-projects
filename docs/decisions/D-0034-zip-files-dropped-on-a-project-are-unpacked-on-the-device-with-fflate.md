@@ -2,11 +2,11 @@
 id: D-0034
 title: "A zip file dropped onto a project page is unpacked on the device with fflate, and its images take the normal import"
 description: "Adds to D-0033: a dropped .zip is unpacked in the browser, one file at a time, with fflate (MIT, no dependencies of its own), loaded only when a zip is dropped and precached for offline use; its image files go through startImport, everything else in it is skipped, and an image over 40 MB is not added."
-status: Accepted
+status: Replaced
 date: 2026-11-22
 decided_by: architect
 replaces: []
-replaced_by: []
+replaced_by: [D-0035]
 resolves: []
 tags: [product, architecture]
 ---
