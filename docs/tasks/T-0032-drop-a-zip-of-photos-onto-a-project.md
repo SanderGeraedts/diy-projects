@@ -64,6 +64,24 @@ The picker doesn't take zip files (D-0033).
    ("4 foto's toegevoegd."), puts them in their days as the picker would, and doesn't list
    `readme.txt`. Dropping a damaged zip lists it as not added.
 6. The UX designer's review after the build, in *Design*, finds no differences.
+7. The summary's zip lines read word for word as in *Design* → *The summary: exact words*,
+   checked by unit tests on the import status (zips built with `zipSync`, the 40 MB limit
+   lowered through a parameter):
+   - a damaged zip: `kapot.zip: kon niet worden uitgepakt`;
+   - a zip with only `notes.txt` and `inner.zip`: `leeg.zip: bevat geen foto's`;
+   - an image over the limit in a folder: `vakantie/groot.jpg uit fotos.zip: is groter dan
+     40 MB`, and the other images of that zip are still added;
+   - an image without EXIF from a zip is listed under "Zonder opnamedatum, ingedeeld op de
+     datum van het bestand:" as `IMG_1.jpg uit fotos.zip`;
+   - the summary isn't shown (`running` stays true) until every dropped zip has been read to
+     its end, even when every image found so far is imported.
+8. While a zip is read, the import block shows `<zipnaam> uitpakken: N%` (N a whole number
+   from 0 to 100, from the bytes of the zip read so far), under the progress line when there
+   is one; a drop of only a zip never shows "Foto's importeren: 0 van 0". Checked by a unit
+   test on the status and the component, or an e2e test with a zip large enough to catch it.
+9. The hint next to "+ Foto's toevoegen" reads "of sleep foto's of zipbestanden naar deze
+   pagina" (the e2e tests in `e2e/drop.spec.ts` and `e2e/import.spec.ts` that look for the
+   old text are updated); the overlay's words are unchanged.
 
 # Notes
 
@@ -87,9 +105,184 @@ The picker doesn't take zip files (D-0033).
 
 # Design
 
+Designed 2026-11-22 by the ux-designer, from D-0034 and D-0033, on top of T-0031's design
+and the page as merged (`ImportPhotos.tsx`, `DropPhotos.tsx`, `src/photos/drop.ts`). The
+page, overlay, drop rules and summary layout stay as T-0031 made them. New: a zip branch in
+the split, an "uitpakken" line in the import block, four reasons, the "uit <zip>" form of a
+name, and one word more in the hint.
+
+## What counts as a zip
+
+A dropped file whose name ends in `.zip` (any case), or whose type is `application/zip` or
+`application/x-zip-compressed`. Anything else keeps T-0031's handling. The picker is
+unchanged (`accept="image/*"`, D-0033): a zip can't be picked.
+
+## What is taken from a zip
+
+- Every folder of the zip is opened, however deep. A folder itself is never listed.
+- Taken: an entry whose name ends in `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, `.heif`,
+  `.avif` or `.gif`, any case (D-0034's list; it has no `.bmp`/`.tiff`, so those are
+  skipped inside a zip although a loose one counts as an image, as D-0034 says).
+- **Skipped without a word,** never in the summary: other files (`readme.txt`, `.pdf`,
+  `.mov`), a zip inside the zip, anything under `__MACOSX/`, and any entry with a path part
+  that starts with a dot (`._IMG_1.jpg`, `.DS_Store`, `.thumbnails/a.jpg`). `Thumbs.db`
+  and `desktop.ini` are covered by "other files". Reason: these are almost always junk the
+  zipping tool added, and listing them would bury the lines that matter.
+
+## What the user sees while a zip is read
+
+The import block under "+ Foto's toevoegen" (T-0007, T-0031) appears at once on the drop,
+as now, and scrolls into view the same way (T-0031 step 3). While a zip is being read it
+shows one extra line, naming the zip and how far it is:
+
+```
+Foto's importeren: 2 van 3
+fotos.zip uitpakken: 40%
+```
+
+- **"<zipnaam> uitpakken: N%"**: same form as "Foto's importeren: 2 van 5" (object, verb,
+  colon, progress). N is the part of the zip's bytes read so far, rounded down to a whole
+  percent, and changes only when that whole number changes. Ordinary text size, in the text
+  colour, on its own line under the progress line (`mt-1`), with `break-words` so a long
+  zip name wraps.
+- **Before the first photo is found** (a zip dropped alone, still reading its first entry):
+  only the "uitpakken" line. Never "Foto's importeren: 0 van 0": the progress line shows
+  only once there is at least one photo to import.
+- **The total grows while a zip is read:** each image that comes out joins the running
+  import, so "2 van 3" becomes "2 van 4". This is how a second drop already joins an import
+  (T-0031 step 4), and the "uitpakken" line says there's more to come. The images aren't
+  counted up front: that would mean reading the whole zip twice.
+- **Several zips:** read one after another in the order dropped; the line names the zip
+  being read now. Loose photos in the same drop don't wait for the zips: they join the
+  import at once, so with loose photos the progress line is there from the start.
+- **When the last zip has been read** the "uitpakken" line goes, and the summary follows
+  once the last photo is done. **The summary never shows while a zip is still being
+  read,** even if every photo found so far is done (between two images the import has
+  nothing to do; it must still count as running).
+- **Leaving the project page doesn't stop it,** as with the import today: coming back shows
+  where it is. An app update waits for it, as it waits for the import (T-0019).
+- **Low storage:** the warning "Er is weinig ruimte op dit toestel. Niet alle foto's passen
+  misschien." also shows for a zip, judged by the zip's size (photos hardly compress, so
+  what comes out is at least that big).
+- **A drop or pick during it joins,** as now: loose photos join the running import, a new
+  zip is read after the zips already waiting. One summary at the end.
+- There is no cancel, as there is none for an import today.
+
+## How a name from a zip is shown
+
+Every line about a file from a zip names it by its path in the zip, then **"uit"** and the
+zip's name:
+
+- `IMG_1.jpg uit fotos.zip`
+- `vakantie/dag 2/IMG_7.jpg uit fotos.zip` (folders kept, separated by `/` as in the zip,
+  so two `IMG_1.jpg` in different folders can be told apart)
+
+Reason: reads as Dutch ("IMG_1.jpg from fotos.zip"), says where to look, and avoids a
+`fotos.zip/IMG_1.jpg` form that looks like a folder. A line about the zip itself uses just
+its name: `fotos.zip`. Loose files keep their plain name.
+
+This applies in both lists of the summary: "niet toegevoegd" / "niet gelukt", and
+"Zonder opnamedatum, ingedeeld op de datum van het bestand:". Both lists get `break-words`
+(the file-date list doesn't have it yet).
+
+The name is only shown in the summary; the app doesn't show a photo's file name anywhere
+else, so what the photo's `File` is called inside is not something the user sees (see the
+note to the developer below).
+
+## The summary: exact words
+
+The first line, the headings and their rules stay as T-0031 made them: "Geen foto's
+toegevoegd." / "1 foto toegevoegd." / "3 foto's toegevoegd."; the heading is "N bestanden
+niet toegevoegd:" as soon as one item in the list isn't a failed import, otherwise "N foto's
+niet gelukt:". A line about a zip counts as one item. Items stay "naam: reden", the reason
+a lowercase phrase. New reasons:
+
+| When | Line |
+| --- | --- |
+| An image in the zip is larger than 40 MB unpacked | `vakantie/IMG_9.heic uit fotos.zip: is groter dan 40 MB` |
+| The zip can't be read at all (damaged, encrypted, not really a zip), nothing came out | `fotos.zip: kon niet worden uitgepakt` |
+| The zip breaks partway, after one or more images came out (those stay added) | `fotos.zip: kon niet helemaal worden uitgepakt` |
+| One image entry can't be unpacked (for example encrypted) but the zip goes on | `IMG_3.jpg uit fotos.zip: kon niet worden uitgepakt` |
+| The zip has no image at all (empty, only junk, only an inner zip) | `fotos.zip: bevat geen foto's` |
+| The unpacking code itself can't be loaded (should not happen; precached) | `fotos.zip: kan nu niet worden uitgepakt; probeer het later opnieuw` |
+
+- An image from a zip that comes out but can't be decoded or stored gets the import's own
+  reasons, in the "uit" form: `IMG_4.jpg uit fotos.zip: kon niet worden gelezen`,
+  `… : geen ruimte meer op het toestel`.
+- "bevat geen foto's" is only for a zip in which no image was found. A zip whose images were
+  all too large or broken lists those images instead.
+- Encrypted and damaged share "kon niet worden uitgepakt": the browser can't reliably tell
+  them apart, and either way the fix is the same (zip it again without a password).
+- **Order of the list:** loose items that aren't photos first (known at the drop), then the
+  zip lines and too-large images in the order they're found, then failed imports, as now
+  (not-added before failed).
+
+Example: dropping `a.jpg`, `notes.txt`, `fotos.zip` (with `IMG_1.jpg`, no EXIF,
+`vakantie/IMG_2.jpg`, `vakantie/IMG_9.heic` of 52 MB, `readme.txt` and `__MACOSX/`),
+`leeg.zip` (only `readme.txt`) and `kapot.zip`:
+
+```
+3 foto's toegevoegd.
+4 bestanden niet toegevoegd:
+  • notes.txt: is geen foto
+  • vakantie/IMG_9.heic uit fotos.zip: is groter dan 40 MB
+  • leeg.zip: bevat geen foto's
+  • kapot.zip: kon niet worden uitgepakt
+Zonder opnamedatum, ingedeeld op de datum van het bestand:
+  • IMG_1.jpg uit fotos.zip
+[Sluiten]
+```
+
+## Hint and overlay
+
+- **The hint** becomes: **of sleep foto's of zipbestanden naar deze pagina**. Same place and
+  style as T-0031 (small grey, only with a mouse or trackpad, wraps under the button when
+  narrow). Sander asked for zips; without a word he'd have to remember they work.
+- **The overlay stays word for word:** "Laat los om foto's toe te voegen" / "aan
+  {projecttitel}" / "Ze komen bij de dag waarop ze zijn gemaakt." It talks about what
+  happens to photos, which holds for photos from a zip too, and the browser doesn't tell
+  what is dragged before the drop (T-0031).
+
+## Offline
+
+Exactly the same as online, no extra message: the unpacking code is in the offline cache
+and the zip is on the device. Only if that code can't be loaded does the zip get "kan nu
+niet worden uitgepakt; probeer het later opnieuw"; loose photos in the same drop are added
+anyway.
+
+## Keyboard and screen reader
+
+- Unchanged from T-0031: dropping is a mouse action, "+ Foto's toevoegen" stays the keyboard
+  way (and doesn't take zips, D-0033). Tab order and focus don't change; nothing new is
+  focusable.
+- The "uitpakken" line is inside the import block's `role="status"`, so it is announced with
+  the progress. It changes at most once per whole percent, no more often than the photo
+  count in practice.
+- The hint is read after the button, as now.
+
+## Small screens and touch
+
+No change. Phones don't drop files; the hint stays hidden there. If a zip drop ever reaches
+a narrow window, the long "uit" names and the "uitpakken" line wrap inside the block.
+
+## Notes for the developer (not visible, but they decide whether the above holds)
+
+- **The reading belongs with the import queue, not the component**, so leaving the page
+  doesn't stop it and the status (`running`, the zip name, the percent) lives in
+  `ImportStatus` beside `total`/`done`. `startBusy` must cover the reading, not only the
+  photos.
+- **One image at a time, end to end:** read the next entry when the import is ready for it,
+  so unpacked images don't pile up in memory while the import is slower than the unzip.
+- **The label vs. the file:** the summary shows `<pad> uit <zip>`. The `File` handed to the
+  import becomes the photo's `original` and its name is used for the upload
+  (`src/sync/photos.ts` `fileName`), so a `/` in it is risky; naming the `File` by the last
+  part of the path and carrying the label separately is one way. Give the `File` the image
+  type that matches its extension (`image/jpeg` etc.), as a picked file has.
+
 # Test
 
 # Log
 
 - 2026-11-22 architect: raised from Sander's request as a follow-up to T-0031, so image drop doesn't wait on it; recorded D-0034: zips are unpacked on the device with fflate (MIT, no dependencies of its own), lazily loaded and precached, one entry at a time, images only, 40 MB per image, unreadable zips listed as not added. Handed to the UX designer.
 - 2026-11-22 architect: harness v0.9.0 (T-0033, G-0031): sized full, a new dependency and new summary lines on top of T-0031's design. *Done when* 1 is now CI's run. Still with the UX designer, after T-0031's design.
+- 2026-11-22 ux-designer: designed: the "<zip> uitpakken: N%" line while a zip is read (total grows, no summary until every zip is read), names as "<pad> uit <zip>", four zip reasons (groter dan 40 MB, kon (niet helemaal) worden uitgepakt, bevat geen foto's, kan nu niet worden uitgepakt), junk skipped silently, hint names zipbestanden, overlay unchanged; *Done when* 7-9 added. Handed to the developer.
