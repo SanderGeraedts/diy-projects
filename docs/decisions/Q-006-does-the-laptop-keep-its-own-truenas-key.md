@@ -2,12 +2,12 @@
 id: Q-006
 title: "Does the laptop keep its own TrueNAS key now that NAS work runs through the runner on the NAS?"
 description: "G-0026 holds the TrueNAS key only in the infrastructure repository's GitHub environment, but this project's NAS setup still has a key for the claude-agent user in Sander's user environment; decide whether to revoke it and work only through harness nas --remote, or keep it and overrule G-0026 here."
-status: Open                # Open | Resolved
+status: Resolved
 raised_on: 2026-11-22
 raised_by: architect
 issue: "https://github.com/SanderGeraedts/diy-projects/issues/60"
 blocks: [T-0034]
-resolved_by: []
+resolved_by: [D-0036]
 tags: [nas, access, operations]
 ---
 
@@ -49,3 +49,9 @@ Engineer's call. Nothing in T-0030 to T-0032 needs the NAS; they don't wait on t
    after which the key is revoked. Needs the same overruling decision in the meantime.
 
 # Answer
+
+Resolved on 2026-11-23 by D-0036 (option 2): the Engineer answered "Keep key as fallback".
+The laptop keeps its own `claude-agent` key in Sander's Windows user environment, used with
+`harness nas` run locally on the home network only when `harness nas --remote` can't run;
+`--remote` stays the normal route, and agents never read, print or carry the key. D-0036
+overrules G-0026 for that one key. T-0034 keeps the README's local setup as the fallback.
