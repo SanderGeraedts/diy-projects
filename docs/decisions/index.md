@@ -10,6 +10,7 @@ then this list, then only the records your work touches. How the registry works 
 
 - [D-0030 This project follows the harness](D-0030-this-project-follows-the-harness.md): The harness is installed as a pinned dev dependency; its rules and global decisions (G-NNNN) apply here unless a project decision overrules one, and the project decisions whose substance is now global are replaced by them.
 - [D-0010 The repo is SanderGeraedts/diy-projects, private until v1 works, then public under MIT](D-0010-private-personal-repo-mit-later.md): The code lives on Sander's personal GitHub account as diy-projects, private while it's rough; once v1 works and the deploy docs are generic it goes public under the MIT licence.
+- [D-0036 The laptop keeps its own TrueNAS key as a fallback for when the runner on the NAS is unavailable; harness nas --remote stays the normal route](D-0036-the-laptop-keeps-its-own-truenas-key-as-a-fallback.md): Overrules G-0026 for one key: Sander's laptop keeps the claude-agent TrueNAS API key in his Windows user environment, used with harness nas run locally on the home network only when harness nas --remote can't run; agents never read, print or carry it, and every other rule of G-0026 and G-0027 holds.
 
 ### Architecture
 
@@ -33,8 +34,6 @@ then this list, then only the records your work touches. How the registry works 
 
 ## Open questions
 
-- [Q-006 Does the laptop keep its own TrueNAS key now that NAS work runs through the runner on the NAS?](Q-006-does-the-laptop-keep-its-own-truenas-key.md): G-0026 holds the TrueNAS key only in the infrastructure repository's GitHub environment, but this project's NAS setup still has a key for the claude-agent user in Sander's user environment; decide whether to revoke it and work only through harness nas --remote, or keep it and overrule G-0026 here.
-
 ## Resolved questions
 
 - [Q-001 How should the guarded-path review be enforced while the repo is private on a free plan?](Q-001-how-to-enforce-review-of-guarded-prs-on-a-private-free-repo.md): GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard.
@@ -42,6 +41,7 @@ then this list, then only the records your work touches. How the registry works 
 - [Q-003 How does Sander sign in to PocketBase, and what happens when the sign-in expires offline?](Q-003-how-does-sander-sign-in.md): Sync needs a PocketBase sign-in (D-0005: sign-up closed, owner-only records); decide the sign-in method, how long a sign-in lasts, and that an expired sign-in never blocks offline use.
 - [Q-004 How does a second device (the laptop, or a reinstalled phone) get the 2560 px copy of each photo?](Q-004-how-do-other-devices-get-the-phone-sized-copy.md): D-0003 has the phone make a 2560 px copy before sync and keeps only originals on the NAS; decide how any other device gets its offline copy without downloading every original.
 - [Q-005 How are PocketBase's data and the photo originals on the NAS backed up?](Q-005-how-is-the-nas-data-backed-up.md): The NAS holds the only copy of every photo original (D-0003) and is the source of truth (D-0002), but no decision covers backups; decide what is backed up, where to, how often, and how a restore is tested.
+- [Q-006 Does the laptop keep its own TrueNAS key now that NAS work runs through the runner on the NAS?](Q-006-does-the-laptop-keep-its-own-truenas-key.md): G-0026 holds the TrueNAS key only in the infrastructure repository's GitHub environment, but this project's NAS setup still has a key for the claude-agent user in Sander's user environment; decide whether to revoke it and work only through harness nas --remote, or keep it and overrule G-0026 here.
 
 ## Replaced
 
