@@ -24,6 +24,6 @@ jobs:
       # A merge made with GITHUB_TOKEN starts no push workflows, so backend.yml wouldn't
       # publish the PocketBase image. These are the paths its push trigger watches.
       backend-workflow: backend.yml
-      backend-paths: '^(deploy/nas/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'
+      backend-paths: '^(backend/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'
       # The names of the workflows that must pass when they ran for the pull request.
       wait-for: CI,backend

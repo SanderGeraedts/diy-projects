@@ -2,7 +2,7 @@ import { PROJECT_STATUSES, type Entry, type Photo, type Project, type ProjectSta
 import { isSlug } from '../db/slug'
 
 // T-0016: how a local record (src/db/db.ts) maps to its PocketBase record
-// (deploy/nas/pb_migrations/). A record keeps the id its device gave it (a UUID), on the NAS
+// (backend/pb_migrations/). A record keeps the id its device gave it (a UUID), on the NAS
 // too, so projectId, entryId and coverPhotoId mean the same everywhere. On the NAS an empty
 // text field is "", locally it's null (deletedAt) or absent (coverPhotoId).
 //
@@ -150,7 +150,7 @@ export function downloadedPhoto(r: ServerRecord, copy: Blob, thumbnail: Blob): P
 }
 
 /**
- * A marker of a record the NAS deleted for good (T-0022, deploy/nas/pb_hooks/bin.pb.js):
+ * A marker of a record the NAS deleted for good (T-0022, backend/pb_hooks/bin.pb.js):
  * no content, no files, only `purgedAt`. A device drops its own copy when it sees one.
  */
 export function isPurged(r: ServerRecord): boolean {

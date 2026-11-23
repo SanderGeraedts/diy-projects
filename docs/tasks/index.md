@@ -7,11 +7,10 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Open
 
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
-- [T-0035 Make the backend run with harness backend, without Docker](T-0035-run-the-backend-with-harness-backend.md) (small): G-0032: move the PocketBase image's source to backend/ with a throwaway.sh, so pnpm exec harness backend starts and smoke-tests it on a machine without Docker; CI, the publish workflow and the NAS keep working.
 
 ## Doing
 
-None.
+- [T-0035 Make the backend run with harness backend, without Docker](T-0035-run-the-backend-with-harness-backend.md) (small): G-0032: move the PocketBase image's source to backend/ with a throwaway.sh, so pnpm exec harness backend starts and smoke-tests it on a machine without Docker; CI, the publish workflow and the NAS keep working.
 
 ## Done
 

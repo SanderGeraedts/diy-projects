@@ -10,7 +10,7 @@ import type { ServerRecord } from './records'
 //   are confirmed (`markPhotoFileUploaded` in src/db/write.ts).
 // - Other devices download the copy and the thumbnail, never the original. The NAS does no
 //   image processing; PocketBase's thumbnails are not used.
-// - The files are protected (deploy/nas/pb_migrations/): a download needs a short-lived file
+// - The files are protected (backend/pb_migrations/): a download needs a short-lived file
 //   token in the URL (`/api/files/…?token=`), the Funnel path for files (D-0005).
 
 /** One upload request: the two small files together, or the original. */

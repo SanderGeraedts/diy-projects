@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 // T-0022 (D-0014): the bin ("Prullenbak") on the seeded demo data (D-0006). Previews and dev
 // have no NAS, so "Definitief verwijderen" removes the demo data from this browser only; the
-// NAS side is tested against a throwaway PocketBase in CI (deploy/nas/smoke-test.sh and
+// NAS side is tested against a throwaway PocketBase in CI (backend/smoke-test.sh and
 // src/sync/*.pocketbase.test.ts). Tuinbank has three entries: 4 okt (3 photos), 11 okt (2)
 // and 25 okt (1).
 
