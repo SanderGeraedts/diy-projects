@@ -2,13 +2,13 @@
 id: T-0035
 title: "Make the backend run with harness backend, without Docker"
 description: "G-0032: move the PocketBase image's source to backend/ with a throwaway.sh, so pnpm exec harness backend starts and smoke-tests it on a machine without Docker; CI, the publish workflow and the NAS keep working."
-status: Doing
+status: Done
 size: small
 depends_on: [T-0033]
 decisions: [G-0032, G-0019, G-0011, G-0023, D-0023, D-0030]
 raised_on: 2026-11-22
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/66"]
+done_on: "2026-11-23"
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/66", "https://github.com/SanderGeraedts/diy-projects/pull/67"]
 ---
 
 # Goal
@@ -151,9 +151,24 @@ engineers, generated files all ✓ (exit 0).
 Verdict: passed. Done when 4 (the auto-merge waits for `backend`) is checked once the pull
 request is ready; Done when 5 after the merge.
 
+**Done when 4** (after `gh pr ready 66`, head d5e1e55): CI's ready_for_review run 45124117848,
+attempt 1, success (`checks / checks` with e2e "69 passed", no flaky; `pocketbase-auth`
+success). The Auto-merge run it started, 45124305272, read `wait-for: CI,backend`, logged
+"backend passed." and then merged #66 as 90cdb72 (2026-11-23T06:28:26Z). It then logged
+"Started ci.yml on main." and "Started backend.yml on main."
+
+**Done when 5:** the `backend` run on main 45124333387 (workflow_dispatch from that auto-merge
+run, 90cdb72, attempt 1, success): "All smoke tests passed.", then
+"sha-90cdb72: digest: sha256:a2dfb90bf726edde9c4e4e15a1c5b7e69eb3709f8c17485a6b4f9e30f279d4e8"
+and "stable: digest: sha256:a2dfb90bf726edde9c4e4e15a1c5b7e69eb3709f8c17485a6b4f9e30f279d4e8",
+the same image. The summary's text can't be read with `gh`; the step that writes "Published
+`…:sha-90cdb72` and `…:stable`" to it passed. CI on main 45124330421 (90cdb72, attempt 1):
+success.
+
 # Log
 
 - 2026-11-22 architect: raised in the harness v0.9.0 update (T-0033) to conform to G-0032; conform rather than overrule, because agents here have no Docker and the backend tests run only in CI today. Small. Handed to the developer.
 - 2026-11-23 developer: moved `Dockerfile`, `pb_migrations/`, `pb_hooks/` and `smoke-test.sh` from `deploy/nas/` to `backend/` with `git mv` (a commit of renames only); added `backend/throwaway.sh` from the harness template (backend.yml's flags, superuser `admin@throwaway.invalid`); pointed backend.yml (triggers, build, smoke), `backend-paths` in auto-merge.yml, the docs, code comments and `src/db/slug.test.ts` at `backend/`. `smoke-test.sh` changed beyond path lines so it runs under `harness backend smoke`: the address from `BACKEND_TEST_URL` (it refuses an address not on this machine), the superuser from `BACKEND_TEST_SUPERUSER_*` (still made with `docker exec pb` when backend.yml's container runs), scratch files from `mktemp -d` instead of `/tmp`, JSON bodies through a file (curl.exe on Windows broke the UTF-8 of "Kast für Sanne" on its command line), and the on-disk file checks read the data folder `harness backend` started with (or `BACKEND_TEST_DATA_DIR`) when there is no `pb` container. Migrations and hooks are unchanged: `git diff --stat -M main -- deploy/nas backend` shows the 13 image files as renames with 0 changed lines, plus `smoke-test.sh` (98 lines), the new `throwaway.sh` and one row of `deploy/nas/README.md`. **pocketbase-auth now starts its backend with `pnpm exec harness backend start`** (port 8090, the throwaway superuser), as a development machine does; backend.yml still builds and tests the image with Docker. Check, on this Windows machine without Docker (`command -v docker`: nothing): (1) `harness backend start` printed "The throwaway backend is at http://127.0.0.1:57959, for https://app.example" (exit 0); `harness backend smoke` printed 30 `ok:` lines and "All smoke tests passed." (exit 0), the "three files on disk" and "files gone from disk" checks included; `harness backend stop` printed "The throwaway backend is stopped, and its database removed." (exit 0). (2) On a fresh one, with `POCKETBASE_TEST_URL` its address and `POCKETBASE_TEST_SUPERUSER_EMAIL`/`_PASSWORD` admin@throwaway.invalid / throwaway-only-password: `pnpm exec vitest run src/sync/sync.pocketbase.test.ts` "Test Files 1 passed (1), Tests 13 passed (13)"; with the auth and photo files too, 3 files and 26 tests passed. (3) the `git grep` prints nothing (exit 1). Also `pnpm run typecheck` clean; `pnpm test` 30 files passed, 3 skipped (the pocketbase ones), 387 tests passed.
 - 2026-11-23 developer: draft PR #66. On bcc25d5, attempt 1, no retries: `backend` / `image` passed ("All smoke tests passed." in the `pb` container); CI `checks / checks` and `pocketbase-auth` passed ("The throwaway backend is at http://127.0.0.1:8090", then sign-in, sync and photo files 1 passed each, then stopped). Auto-merge said "#66 is a draft: it waits for the tester to mark it ready." Handed to the tester; nothing a user sees. Remaining: Done when 4's wait for `backend` shows only once the PR is ready; Done when 5 after the merge. On the merge, main's auto-merge still has the old `backend-paths`, but this PR changes `.github/workflows/backend.yml`, which that pattern also matches, so the publish still starts.
 - 2026-11-23 tester: passed: Done when 1, 2, 3 and 6 checked on this machine without Docker, CI and backend green on attempt 1 (see *Test*); the smoke-test changes keep every check and aren't in the image. Marking the PR ready. Remaining: Done when 4 (the auto-merge waits for `backend` on the ready PR) and Done when 5 (the `backend` run on main publishes `:stable` and `:sha-<7>`), recorded after the merge.
+- 2026-11-23 tester: passed: Done when 4 (auto-merge 45124305272 logged "backend passed." before merging #66) and Done when 5 (backend 45124333387 on main published `sha-90cdb72` and `stable`, same digest; CI on main 45124330421 green) recorded. Nothing remains. Done.

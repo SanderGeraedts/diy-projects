@@ -10,7 +10,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Doing
 
-- [T-0035 Make the backend run with harness backend, without Docker](T-0035-run-the-backend-with-harness-backend.md) (small): G-0032: move the PocketBase image's source to backend/ with a throwaway.sh, so pnpm exec harness backend starts and smoke-tests it on a machine without Docker; CI, the publish workflow and the NAS keep working.
+None.
 
 ## Done
 
@@ -46,6 +46,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 - [T-0031 Add photos by dropping them onto a project page](T-0031-drop-photos-onto-a-project.md): D-0033: image files dragged from the computer and dropped anywhere on the owner's project page go through the same import as "Foto's toevoegen"; non-images are listed as not added, and a stray drop anywhere in the app never opens the file in the browser.
 - [T-0032 Add the photos in a zip file by dropping it onto a project page](T-0032-drop-a-zip-of-photos-onto-a-project.md): D-0034: a .zip dropped onto the owner's project page is unpacked on the device with fflate, one file at a time, and its images go through the normal import; other files are skipped, an image over 40 MB and an unreadable zip are listed as not added.
 - [T-0033 Update the harness from v0.1.0 to v0.9.0](T-0033-update-the-harness-to-v0-9-0.md) (small): G-0005: pin the harness and both reusable workflows at v0.9.0, commit what harness sync writes (agents sized by G-0031, the grill skill, the templates, the ask rules), follow each version's update notes, and per changed global decision open a task or say why none is needed.
+- [T-0035 Make the backend run with harness backend, without Docker](T-0035-run-the-backend-with-harness-backend.md) (small): G-0032: move the PocketBase image's source to backend/ with a throwaway.sh, so pnpm exec harness backend starts and smoke-tests it on a machine without Docker; CI, the publish workflow and the NAS keep working.
 
 ## Dropped
 
