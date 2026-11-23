@@ -1,5 +1,5 @@
 // @vitest-environment node
-// T-0016: the sync engine against a real, throwaway PocketBase built from deploy/nas (its
+// T-0016: the sync engine against a real, throwaway PocketBase built from backend/ (its
 // migrations and hooks). CI's `pocketbase-sync` job starts one on an empty database and sets
 // the variables below. Skipped everywhere else. Never point this at the NAS (D-0006).
 //

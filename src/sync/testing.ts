@@ -6,21 +6,21 @@ import type { ServerRecord } from './records'
 
 // Test helpers for src/sync (T-0016). Not imported by the app.
 //
-// A fake PocketBase that behaves like deploy/nas on the points sync relies on: records keep
+// A fake PocketBase that behaves like backend/ on the points sync relies on: records keep
 // the id they're created with, owner-only access (404 for anyone else), `updated` set by the
 // server on every save, the history hook (the overwritten version on every update) and the
 // last-write-wins hook (an older `updatedAt` is kept in history and the stored record is
 // returned unchanged). Requests can be made to fail.
 //
-// Reads (T-0026): like deploy/nas's rules, a list also returns other owners' public projects
+// Reads (T-0026): like backend/'s rules, a list also returns other owners' public projects
 // that aren't tombstoned, and their live entries and photos; the engine asks for its own.
 //
-// The bin (T-0022): like deploy/nas/pb_hooks/bin.pb.js, the owner's DELETE of a tombstoned
+// The bin (T-0022): like backend/pb_hooks/bin.pb.js, the owner's DELETE of a tombstoned
 // project, entry or photo deletes it and what it holds for good: each record becomes a marker
 // with `purgedAt`, without content or files, and its history rows go. A marker answers every
 // later update, upload or create (also of a new record under it) with 410 Gone.
 //
-// Slugs (T-0027): like deploy/nas/pb_hooks/slugs.pb.js, a project's slug is made unique
+// Slugs (T-0027): like backend/pb_hooks/slugs.pb.js, a project's slug is made unique
 // among its owner's other projects (purge markers left out, earlier slugs taken) on every
 // create and update, and a rename's stored slug joins `oldSlugs`, without a new `updatedAt`.
 //
@@ -169,7 +169,7 @@ export class FakePocketBase {
     record.oldSlugs = [...new Set(old)].filter((s) => s !== slug && !current.has(s))
   }
 
-  /** Readable by anyone, as the T-0026 list rules have it (deploy/nas/pb_migrations/). */
+  /** Readable by anyone, as the T-0026 list rules have it (backend/pb_migrations/). */
   isPublic(collection: string, record: ServerRecord): boolean {
     if (record.deletedAt) return false
     const project = collection === 'projects' ? record : this.records.get('projects')?.get(String(record.projectId))

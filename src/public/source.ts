@@ -8,7 +8,7 @@ import { entryFromServer, projectFromServer, type ServerRecord } from '../sync/r
 
 // T-0026 (D-0025): what a visitor who isn't signed in reads. Online only, straight from
 // PocketBase, nothing stored on the device: no Dexie, no outbox, no sync. PocketBase's rules
-// decide what a visitor gets (deploy/nas/pb_migrations/1794931500_public_projects.js): public
+// decide what a visitor gets (backend/pb_migrations/1794931500_public_projects.js): public
 // projects that aren't tombstoned, their live entries and photo records, and those photos'
 // copies and thumbnails, never an original. The filters here only keep requests small; they
 // are not the boundary.

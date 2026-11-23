@@ -1,5 +1,5 @@
 // @vitest-environment node
-// T-0015: sign-in against a real, throwaway PocketBase built from deploy/nas. CI's
+// T-0015: sign-in against a real, throwaway PocketBase built from backend/. CI's
 // `pocketbase-auth` job starts one on an empty database and sets the variables below.
 // Skipped everywhere else. Never point this at the NAS (D-0006).
 import PocketBase, { ClientResponseError, getTokenPayload } from 'pocketbase'

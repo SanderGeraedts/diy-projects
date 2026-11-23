@@ -35,7 +35,7 @@ production build with `POCKETBASE_URL` set ever talks to a backend.
   `POCKETBASE_URL` for the production context only. Steps:
   [`docs/deploy/netlify.md`](docs/deploy/netlify.md).
 - **Backend:** PocketBase with the schema and hooks baked into an image
-  ([`deploy/nas/Dockerfile`](deploy/nas/Dockerfile)), run on a NAS with Docker Compose and
+  ([`backend/Dockerfile`](backend/Dockerfile)), run on a NAS with Docker Compose and
   reachable from the internet only through Tailscale Funnel, which exposes an allowlist of
   paths. Set `APP_ORIGIN` to your front end's origin (`https://<your-domain>`) so CORS
   allows it. Steps: [`deploy/nas/README.md`](deploy/nas/README.md); background:

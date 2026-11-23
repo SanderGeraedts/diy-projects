@@ -37,16 +37,22 @@ jobs:
         e2e/**/*-snapshots/**
         playwright-report/
 
-  # T-0015 and T-0016: sign-in and sync against a throwaway PocketBase built from deploy/nas
-  # (its migrations and hooks), on an empty database (G-0019: never the NAS). The
-  # *.pocketbase.test.ts files are skipped elsewhere.
+  # T-0015 and T-0016: sign-in and sync against a throwaway PocketBase with backend/'s
+  # migrations and hooks, on an empty database (G-0019: never the NAS). The
+  # *.pocketbase.test.ts files are skipped elsewhere. T-0035: started with harness backend
+  # (G-0032), as on a development machine, from the PocketBase version backend/Dockerfile
+  # pins; backend.yml tests the image itself.
   pocketbase-auth:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       POCKETBASE_TEST_URL: http://127.0.0.1:8090
-      POCKETBASE_TEST_SUPERUSER_EMAIL: admin@ci.invalid
-      POCKETBASE_TEST_SUPERUSER_PASSWORD: ci-only-password-123456
+      POCKETBASE_TEST_SUPERUSER_EMAIL: admin@throwaway.invalid
+      POCKETBASE_TEST_SUPERUSER_PASSWORD: throwaway-only-password
+      # The same port and superuser, for harness backend.
+      BACKEND_TEST_PORT: 8090
+      BACKEND_TEST_SUPERUSER_EMAIL: admin@throwaway.invalid
+      BACKEND_TEST_SUPERUSER_PASSWORD: throwaway-only-password
       # Any test origin will do; production sets its own (APP_ORIGIN, deploy/nas/README.md).
       APP_ORIGIN: https://app.example
     steps:
@@ -57,25 +63,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build PocketBase
-        run: docker build -t pb-test deploy/nas
       - name: Start on an empty database
-        # As .github/workflows/backend.yml does, with the NAS's command line.
-        run: |
-          docker run -d --name pb -p 127.0.0.1:8090:8090 pb-test serve --http=0.0.0.0:8090 \
-            --dir=/pb_data --migrationsDir=/pb_migrations --hooksDir=/pb_hooks \
-            --automigrate=false --origins="$APP_ORIGIN"
-          for i in $(seq 1 30); do
-            if curl -fsS "$POCKETBASE_TEST_URL/api/health"; then echo; break; fi
-            if [ "$(docker inspect -f '{{.State.Running}}' pb)" != "true" ]; then
-              echo "PocketBase exited"; exit 1
-            fi
-            sleep 1
-          done
-          curl -fsS "$POCKETBASE_TEST_URL/api/health" >/dev/null
-      - name: Create the superuser
-        # The CLI, as deploy/nas/smoke-test.sh does; the test makes its users through it.
-        run: docker exec pb pocketbase superuser upsert "$POCKETBASE_TEST_SUPERUSER_EMAIL" "$POCKETBASE_TEST_SUPERUSER_PASSWORD" --dir=/pb_data
+        # The NAS's flags, with the superuser made through the CLI; the tests make their users
+        # through it.
+        run: pnpm exec harness backend start
       - name: Sign-in tests
         run: pnpm exec vitest run --reporter=verbose src/auth/auth.pocketbase.test.ts
       - name: Sync tests
@@ -87,4 +78,7 @@ jobs:
         run: pnpm exec vitest run --reporter=verbose src/sync/photos.pocketbase.test.ts
       - name: PocketBase logs
         if: always()
-        run: docker logs pb || true
+        run: cat ~/.cache/harness/backends/*/backend.log || true
+      - name: Stop
+        if: always()
+        run: pnpm exec harness backend stop

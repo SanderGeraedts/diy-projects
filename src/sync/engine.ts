@@ -46,17 +46,17 @@ import {
 // 4. renews the sign-in (D-0013).
 //
 // The bin (T-0022, D-0014): a record the NAS deleted for good stays there as a marker with
-// `purgedAt` (deploy/nas/pb_hooks/bin.pb.js). A marker that comes in through a pull, or a
+// `purgedAt` (backend/pb_hooks/bin.pb.js). A marker that comes in through a pull, or a
 // push or upload the NAS answers with 410 Gone, drops this device's copy of that record and
 // its outbox rows: the NAS refuses those changes for good, so they would block the queue.
 //
-// Last-write-wins itself is decided on the NAS (deploy/nas/pb_hooks/last_write_wins.pb.js):
+// Last-write-wins itself is decided on the NAS (backend/pb_hooks/last_write_wins.pb.js):
 // a push older than the stored record is kept in `history` and answered with the stored
 // record, which this device then takes over. A newer push overwrites, and the NAS keeps the
 // overwritten version in `history` (history.pb.js). So nothing is lost silently either way.
 //
 // Slugs (T-0027, D-0029): the NAS settles a project's slug and oldSlugs
-// (deploy/nas/pb_hooks/slugs.pb.js) without a new `updatedAt`, so a device takes them from
+// (backend/pb_hooks/slugs.pb.js) without a new `updatedAt`, so a device takes them from
 // every project the NAS sends (a push's answer, a pull) unless it has a change of its own
 // pending. A NAS from before T-0027 sends none: the device keeps its own, or makes one.
 //
