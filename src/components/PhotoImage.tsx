@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect } from 'react'
 import type { Photo } from '../db/db'
 import { fitLongEdge, OLD_THUMBNAIL_LONG_EDGE, THUMBNAIL_LONG_EDGE } from '../photos/resize'
 import type { PublicPhoto } from '../public/source'
@@ -6,46 +6,85 @@ import type { PublicPhoto } from '../public/source'
 /** A photo as shown: stored on the device (the owner), or by address on the NAS (a visitor, T-0026). */
 export type ShownPhoto = Photo | PublicPhoto
 
-/** The address to show a photo's copy or thumbnail from; for a stored photo, an object URL. */
-export function usePhotoUrl(photo: ShownPhoto, file: 'copy' | 'thumbnail'): string | undefined {
-  const remote = 'copyUrl' in photo ? (file === 'thumbnail' ? photo.thumbnailUrl : photo.copyUrl) : undefined
-  const blob = 'copyUrl' in photo ? undefined : file === 'thumbnail' ? photo.thumbnail : photo.blob
-  const [url, setUrl] = useState<string>()
-  useEffect(() => {
-    if (!blob) return
-    const objectUrl = URL.createObjectURL(blob)
-    setUrl(objectUrl)
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [blob])
-  return remote ?? url
+/**
+ * Object URLs of stored photos (D-0040), shared by every image that shows the same file and
+ * kept while that file is the same. Dexie hands out a new Blob object for the same stored
+ * file on every query, so an address is keyed by the photo, which of its files, and what
+ * tells two files apart: the Blob's size and type. A rebuilt thumbnail or a file taken over
+ * from the NAS differs in size, so it gets a new address; a write to other fields or other
+ * photos keeps it. An address is revoked once no mounted image has used it for a moment.
+ */
+interface CachedUrl {
+  url: string
+  /** Mounted images using it. */
+  refs: number
+  /** When a render last asked for it; it isn't revoked within `REVOKE_AFTER_MS` of that. */
+  touched: number
 }
 
-interface Sources {
-  thumbnail: string
-  copy: string
+const urls = new Map<string, CachedUrl>()
+
+/** How long an address no mounted image uses is kept, for a render that is about to commit. */
+export const REVOKE_AFTER_MS = 2000
+
+/** The cache key of one of a stored photo's files. */
+export function fileKey(photoId: string, file: 'copy' | 'thumbnail', blob: Blob): string {
+  return `${photoId}|${file}|${blob.size}|${blob.type}`
+}
+
+function sweepLater(key: string) {
+  setTimeout(() => {
+    const entry = urls.get(key)
+    if (!entry || entry.refs > 0) return
+    const wait = entry.touched + REVOKE_AFTER_MS - Date.now()
+    if (wait > 0) return sweepLater(key)
+    urls.delete(key)
+    URL.revokeObjectURL(entry.url)
+  }, REVOKE_AFTER_MS)
+}
+
+/** The address for a file, made the first time it is asked for. Read during render. */
+function peekUrl(key: string, blob: Blob): string {
+  let entry = urls.get(key)
+  if (!entry) {
+    entry = { url: URL.createObjectURL(blob), refs: 0, touched: Date.now() }
+    urls.set(key, entry)
+    // A render that never commits leaves it unused: revoke it then.
+    sweepLater(key)
+  }
+  entry.touched = Date.now()
+  return entry.url
 }
 
 /**
- * Both addresses of a photo at once (T-0037), so the `<img>` is rendered once with its
- * `srcset` complete and the browser makes one choice. For a stored photo, object URLs made
- * and revoked together; undefined until they are made.
+ * The object URL of one of a stored photo's files, stable while the file is the same. Taken
+ * in a layout effect, so an address an `<img>` was just given is counted before the one it
+ * replaces can be revoked.
  */
-function usePhotoSources(photo: ShownPhoto): Sources | undefined {
-  const thumbnailBlob = 'copyUrl' in photo ? undefined : photo.thumbnail
-  const copyBlob = 'copyUrl' in photo ? undefined : photo.blob
-  const [urls, setUrls] = useState<Sources>()
-  useEffect(() => {
-    if (!thumbnailBlob || !copyBlob) return
-    const thumbnail = URL.createObjectURL(thumbnailBlob)
-    const copy = URL.createObjectURL(copyBlob)
-    setUrls({ thumbnail, copy })
+function useStoredUrl(photoId: string, file: 'copy' | 'thumbnail', blob: Blob | undefined): string | undefined {
+  const key = blob ? fileKey(photoId, file, blob) : undefined
+  const url = key && blob ? peekUrl(key, blob) : undefined
+  useLayoutEffect(() => {
+    if (!key) return
+    const entry = urls.get(key)
+    if (entry) entry.refs++
     return () => {
-      URL.revokeObjectURL(thumbnail)
-      URL.revokeObjectURL(copy)
+      const now = urls.get(key)
+      if (!now) return
+      now.refs--
+      now.touched = Date.now()
+      if (now.refs <= 0) sweepLater(key)
     }
-  }, [thumbnailBlob, copyBlob])
-  if ('copyUrl' in photo) return { thumbnail: photo.thumbnailUrl, copy: photo.copyUrl }
-  return urls
+  }, [key])
+  return url
+}
+
+/** The address to show a photo's copy or thumbnail from; for a stored photo, an object URL. */
+export function usePhotoUrl(photo: ShownPhoto, file: 'copy' | 'thumbnail', wanted = true): string | undefined {
+  const remote = 'copyUrl' in photo ? (file === 'thumbnail' ? photo.thumbnailUrl : photo.copyUrl) : undefined
+  const blob = 'copyUrl' in photo || !wanted ? undefined : file === 'thumbnail' ? photo.thumbnail : photo.blob
+  const url = useStoredUrl(photo.id, file, blob)
+  return remote ?? url
 }
 
 /**
@@ -61,7 +100,8 @@ export function thumbnailLabel(photo: ShownPhoto): number {
 /**
  * Shows a photo. With `sizes` (cards and tiles, T-0037): the thumbnail and the copy as
  * `srcset` candidates, each labelled with its real width, so the browser takes what the
- * place needs. Without: the one file asked for (the 2560 px copy by default).
+ * place needs; a stored photo whose thumbnail isn't measured yet, the thumbnail alone
+ * (D-0040). Without: the one file asked for (the 2560 px copy by default).
  */
 export function PhotoImage({
   photo,
@@ -99,12 +139,16 @@ function SinglePhoto({ photo, alt, className, file }: { photo: ShownPhoto; alt: 
 }
 
 function PhotoWithSrcset({ photo, alt, className, sizes }: { photo: ShownPhoto; alt: string; className?: string; sizes: string }) {
-  const sources = usePhotoSources(photo)
-  if (!sources) return null
+  // D-0040: a stored photo whose thumbnail this device hasn't measured is shown from its
+  // thumbnail alone; the copy is never a candidate then (it made cards jagged).
+  const measured = 'copyUrl' in photo || photo.thumbnailWidth !== undefined
+  const thumbnail = usePhotoUrl(photo, 'thumbnail')
+  const copy = usePhotoUrl(photo, 'copy', measured)
+  if (!thumbnail || (measured && !copy)) return null
   return (
     <img
-      src={sources.thumbnail}
-      srcSet={`${sources.thumbnail} ${thumbnailLabel(photo)}w, ${sources.copy} ${photo.width}w`}
+      src={thumbnail}
+      srcSet={measured ? `${thumbnail} ${thumbnailLabel(photo)}w, ${copy} ${photo.width}w` : undefined}
       sizes={sizes}
       alt={alt}
       width={photo.width}

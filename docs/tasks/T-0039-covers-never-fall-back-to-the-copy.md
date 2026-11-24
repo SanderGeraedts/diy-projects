@@ -2,7 +2,7 @@
 id: T-0039
 title: "Keep project covers on the thumbnail after an update, a sync, a rebuild or a download"
 description: "D-0040: a regression after T-0037/T-0038; an overview card whose thumbnail isn't measured yet takes the 2560 px copy (jagged) at a pixel ratio of 2 and up, and every write to photos reloads every card; offer an unmeasured thumbnail alone and keep a photo's object URLs while its files are the same."
-status: Open
+status: Doing
 size: small
 depends_on: []
 decisions: [D-0040, D-0038, D-0039, D-0003, D-0015, D-0002, D-0006, G-0019, G-0012, G-0031, G-0032]
@@ -150,6 +150,58 @@ longer appears on cards. (Small task: the UX designer reviews after the build.)
 
 # Test
 
+**Developer, Done when 1** (`e2e/cover-after-update.spec.ts`, preview build, Chromium as
+Pixel 7 with CDP metrics overrides). "file loaded" lists every file the card's `<img>` loaded
+in that situation; "attribute changes" counts changes of `src`/`srcset` to another value
+(React's same-value `src` reset on mount is not counted).
+
+On `origin/main` (54dbc21), failing: c and d load the copy at @2, Fold and Pixel; b changes
+`src` and `srcset` 3 times each.
+
+```
+viewport     | situation         | file loaded | decoded width | attribute changes
+laptop @1.5  | a reload          | thumbnail   |          1280 | src 0, srcset 0
+laptop @1.5  | b write elsewhere | thumbnail   |          1280 | src 3, srcset 3
+laptop @1.5  | c downloaded      | thumbnail   |          1280 | src 1, srcset 2
+laptop @1.5  | d rebuilt         | thumbnail   |          1280 | src 1, srcset 2
+laptop @2    | a reload          | thumbnail   |          1280 | src 0, srcset 0
+laptop @2    | b write elsewhere | thumbnail   |          1280 | src 3, srcset 3
+laptop @2    | c downloaded      | copy+thumbnail |          1280 | src 1, srcset 2
+laptop @2    | d rebuilt         | copy+thumbnail |          1280 | src 1, srcset 2
+fold @2.625  | a reload          | thumbnail   |          1280 | src 0, srcset 0
+fold @2.625  | b write elsewhere | thumbnail   |          1280 | src 3, srcset 3
+fold @2.625  | c downloaded      | copy+thumbnail |          1280 | src 1, srcset 2
+fold @2.625  | d rebuilt         | copy+thumbnail |          1280 | src 1, srcset 2
+pixel @2.625 | a reload          | thumbnail   |          1280 | src 0, srcset 0
+pixel @2.625 | b write elsewhere | thumbnail   |          1280 | src 3, srcset 3
+pixel @2.625 | c downloaded      | copy+thumbnail |          1280 | src 1, srcset 2
+pixel @2.625 | d rebuilt         | copy+thumbnail |          1280 | src 1, srcset 2
+  x  1 [pixel] › e2e\cover-after-update.spec.ts:153:1 › a project cover stays on the thumbnail after a reload, writes, a download and a rebuild (51.2s)
+```
+
+On the branch, passing (also with `--repeat-each 3`):
+
+```
+viewport     | situation         | file loaded | decoded width | attribute changes
+laptop @1.5  | a reload          | thumbnail   |          1280 | src 0, srcset 0
+laptop @1.5  | b write elsewhere | thumbnail   |          1280 | src 0, srcset 0
+laptop @1.5  | c downloaded      | thumbnail   |          1280 | src 0, srcset 1
+laptop @1.5  | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
+laptop @2    | a reload          | thumbnail   |          1280 | src 0, srcset 0
+laptop @2    | b write elsewhere | thumbnail   |          1280 | src 0, srcset 0
+laptop @2    | c downloaded      | thumbnail   |          1280 | src 0, srcset 1
+laptop @2    | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
+fold @2.625  | a reload          | thumbnail   |          1280 | src 0, srcset 0
+fold @2.625  | b write elsewhere | thumbnail   |          1280 | src 0, srcset 0
+fold @2.625  | c downloaded      | thumbnail   |          1280 | src 0, srcset 1
+fold @2.625  | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
+pixel @2.625 | a reload          | thumbnail   |          1280 | src 0, srcset 0
+pixel @2.625 | b write elsewhere | thumbnail   |          1280 | src 0, srcset 0
+pixel @2.625 | c downloaded      | thumbnail   |          1280 | src 0, srcset 1
+pixel @2.625 | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
+  ok 1 [pixel] › e2e\cover-after-update.spec.ts:153:1 › a project cover stays on the thumbnail after a reload, writes, a download and a rebuild (50.1s)
+```
+
 # Log
 
 - 2026-11-24 architect: raised from Sander's report that jagged covers came back after an
@@ -157,3 +209,13 @@ longer appears on cards. (Small task: the UX designer reviews after the build.)
   copy at a pixel ratio of 2 and up; every write to photos swaps every card's addresses);
   recorded D-0040; not reproduced at 1280×800 @1.5 with a measured thumbnail, so *Notes* asks
   Sander for a one-line console check. Size small.
+- 2026-11-24 developer: `PhotoImage` offers a stored photo's unmeasured thumbnail alone (no
+  `srcset`, no copy URL made) and keeps object URLs in a shared cache keyed by photo id, file,
+  and the Blob's size and type, reference-counted per mounted image (layout effect) and revoked
+  2 s after its last user leaves, so no `<img>` holds a revoked address; the viewer's
+  `usePhotoUrl` shares it. A measured width alone keeps the thumbnail's address. New
+  `e2e/cover-after-update.spec.ts` (tables in *Test*: fails on main, passes here, 3/3 with
+  `--repeat-each 3`); 6 new unit tests in `PhotoImage.test.tsx` (all 6 fail on main's
+  component); `thumbnails.spec.ts` now expects no `srcset` before the rebuild. Local: typecheck
+  clean; vitest 432 passed; e2e sharp-photos, thumbnails, viewer, visitor, design, photos,
+  cover-delete, overview-order, import 31 passed, 2 skipped; `harness check` passes.
