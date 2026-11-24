@@ -269,6 +269,10 @@ export interface NewPhoto {
   thumbnail: Blob
   /** The thumbnail's real width in pixels, when known (T-0037, local only). */
   thumbnailWidth?: number
+  /** The 640×480 card image, when made at import (T-0040, D-0041, local only). */
+  card?: Blob
+  /** Its width; 0 when the copy is too small for one (D-0041, local only). */
+  cardWidth?: number
   takenAt: string
   width: number
   height: number
@@ -290,6 +294,8 @@ export async function addPhotos(entryId: string, inputs: NewPhoto[], target: Diy
       blob: input.copy,
       thumbnail: input.thumbnail,
       ...(input.thumbnailWidth ? { thumbnailWidth: input.thumbnailWidth } : {}),
+      ...(input.cardWidth !== undefined ? { cardWidth: input.cardWidth } : {}),
+      ...(input.card instanceof Blob ? { card: input.card } : {}),
       original: input.original,
       uploads: { original: 'pending', copy: 'pending', thumbnail: 'pending' },
       width: input.width,

@@ -53,6 +53,17 @@ export function makeThumbnail(copy: Blob): Promise<Blob> {
   return blobOf('thumbnail', copy)
 }
 
+/**
+ * The 640×480 card image (D-0041): the copy's centre 4:3 crop, WebP; null when the copy is too
+ * small for one (never enlarged).
+ */
+export async function makeCard(copy: Blob): Promise<Blob | null> {
+  const answer = await run('card', copy)
+  if ('none' in answer) return null
+  if (!('blob' in answer)) throw new Error('The worker sent no card image')
+  return answer.blob
+}
+
 /** An image's pixel size, decoded in the worker. */
 export async function measureImage(image: Blob): Promise<{ width: number; height: number }> {
   const answer = await run('size', image)

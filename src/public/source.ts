@@ -2,6 +2,7 @@ import PocketBase, { BaseAuthStore } from 'pocketbase'
 import type { Entry, Project } from '../db/db'
 import { isSlug } from '../db/slug'
 import { compareEntries, comparePhotos } from '../routes/paths'
+import { CARD_THUMB } from '../photos/resize'
 import { buildDemoData } from '../seed/demo'
 import { downloadable } from '../sync/photos'
 import { entryFromServer, projectFromServer, type ServerRecord } from '../sync/records'
@@ -25,6 +26,11 @@ export interface PublicPhoto {
   deletedAt: null
   copyUrl: string
   thumbnailUrl: string
+  /**
+   * The card image (T-0040, D-0041): PocketBase's 640×480 thumb of the thumbnail,
+   * `<thumbnailUrl>?thumb=640x480`. Absent in the demo visitor view, which has no PocketBase.
+   */
+  cardUrl?: string
 }
 
 export interface PublicOverview {
@@ -72,7 +78,7 @@ export interface PublicClient {
   collection(name: string): {
     getFullList(options?: Record<string, unknown>): Promise<ServerRecord[]>
   }
-  files: { getURL(record: { [key: string]: unknown }, filename: string): string }
+  files: { getURL(record: { [key: string]: unknown }, filename: string, queryParams?: { thumb?: string }): string }
   filter(raw: string, params?: Record<string, unknown>): string
 }
 
@@ -127,6 +133,7 @@ export function createPocketBaseSource(client: PublicClient, now: () => number =
       deletedAt: null,
       copyUrl: client.files.getURL(r, files.copy),
       thumbnailUrl: client.files.getURL(r, files.thumbnail),
+      cardUrl: client.files.getURL(r, files.thumbnail, { thumb: CARD_THUMB }),
     }
   }
 

@@ -80,6 +80,10 @@ jobs:
         # T-0038: a rebuilt thumbnail replaces the NAS's older one once, from the first device,
         # with only the thumbnail; racing devices, other devices and a visitor.
         run: pnpm exec vitest run --reporter=verbose src/sync/thumbnails.pocketbase.test.ts
+      - name: Card image tests
+        # T-0040: the thumbnail's 640x480 thumb for visitors (the migration, a public photo, a
+        # private one) and the device's card image never synced.
+        run: pnpm exec vitest run --reporter=verbose src/sync/cards.pocketbase.test.ts
       - name: PocketBase logs
         if: always()
         run: cat ~/.cache/harness/backends/*/backend.log || true

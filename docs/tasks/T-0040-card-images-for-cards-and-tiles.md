@@ -2,7 +2,7 @@
 id: T-0040
 title: "Show covers and day tiles without aliasing at every screen, from a 640×480 card image"
 description: "D-0041: a third srcset candidate on the overview's cards and the project page's tiles, a 640×480 centre crop that each owner device makes from its copy and keeps locally, and that visitors get from PocketBase's ?thumb=640x480 on the thumbnail (one migration in the backend image); fixes the 3-4x downscale of the 1280 px thumbnail at a pixel ratio of 1."
-status: Open
+status: Doing
 size: full
 depends_on: [T-0039]
 decisions: [D-0041, D-0040, D-0038, D-0039, D-0003, D-0023, D-0006, D-0002, D-0007, G-0019, G-0012, G-0031, G-0032]

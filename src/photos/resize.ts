@@ -8,6 +8,16 @@ export const THUMBNAIL_LONG_EDGE = 1280
  * for more pixels than it has (D-0038 guidance).
  */
 export const OLD_THUMBNAIL_LONG_EDGE = 512
+/**
+ * The card image (D-0041): a centre 4:3 crop of the copy at 640×480, for the overview's cards
+ * and the project page's tiles (both 4:3, `object-cover`). The visitor's PocketBase thumb and
+ * the backend migration's `thumbs` value are built from these; never write the numbers
+ * elsewhere.
+ */
+export const CARD_WIDTH = 640
+export const CARD_HEIGHT = 480
+/** PocketBase's thumb size for the card image (`?thumb=`, and the migration's `thumbs`). */
+export const CARD_THUMB = `${CARD_WIDTH}x${CARD_HEIGHT}`
 export const COPY_QUALITY = 0.85
 export const THUMBNAIL_QUALITY = 0.8
 export const OUTPUT_TYPE = 'image/webp'
@@ -37,4 +47,23 @@ export function scaleSteps(width: number, height: number, target: { width: numbe
   }
   if (w !== target.width || h !== target.height) steps.push(target)
   return steps
+}
+
+/**
+ * The card image's crop of an image (D-0041, T-0040 Design): the largest 4:3 area (full width
+ * or full height), centred in both directions with the offset `round((source − crop) / 2)`.
+ * Null when that area is smaller than the card image: a card image is never enlarged.
+ */
+export function cardCrop(width: number, height: number): { x: number; y: number; width: number; height: number } | null {
+  const ratio = CARD_WIDTH / CARD_HEIGHT
+  // Wider than 4:3: full height; otherwise full width. Rounding never exceeds the source.
+  const cropWidth = width * CARD_HEIGHT >= height * CARD_WIDTH ? Math.round(height * ratio) : width
+  const cropHeight = cropWidth === width ? Math.min(height, Math.round(width / ratio)) : height
+  if (cropWidth < CARD_WIDTH || cropHeight < CARD_HEIGHT) return null
+  return {
+    x: Math.round((width - cropWidth) / 2),
+    y: Math.round((height - cropHeight) / 2),
+    width: cropWidth,
+    height: cropHeight,
+  }
 }
