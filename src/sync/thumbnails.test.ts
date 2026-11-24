@@ -58,6 +58,7 @@ function device(server: FakePocketBase, db = openDb(`thumbnails-test-${++n}`)) {
       db,
       measure: measureBlob,
       makeThumbnail: async () => image(1280, 960, tag),
+      makeCard: async () => image(640, 480, `card-${tag}`),
     })
   return { db, client, auth, engine, measure, sync, rebuild, statuses }
 }

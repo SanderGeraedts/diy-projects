@@ -9,7 +9,7 @@ import { router } from './router'
 import { seedIfEmpty } from './seed/demo'
 import { registerServiceWorker } from './sw/register'
 import { startSync, syncEngine } from './sync/app'
-import { makeThumbnail, measureImage } from './photos'
+import { makeCard, makeThumbnail, measureImage } from './photos'
 import { createThumbnailChecker } from './photos/rebuild'
 import { deployContext } from './sync/config'
 import './styles/app.css'
@@ -24,11 +24,12 @@ function startOwner() {
 }
 
 /**
- * T-0037 (D-0038): brings this device's older thumbnails up to the current size, in the
- * background and unseen; again after a sync run that took photos over from the NAS.
+ * T-0037 (D-0038): brings this device's older thumbnails up to the current size, and makes the
+ * card images it lacks (T-0040, D-0041), in the background and unseen; again after a sync run
+ * that took photos over from the NAS.
  */
 function startThumbnailCheck() {
-  const checker = createThumbnailChecker({ db, measure: measureImage, makeThumbnail })
+  const checker = createThumbnailChecker({ db, measure: measureImage, makeThumbnail, makeCard })
   const engine = syncEngine
   // T-0038: a sync after each pass sends the rebuilt thumbnails to the NAS (D-0039).
   const check = () => void checker.check().then(() => engine?.syncSoon())

@@ -3,7 +3,8 @@ import { addEntry, addPhotos, updateProject } from '../db/write'
 import { findEntry } from '../routes/AddEntry'
 import { startBusy } from '../sw/busy'
 import { CANT_LOAD_UNZIP, CANT_UNZIP, fromZip } from './drop'
-import { dateTaken, makeCopy, makeThumbnail, type DateTaken } from './index'
+import { dateTaken, makeCard, makeCopy, makeThumbnail, type DateTaken } from './index'
+import { CARD_WIDTH } from './resize'
 import type { readZip } from './unzip'
 
 // T-0007: imports photos from the gallery into a project's entries (D-0003). The import runs
@@ -50,6 +51,8 @@ export interface ImportDeps {
   dateTaken: (file: File) => Promise<DateTaken>
   makeCopy: (file: Blob) => Promise<Blob>
   makeThumbnail: (copy: Blob) => Promise<Blob>
+  /** The 640×480 card image (D-0041); null when the copy is too small for one. */
+  makeCard: (copy: Blob) => Promise<Blob | null>
   imageSize: (blob: Blob) => Promise<{ width: number; height: number }>
   estimate: () => Promise<{ usage?: number; quota?: number } | undefined>
   /** Loads the zip reader (fflate) on first use: a dynamic import, out of the startup bundle. */
@@ -69,6 +72,7 @@ export const browserDeps: ImportDeps = {
   dateTaken,
   makeCopy,
   makeThumbnail,
+  makeCard,
   imageSize,
   estimate: async () => (typeof navigator !== 'undefined' ? navigator.storage?.estimate?.() : undefined),
   loadUnzip: () => import('./unzip'),
@@ -284,14 +288,30 @@ async function importOne(projectId: string, file: File, deps: ImportDeps): Promi
   const thumbnail = await deps.makeThumbnail(copy)
   const { width, height } = await deps.imageSize(copy)
   const { width: thumbnailWidth } = await deps.imageSize(thumbnail)
+  const card = await cardFor(copy, deps)
 
   // One entry per project per day taken (D-0003), created when the day has none yet.
   const date = taken.takenAt.slice(0, 10)
   const entry = (await findEntry(projectId, date)) ?? (await addEntry({ projectId, date }))
-  const [photo] = await addPhotos(entry.id, [{ original: file, copy, thumbnail, thumbnailWidth, takenAt: taken.takenAt, width, height }])
+  const [photo] = await addPhotos(entry.id, [{ original: file, copy, thumbnail, thumbnailWidth, ...card, takenAt: taken.takenAt, width, height }])
 
   // The first photo of a project without a cover becomes the cover.
   const project = await db.projects.get(projectId)
   if (project && !project.coverPhotoId) await updateProject(projectId, { coverPhotoId: photo!.id })
   return taken.source === 'lastModified'
+}
+
+/**
+ * The card image for a new photo (T-0040, D-0041), made next to its thumbnail. A failure never
+ * holds up the import: the photo is then stored without one, and the background job
+ * (src/photos/rebuild.ts) tries again on a later start.
+ */
+async function cardFor(copy: Blob, deps: ImportDeps): Promise<{ card?: Blob; cardWidth?: number }> {
+  try {
+    const card = await deps.makeCard(copy)
+    return card ? { card, cardWidth: CARD_WIDTH } : { cardWidth: 0 }
+  } catch (error) {
+    console.warn('import: no card image made', error)
+    return {}
+  }
 }

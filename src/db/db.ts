@@ -94,6 +94,19 @@ export interface Photo {
    * Local only, like `thumbnailWidth`: never synced, not indexed, so no schema change.
    */
   thumbnailOnNas?: 'check' | 'done'
+  /**
+   * The card image (T-0040, D-0041): a 640×480 WebP, the copy's centre 4:3 crop, for the
+   * overview's cards and the project page's tiles. Made on this device (at import, or by the
+   * background job in src/photos/rebuild.ts) and kept only here: never synced, never uploaded,
+   * no outbox row, not counted as unsent. Not indexed, so no schema change (D-0007).
+   */
+  card?: Blob
+  /**
+   * Set once the device has looked at this photo for a card image (D-0041): 640 with a
+   * `card`, 0 when the copy is too small for one (never enlarged, and not tried again).
+   * Absent means not made yet. Local only, like `thumbnailWidth`.
+   */
+  cardWidth?: number
   /** The original, byte for byte, until the NAS confirms all three files (D-0003, D-0015). */
   original: Blob | null
   uploads: PhotoUploads

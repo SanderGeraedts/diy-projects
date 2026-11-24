@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Node, not jsdom: jsdom Blobs do not survive fake-indexeddb's structured clone.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../db/db'
 import { createProject, updateProject } from '../db/write'
 import { isBusy } from '../sw/busy'
@@ -28,6 +28,7 @@ const fakeDeps: ImportDeps = {
     return new Blob(['copy'], { type: 'image/webp' })
   },
   makeThumbnail: async () => new Blob(['thumb'], { type: 'image/webp' }),
+  makeCard: async (copy) => ((copy as Blob).size > 0 ? new Blob(['card'], { type: 'image/webp' }) : null),
   imageSize: async () => ({ width: 2560, height: 1920 }),
   estimate: async () => ({ usage: 0, quota: 10 * 1024 * 1024 * 1024 }),
   loadUnzip: () => import('./unzip'),
@@ -132,6 +133,45 @@ describe('startImport', () => {
     const project = await createProject({ title: 'Schuur' })
     await startImport(project.id, [photo('2026-09-01.jpg')], { ...fakeDeps, estimate: async () => ({ usage: 90, quota: 100 }) })
     expect(getImportStatus(project.id)!.lowStorage).toBe(true)
+  })
+})
+
+describe('card images at import (T-0040, D-0041)', () => {
+  it('stores the card image next to the thumbnail, locally only', async () => {
+    const project = await createProject({ title: 'Kaart' })
+    await startImport(project.id, [photo('2026-09-01.jpg')], fakeDeps)
+    const [stored] = await db.photos.where('projectId').equals(project.id).toArray()
+    expect(stored!.card).toBeInstanceOf(Blob)
+    expect(stored!.cardWidth).toBe(640)
+    dismissImport(project.id)
+  })
+
+  it('records a copy too small for a card image, so it is not tried again', async () => {
+    const project = await createProject({ title: 'Klein' })
+    await startImport(project.id, [photo('2026-09-01.jpg')], { ...fakeDeps, makeCard: async () => null })
+    const [stored] = await db.photos.where('projectId').equals(project.id).toArray()
+    expect(stored!.card).toBeUndefined()
+    expect(stored!.cardWidth).toBe(0)
+    dismissImport(project.id)
+  })
+
+  it('still adds the photo when the card image fails; the background job tries again later', async () => {
+    const project = await createProject({ title: 'Kapot' })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await startImport(project.id, [photo('2026-09-01.jpg')], {
+      ...fakeDeps,
+      makeCard: async () => {
+        throw new Error('no encoder')
+      },
+    })
+    const [stored] = await db.photos.where('projectId').equals(project.id).toArray()
+    expect(stored).toBeDefined()
+    expect(stored!.card).toBeUndefined()
+    expect(stored!.cardWidth).toBeUndefined()
+    expect(getImportStatus(project.id)).toMatchObject({ added: 1, failed: [] })
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+    dismissImport(project.id)
   })
 })
 

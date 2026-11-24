@@ -39,7 +39,10 @@ function mockClient(records: Record<string, ServerRecord[]>) {
   })
   const client: PublicClient = {
     collection: (name) => ({ getFullList: (options) => getFullList(name, options) }),
-    files: { getURL: (record, filename) => `https://pb.test/api/files/${String(record.collectionName)}/${String(record.id)}/${filename}` },
+    files: {
+      getURL: (record, filename, query) =>
+        `https://pb.test/api/files/${String(record.collectionName)}/${String(record.id)}/${filename}${query?.thumb ? `?thumb=${query.thumb}` : ''}`,
+    },
     filter: (raw, params) => raw.replace(/\{:(\w+)\}/g, (_, key: string) => `'${String(params?.[key])}'`),
   }
   return { client, getFullList }
@@ -88,8 +91,22 @@ describe('createPocketBaseSource', () => {
         deletedAt: null,
         copyUrl: 'https://pb.test/api/files/photos/f1/copy_f1.webp',
         thumbnailUrl: 'https://pb.test/api/files/photos/f1/thumb_f1.webp',
+        cardUrl: 'https://pb.test/api/files/photos/f1/thumb_f1.webp?thumb=640x480',
       },
     ])
+  })
+
+  it("gives each photo a card image: PocketBase's 640×480 thumb of the thumbnail (T-0040, D-0041)", async () => {
+    // The real SDK's addresses, as a visitor's client makes them.
+    const client = visitorClient('https://pb.test')
+    const source = createPocketBaseSource({
+      collection: (name) => ({ getFullList: async () => (name === 'photos' ? [photo('f1')] : [project('p1')]) }),
+      files: client.files,
+      filter: client.filter.bind(client),
+    })
+    const [shown] = (await source.overview()).photos
+    expect(shown!.cardUrl).toBe(`${shown!.thumbnailUrl}?thumb=640x480`)
+    expect(shown!.cardUrl).toMatch(/\?thumb=640x480$/)
   })
 
   it('asks only for the fields it shows, and for one project’s entries and photos', async () => {
@@ -146,6 +163,8 @@ describe('createDemoSource (D-0006)', () => {
     const { projects, photos } = await createDemoSource('on').overview()
     expect(projects.map((p) => p.title)).toContain('Tuinbank')
     expect(photos.every((p) => p.copyUrl.startsWith('blob:'))).toBe(true)
+    // No PocketBase, so no card image (T-0040).
+    expect(photos.some((p) => 'cardUrl' in p)).toBe(false)
     expect(await createDemoSource('on').project('nope')).toBeNull()
     expect((await createDemoSource('on').project('tuinbank'))?.project.title).toBe('Tuinbank')
   })

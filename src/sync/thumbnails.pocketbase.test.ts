@@ -134,7 +134,7 @@ describe.skipIf(!URL)('rebuilt thumbnails against a real PocketBase (T-0038)', {
     }
     /** This device's own rebuild (T-0037), with a thumbnail that says who made it. */
     const rebuild = (tag: string) =>
-      rebuildThumbnails({ db, measure: measureBlob, makeThumbnail: async () => image(1280, 960, tag) })
+      rebuildThumbnails({ db, measure: measureBlob, makeThumbnail: async () => image(1280, 960, tag), makeCard: async () => image(640, 480, `card-${tag}`) })
     return { db, pb, engine, sync, sent, statuses, measure, rebuild }
   }
 

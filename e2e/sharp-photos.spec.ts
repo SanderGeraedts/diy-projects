@@ -1,10 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { withExif } from '../src/photos/exifFixture'
 
-// T-0037 (D-0038): cards and tiles load an image close to the pixels they show. For every
-// overview card and day tile showing the imported photos, the delivered width (the decoded
-// image behind `currentSrc`, cropped to the 4:3 box when wider) divided by the element's CSS
-// width × devicePixelRatio stays between 0.9 and 3. Generated photos only (G-0019).
+// T-0037 (D-0038), T-0040 (D-0041): cards and tiles load an image close to the pixels they
+// show. For every overview card and day tile showing the imported photos, the delivered width
+// (the decoded image behind `currentSrc`, cropped to the 4:3 box when wider) divided by the
+// element's CSS width × devicePixelRatio stays between 0.7 and 2.2, on a laptop at a pixel
+// ratio of 1, 1.5, 2 and 2.625, the Fold and a phone. The lower bound is where Chrome's choice
+// between candidates 2 times apart can land (D-0041). Generated photos only (G-0019).
 
 /** A JPEG of the given size, drawn in the page's canvas with a little detail. */
 async function jpeg(page: Page, width: number, height: number, color: string): Promise<Uint8Array> {
@@ -27,7 +29,10 @@ async function jpeg(page: Page, width: number, height: number, color: string): P
 }
 
 const VIEWPORTS = [
+  { name: 'laptop', width: 1280, height: 800, dpr: 1, mobile: false },
   { name: 'laptop', width: 1280, height: 800, dpr: 1.5, mobile: false },
+  { name: 'laptop', width: 1280, height: 800, dpr: 2, mobile: false },
+  { name: 'laptop', width: 1280, height: 800, dpr: 2.625, mobile: false },
   { name: 'fold', width: 840, height: 900, dpr: 2.625, mobile: true },
   { name: 'phone', width: 412, height: 915, dpr: 2.625, mobile: true },
 ] as const
@@ -55,8 +60,8 @@ async function measure(img: Locator) {
   })
 }
 
-test('cards and tiles load an image sized to what they show, at three screens', async ({ page }) => {
-  test.setTimeout(120_000)
+test('cards and tiles load an image sized to what they show, at six screens', async ({ page }) => {
+  test.setTimeout(180_000)
   await page.goto('/')
   const landscape = withExif(await jpeg(page, 4000, 3000, '#a05030'), { dateTimeOriginal: '2026:11:01 10:00:00' })
   const portrait = withExif(await jpeg(page, 3000, 4000, '#3050a0'), { dateTimeOriginal: '2026:11:01 10:05:00' })
@@ -99,17 +104,17 @@ test('cards and tiles load an image sized to what they show, at three screens', 
   for (const row of rows) row.r = row.delivered / (row.css * row.dpr)
 
   const table = [
-    'viewport | place | photo     | CSS px | DPR   | delivered | r',
+    'viewport | DPR   | place | photo     | CSS px | delivered | r',
     ...rows.map((r) =>
-      [r.viewport.padEnd(8), r.place.padEnd(5), r.photo.padEnd(9), r.css.toFixed(1).padStart(6), String(r.dpr).padEnd(5), String(r.delivered).padStart(9), r.r.toFixed(2)].join(' | '),
+      [r.viewport.padEnd(8), String(r.dpr).padEnd(5), r.place.padEnd(5), r.photo.padEnd(9), r.css.toFixed(1).padStart(6), String(r.delivered).padStart(9), r.r.toFixed(2)].join(' | '),
     ),
   ].join('\n')
   console.log(table)
   await test.info().attach('sizes', { body: table, contentType: 'text/plain' })
 
-  expect(rows).toHaveLength(9)
+  expect(rows).toHaveLength(VIEWPORTS.length * 3)
   for (const row of rows) {
-    expect.soft(row.r, `${row.viewport} ${row.place} ${row.photo}`).toBeGreaterThanOrEqual(0.9)
-    expect.soft(row.r, `${row.viewport} ${row.place} ${row.photo}`).toBeLessThanOrEqual(3)
+    expect.soft(row.r, `${row.viewport} @${row.dpr} ${row.place} ${row.photo}`).toBeGreaterThanOrEqual(0.7)
+    expect.soft(row.r, `${row.viewport} @${row.dpr} ${row.place} ${row.photo}`).toBeLessThanOrEqual(2.2)
   }
 })

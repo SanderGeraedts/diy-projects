@@ -368,3 +368,11 @@ Not run: Done when 6 (Sander on his laptop and the Fold, production, after the m
   write to photos swaps every card's addresses. Fixed under T-0039 (D-0040).
   Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production, after his
   devices have rebuilt their thumbnails).
+- 2026-11-24 architect: Sander's console check in production, laptop, projects page: all 23
+  cards at `devicePixelRatio` 1, 320 CSS px wide, loaded the thumbnail (srcset labels
+  1280w/2560w, 960w/1920w, 721w/1441w and 1280w/1600w), never the copy. The file choice works
+  as designed; the remaining jaggedness (and the tiles' 2.6x downscale at DPR 1) is Chrome
+  shrinking a 960 to 1280 px thumbnail 3 to 4x into a 320 px card. Done when 1 allowed up to 3x
+  and measured no DPR 1, so it passed. That moves to T-0040 (D-0041, a 640×480 card image).
+  Remaining: Done when 6, now confirmed together with T-0040's Done when 8 (Sander looks once
+  T-0040 is deployed).

@@ -200,7 +200,11 @@ async function checkSizes(page: Page, project: string, slug: string) {
   const cards = page.getByRole('main').locator('a[href^="/projects/"] img')
   await expect(cards.first()).toBeAttached()
   for (const sizes of await cards.evaluateAll((imgs) => imgs.map((img) => img.getAttribute('sizes')))) expect(sizes).toBe(CARD_SIZES)
-  for (const srcset of await cards.evaluateAll((imgs) => imgs.map((img) => img.getAttribute('srcset')))) expect(srcset).toMatch(/^\S+ \d+w, \S+ \d+w$/)
+  // T-0040 (D-0041): the owner's cards may lead with their card image once the device made
+  // it; the demo visitor view has none.
+  const visitor = page.url().includes('bezoeker')
+  const pattern = visitor ? /^\S+ \d+w, \S+ \d+w$/ : /^(\S+ 640w, )?\S+ \d+w, \S+ \d+w$/
+  for (const srcset of await cards.evaluateAll((imgs) => imgs.map((img) => img.getAttribute('srcset')))) expect(srcset).toMatch(pattern)
 
   await page.getByRole('link', { name: new RegExp(project) }).click()
   await expect(page.getByRole('heading', { level: 1, name: project })).toBeVisible()
@@ -209,7 +213,7 @@ async function checkSizes(page: Page, project: string, slug: string) {
   for (const sizes of await tiles.evaluateAll((imgs) => imgs.map((img) => img.getAttribute('sizes')))) expect(sizes).toBe(TILE_SIZES)
   expect(await tiles.count()).toBeGreaterThan(0)
   const srcset = (await tiles.first().getAttribute('srcset'))!
-  const [thumbnail, copy] = srcset.split(', ').map((candidate) => candidate.split(' ')[0])
+  const [thumbnail, copy] = srcset.split(', ').slice(-2).map((candidate) => candidate.split(' ')[0])
 
   await tiles.first().click()
   const viewer = page.getByRole('dialog')
@@ -221,11 +225,19 @@ async function checkSizes(page: Page, project: string, slug: string) {
 }
 
 test('cards and tiles carry the designed sizes and a srcset, the viewer the copy only (owner)', async ({ page }) => {
+  // T-0040: the demo app starts without the background pass warning about its photos.
+  const warnings: string[] = []
+  page.on('console', (message) => {
+    if (message.text().startsWith('thumbnails:')) warnings.push(message.text())
+  })
   await page.goto('/')
+  // The pass starts a second after the app; give it time to go through the demo photos.
+  await page.waitForTimeout(3000)
   const { viewerSrc, thumbnail, copy } = await checkSizes(page, 'Tuinbank', 'tuinbank')
   expect(thumbnail).toMatch(/^blob:/)
   expect(copy).toMatch(/^blob:/)
   expect(viewerSrc).toMatch(/^blob:/)
+  expect(warnings).toEqual([])
 })
 
 test('a visitor’s cards and tiles have the thumbnail and the copy in their srcset, and the viewer shows the copy', async ({ page }) => {
