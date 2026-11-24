@@ -231,6 +231,34 @@ committed):
 - Seen, not a failure: during the step the status button still reads "Bezig met
   synchroniseren…", as for any run; no count or new text.
 
+**Re-check after the send-back** (2026-11-24 tester, on `f183723`). **Verdict: passed.**
+
+- CI run 45415522903 on `f183723`: attempt 1, conclusion success; `checks / checks` pass (e2e
+  "81 passed", no `flaky` line), `pocketbase-auth` pass. The e2e shard jobs are skipped, as on
+  every PR.
+- My repro again, against `pnpm exec harness backend start` (throwaway, stopped after), with a
+  device that uses the real `refreshAfterSync`: a private project, two rebuilt photos, the
+  password changed as superuser on the step's first `GET .../photos/records/<id>`:
+  `{"lastError":"Opnieuw inloggen om te synchroniseren","needsSignIn":true,"states":["check","check"],"nas":["512x384","512x384"],"revoked":true}`.
+  The same with the password changed on the thumbnail upload itself (the upload's 404 path):
+  the same output. Both passed.
+- Without the fix (`src/sync/engine.ts` from `ab8d07c`, put back after): the new PocketBase
+  test "6: a sign-in revoked during the step…" fails with "AssertionError: expected { running:
+  false, …(9) } to match object { needsSignIn: true }"; the new unit test "a 404 or 400 from a
+  refused token…" fails with "expected 'done' to be 'check'"; my two repro tests fail ("Tests
+  2 failed (2)"). With the fix all pass.
+- PocketBase files one at a time: `thumbnails.pocketbase.test.ts` three runs "Tests 7 passed
+  (7)" each; `sync.pocketbase.test.ts` "Tests 13 passed (13)"; `photos.pocketbase.test.ts`
+  "Tests 8 passed (8)"; `auth.pocketbase.test.ts` "Tests 5 passed (5)".
+- `thumbnails.test.ts` three runs: "Tests 17 passed (17)" each. `pnpm run typecheck`: clean.
+  `pnpm test`: "Test Files 34 passed | 4 skipped (38), Tests 426 passed | 33 skipped (459)".
+  `pnpm exec harness check`: all ✓ (below, on the commit that carries this).
+- Not repeated (unchanged since the first pass): build, the full e2e run and the other
+  breaking attempts above.
+
+Done when 1 to 8 ran with the output above; Done when 9 is Sander's in production after the
+merge, so the task stays *Doing*.
+
 # Log
 
 - 2026-11-24 architect: Q-007 answered by Sander ("Yes to Q-007, upload the rebuilt
@@ -292,3 +320,4 @@ committed):
   runs: 7 passed each); `pnpm test` "Test Files 34 passed | 4 skipped (38), Tests 426 passed |
   33 skipped (459)"; build ok; `E2E_PORT=4794 pnpm run test:e2e` "79 passed, 2 skipped";
   `harness check` all ✓. Remaining: Done when 9, Sander in production after the merge.
+- 2026-11-24 tester: passed (after the send-back: a revoked sign-in during the step now pauses for sign-in and marks nothing done; see *Test*). Remaining: Done when 9, Sander in production after the merge: in a private window a public project's older photos look as sharp as the newer ones, and the owner's app shows nothing new.
