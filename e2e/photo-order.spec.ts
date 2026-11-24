@@ -58,6 +58,7 @@ for (const who of ['owner', 'visitor'] as const) {
     await expect(navButton(page, 'Volgende foto')).toHaveCount(1)
     await page.keyboard.press('ArrowLeft')
     await expect(page).toHaveURL(`${project}/2026-10-11/2`)
+    await expect(page.getByRole('dialog', { name: 'Foto 2 van 2, 11 okt 2026' })).toBeVisible()
     await page.keyboard.press('ArrowRight')
     await expect(page).toHaveURL(photo(1))
     await expect(currentImage(page)).toHaveAttribute('data-taken-at', at(12))

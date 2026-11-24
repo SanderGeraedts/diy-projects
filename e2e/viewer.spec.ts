@@ -166,12 +166,17 @@ test('after crossing days, one back closes the viewer', async ({ page }) => {
   await page.goto(project)
   await page.getByRole('link', { name: 'Tuinbank, 25 okt 2026' }).click()
   await expect(page).toHaveURL(day('2026-10-25', 1))
+  // Wait for each photo before the next key: while the viewer loads, a key does nothing.
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
   await page.keyboard.press('ArrowRight')
   await expect(page).toHaveURL(day('2026-10-11', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 2, 11 okt 2026' })).toBeVisible()
   await page.keyboard.press('ArrowRight')
   await expect(page).toHaveURL(day('2026-10-11', 2))
+  await expect(page.getByRole('dialog', { name: 'Foto 2 van 2, 11 okt 2026' })).toBeVisible()
   await page.keyboard.press('ArrowRight')
   await expect(page).toHaveURL(day('2026-10-04', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })).toBeVisible()
 
   await page.goBack()
   await expect(page).toHaveURL(project)

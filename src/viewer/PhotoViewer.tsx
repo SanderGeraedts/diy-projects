@@ -252,8 +252,13 @@ function PhotoViewerView({
     [next, previous, show, stage.width],
   )
 
+  // The key handler reads the latest render's state: right after a move it must not act on the
+  // photo before (its effect re-subscribes only after paint).
+  const keys = useRef({ go, close, confirming })
+  keys.current = { go, close, confirming }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const { go, close, confirming } = keys.current
       if (confirming) {
         if (e.key === 'Escape') setConfirming(false)
         return
@@ -264,7 +269,7 @@ function PhotoViewerView({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, close, confirming])
+  }, [])
 
   const makeCover = async () => {
     if (!current) return
