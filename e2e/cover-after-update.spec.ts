@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { withExif } from '../src/photos/exifFixture'
 import { downloadedPhoto } from '../src/sync/records'
 
-// T-0039 (D-0040): an overview card shows its cover from the 1280 px thumbnail, never from
-// the 2560 px copy: after a reload, while other photos are written, after a download from the
+// T-0039 (D-0040): an overview card shows its cover from the 1280 px thumbnail (or, T-0040
+// and D-0041, from its 640×480 card image), never from the 2560 px copy: after a reload, while other photos are written, after a download from the
 // NAS (thumbnail not measured yet) and during the rebuild of an older thumbnail. And a write
 // to `photos` that doesn't touch the cover's files leaves the card's `src` and `srcset` as
 // they are. Generated photos only (G-0019), on the preview build with demo data (D-0006).
@@ -47,7 +47,7 @@ async function jpeg(page: Page, width: number, height: number): Promise<Uint8Arr
  * `src` and `srcset` of each card image (to another value), by photo id.
  */
 function recordCards() {
-  type Load = { photoId: string; file: 'thumbnail' | 'copy' | 'other'; currentSrc: string }
+  type Load = { photoId: string; file: 'thumbnail' | 'card' | 'copy' | 'other'; currentSrc: string }
   const w = window as unknown as { __loads: Load[]; __changes: Record<string, { src: number; srcset: number }> }
   w.__loads = []
   w.__changes = {}
@@ -58,8 +58,16 @@ function recordCards() {
     (event) => {
       const img = event.target
       if (!isCard(img)) return
-      const candidates = img.srcset.split(', ').map((c) => c.split(' ')[0])
-      const file = img.currentSrc === img.src ? 'thumbnail' : img.currentSrc === candidates[1] ? 'copy' : 'other'
+      const candidates = img.srcset.split(', ').map((c) => c.split(' '))
+      const card = candidates.find(([, w]) => w === '640w')?.[0]
+      const file =
+        img.currentSrc === img.src
+          ? 'thumbnail'
+          : img.currentSrc === card
+            ? 'card'
+            : candidates.length > 1 && img.currentSrc === candidates.at(-1)![0]
+              ? 'copy'
+              : 'other'
       w.__loads.push({ photoId: img.dataset.photoId!, file, currentSrc: img.currentSrc })
     },
     true,
@@ -77,7 +85,7 @@ function recordCards() {
 }
 
 interface Log {
-  loads: { photoId: string; file: 'thumbnail' | 'copy' | 'other'; currentSrc: string }[]
+  loads: { photoId: string; file: 'thumbnail' | 'card' | 'copy' | 'other'; currentSrc: string }[]
   changes: { src: number; srcset: number }
 }
 
@@ -133,8 +141,16 @@ async function shown(page: Page, id: string) {
   await img.scrollIntoViewIfNeeded()
   await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true)
   return img.evaluate(async (el: HTMLImageElement) => {
-    const candidates = el.srcset.split(', ').map((c) => c.split(' ')[0])
-    const file = el.currentSrc === el.src ? 'thumbnail' : el.currentSrc === candidates[1] ? 'copy' : 'other'
+    const candidates = el.srcset.split(', ').map((c) => c.split(' '))
+    const card = candidates.find(([, w]) => w === '640w')?.[0]
+    const file =
+      el.currentSrc === el.src
+        ? 'thumbnail'
+        : el.currentSrc === card
+          ? 'card'
+          : candidates.length > 1 && el.currentSrc === candidates.at(-1)![0]
+            ? 'copy'
+            : 'other'
     const bitmap = await createImageBitmap(await (await fetch(el.currentSrc)).blob())
     const width = bitmap.width
     bitmap.close()
@@ -255,7 +271,8 @@ test('a project cover stays on the thumbnail after a reload, writes, a download 
     )
     await page.reload()
     await expect.poll(() => thumbnailWidth(page, id), { timeout: 30_000 }).toBe(1280)
-    await expect.poll(async () => (await shown(page, id)).width, { timeout: 10_000 }).toBe(1280)
+    // Rebuilt: the 1280 px thumbnail, or the card image beside it again (T-0040).
+    await expect.poll(async () => [640, 1280].includes((await shown(page, id)).width), { timeout: 10_000 }).toBe(true)
     const d = await shown(page, id)
     row(v.name, 'd rebuilt', await cardLog(page, id), d)
   }
@@ -272,8 +289,9 @@ test('a project cover stays on the thumbnail after a reload, writes, a download 
   expect(rows).toHaveLength(16)
   for (const r of rows) {
     const what = `${r.viewport} ${r.situation}`
-    expect.soft(r.loaded, what).toBe('thumbnail')
-    expect.soft(r.width, what).toBe(1280)
+    // T-0040 (D-0041): the thumbnail or the card image, never the copy.
+    expect.soft(r.loaded.split('+').every((f) => f === 'thumbnail' || f === 'card'), `${what}: ${r.loaded}`).toBe(true)
+    expect.soft([640, 1280], what).toContain(r.width)
     if (r.situation.startsWith('b')) expect.soft(r.changes, what).toBe('src 0, srcset 0')
     if (r.situation.startsWith('d')) expect.soft(r.changes, what).toMatch(/^src 1, /)
   }

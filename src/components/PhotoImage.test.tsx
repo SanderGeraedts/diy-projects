@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Photo } from '../db/db'
 import type { PublicPhoto } from '../public/source'
-import { PhotoImage, REVOKE_AFTER_MS, thumbnailLabel } from './PhotoImage'
+import { offersCard, PhotoImage, REVOKE_AFTER_MS, thumbnailLabel } from './PhotoImage'
 
 // T-0037 (D-0038): cards and tiles offer the thumbnail and the copy, each labelled with its
 // real width; never a width the thumbnail doesn't have.
@@ -167,5 +167,81 @@ describe('object URLs of stored photos', () => {
     render(<PhotoImage photo={photo} alt="Tegel" sizes={SIZES} />)
     render(<PhotoImage photo={{ ...photo, blob: new Blob(['copy']) }} alt="Groot" />)
     expect(screen.getByAltText('Groot').getAttribute('src')).toBe(sources(screen.getByAltText('Tegel')).copy)
+  })
+})
+
+// T-0040 (D-0041): the 640×480 card image as the smallest candidate, owner and visitor.
+describe('the card image in srcset', () => {
+  const card = new Blob(['card image'], { type: 'image/webp' })
+  const withVisitorCard: PublicPhoto = { ...visitor, cardUrl: 'https://nas.invalid/thumb.webp?thumb=640x480' }
+
+  it('gives a visitor the card image, the thumbnail and the copy', () => {
+    render(<PhotoImage photo={withVisitorCard} alt="Foto" sizes={SIZES} />)
+    expect(screen.getByAltText('Foto')).toHaveAttribute(
+      'srcset',
+      'https://nas.invalid/thumb.webp?thumb=640x480 640w, https://nas.invalid/thumb.webp 960w, https://nas.invalid/copy.webp 1920w',
+    )
+    expect(screen.getByAltText('Foto')).toHaveAttribute('src', 'https://nas.invalid/thumb.webp')
+  })
+
+  it('gives a demo visitor photo (no cardUrl) no card candidate', () => {
+    expect(offersCard(visitor)).toBe(false)
+    render(<PhotoImage photo={visitor} alt="Foto" sizes={SIZES} />)
+    expect(screen.getByAltText('Foto').getAttribute('srcset')).not.toMatch(/640w/)
+  })
+
+  it('offers a visitor no card image of a thumbnail too small for one', () => {
+    const small: PublicPhoto = { ...withVisitorCard, width: 600, height: 450 }
+    expect(offersCard(small)).toBe(false)
+    render(<PhotoImage photo={small} alt="Foto" sizes={SIZES} />)
+    expect(screen.getByAltText('Foto')).toHaveAttribute('srcset', 'https://nas.invalid/thumb.webp 600w, https://nas.invalid/copy.webp 600w')
+  })
+
+  it('gives the owner card 640w, thumbnail and copy once the card image is made and the thumbnail measured', () => {
+    render(<PhotoImage photo={owned({ id: 'carded', thumbnailWidth: 1280, card, cardWidth: 640 })} alt="Foto" sizes={SIZES} />)
+    const img = screen.getByAltText('Foto')
+    expect(img.getAttribute('srcset')).toMatch(/^blob:\S+ 640w, blob:\S+ 1280w, blob:\S+ 2560w$/)
+    // The fallback src stays the thumbnail.
+    expect(img.getAttribute('src')).toBe(img.getAttribute('srcset')!.split(', ')[1]!.split(' ')[0])
+  })
+
+  it('without a card image: the thumbnail and the copy (D-0040)', () => {
+    render(<PhotoImage photo={owned({ id: 'no-card', thumbnailWidth: 1280 })} alt="Foto" sizes={SIZES} />)
+    expect(screen.getByAltText('Foto').getAttribute('srcset')).toMatch(/^blob:\S+ 1280w, blob:\S+ 2560w$/)
+  })
+
+  it('with a copy too small for a card image (cardWidth 0): the thumbnail and the copy', () => {
+    render(<PhotoImage photo={owned({ id: 'too-small', width: 600, height: 450, thumbnailWidth: 600, cardWidth: 0 })} alt="Foto" sizes={SIZES} />)
+    expect(screen.getByAltText('Foto').getAttribute('srcset')).toMatch(/^blob:\S+ 600w, blob:\S+ 600w$/)
+  })
+
+  it('with a card image but an unmeasured thumbnail: the thumbnail alone, no object URL for the card image (D-0040)', () => {
+    const created = vi.spyOn(URL, 'createObjectURL')
+    const photo = owned({ id: 'card-unmeasured', card, cardWidth: 640 })
+    render(<PhotoImage photo={photo} alt="Foto" sizes={SIZES} />)
+    const img = screen.getByAltText('Foto')
+    expect(img).not.toHaveAttribute('srcset')
+    expect(created.mock.calls.map(([blob]) => blob)).toEqual([photo.thumbnail])
+  })
+
+  it('keeps the thumbnail’s and the copy’s addresses when the card image arrives, and the same image element', () => {
+    const photo = owned({ id: 'card-arrives', thumbnailWidth: 1280 })
+    const { rerender } = render(<PhotoImage photo={photo} alt="Foto" sizes={SIZES} />)
+    const img = screen.getByAltText('Foto')
+    const [thumbnail, copy] = img.getAttribute('srcset')!.split(', ').map((c) => c.split(' ')[0])
+    rerender(
+      <PhotoImage
+        photo={{ ...photo, blob: new Blob(['copy']), thumbnail: new Blob(['thumbnail']), card, cardWidth: 640 }}
+        alt="Foto"
+        sizes={SIZES}
+      />,
+    )
+    const after = screen.getByAltText('Foto')
+    expect(after).toBe(img)
+    const candidates = after.getAttribute('srcset')!.split(', ').map((c) => c.split(' '))
+    expect(candidates.map(([, w]) => w)).toEqual(['640w', '1280w', '2560w'])
+    expect(candidates[0]![0]).toMatch(/^blob:/)
+    expect([candidates[1]![0], candidates[2]![0]]).toEqual([thumbnail, copy])
+    expect(after.getAttribute('src')).toBe(thumbnail)
   })
 })

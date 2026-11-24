@@ -8,7 +8,7 @@ depends_on: [T-0039]
 decisions: [D-0041, D-0040, D-0038, D-0039, D-0003, D-0023, D-0006, D-0002, D-0007, G-0019, G-0012, G-0031, G-0032]
 raised_on: 2026-11-24
 done_on: ""
-result: []
+result: [PR_URL]
 ---
 
 # Goal
@@ -231,6 +231,74 @@ beside the project title; tiles "<project>, <date>"). Making card images announc
 
 # Test
 
+Developer's run, 2026-11-24 (Chromium, the preview build, generated photos only).
+
+**Done when 1, on `origin/main` at 99dcc1a (T-0039 merged), with this branch's
+`e2e/sharp-photos.spec.ts`: fails** (4 rows above 2.2):
+
+```
+viewport | DPR   | place | photo     | CSS px | delivered | r
+laptop   | 1     | card  | landscape |  320.0 |      1280 | 4.00
+laptop   | 1     | tile  | portrait  |  492.0 |       960 | 1.95
+laptop   | 1     | tile  | landscape |  492.0 |      1280 | 2.60
+laptop   | 1.5   | card  | landscape |  320.0 |      1280 | 2.67
+laptop   | 1.5   | tile  | portrait  |  492.0 |       960 | 1.30
+laptop   | 1.5   | tile  | landscape |  492.0 |      1280 | 1.73
+laptop   | 2     | card  | landscape |  320.0 |      1280 | 2.00
+laptop   | 2     | tile  | portrait  |  492.0 |      1920 | 1.95
+laptop   | 2     | tile  | landscape |  492.0 |      1280 | 1.30
+laptop   | 2.625 | card  | landscape |  320.0 |      1280 | 1.52
+laptop   | 2.625 | tile  | portrait  |  492.0 |      1920 | 1.49
+laptop   | 2.625 | tile  | landscape |  492.0 |      2560 | 1.98
+fold     | 2.625 | card  | landscape |  258.7 |      1280 | 1.89
+fold     | 2.625 | tile  | portrait  |  400.0 |      1920 | 1.83
+fold     | 2.625 | tile  | landscape |  400.0 |      1280 | 1.22
+phone    | 2.625 | card  | landscape |  380.0 |      1280 | 1.28
+phone    | 2.625 | tile  | portrait  |  186.0 |       960 | 1.97
+phone    | 2.625 | tile  | landscape |  186.0 |      1280 | 2.62
+  1 failed
+```
+
+**On this branch: passes** (every r between 0.7 and 2.2; also 3 of 3 with `--repeat-each=3`):
+
+```
+viewport | DPR   | place | photo     | CSS px | delivered | r
+laptop   | 1     | card  | landscape |  320.0 |       640 | 2.00
+laptop   | 1     | tile  | portrait  |  492.0 |       640 | 1.30
+laptop   | 1     | tile  | landscape |  492.0 |       640 | 1.30
+laptop   | 1.5   | card  | landscape |  320.0 |       640 | 1.33
+laptop   | 1.5   | tile  | portrait  |  492.0 |       960 | 1.30
+laptop   | 1.5   | tile  | landscape |  492.0 |      1280 | 1.73
+laptop   | 2     | card  | landscape |  320.0 |       640 | 1.00
+laptop   | 2     | tile  | portrait  |  492.0 |      1920 | 1.95
+laptop   | 2     | tile  | landscape |  492.0 |      1280 | 1.30
+laptop   | 2.625 | card  | landscape |  320.0 |      1280 | 1.52
+laptop   | 2.625 | tile  | portrait  |  492.0 |      1920 | 1.49
+laptop   | 2.625 | tile  | landscape |  492.0 |      2560 | 1.98
+fold     | 2.625 | card  | landscape |  258.7 |      1280 | 1.89
+fold     | 2.625 | tile  | portrait  |  400.0 |      1920 | 1.83
+fold     | 2.625 | tile  | landscape |  400.0 |      1280 | 1.22
+phone    | 2.625 | card  | landscape |  380.0 |      1280 | 1.28
+phone    | 2.625 | tile  | portrait  |  186.0 |       640 | 1.31
+phone    | 2.625 | tile  | landscape |  186.0 |       640 | 1.31
+  1 passed
+```
+
+Several rows differ from the architect's prediction (for example, laptop DPR 1.5 tiles 1.30 / 1.73
+instead of 0.87, and DPR 2.625 card 1.52 instead of 0.76). In those rows Chrome took the larger
+neighbour, not the smaller one. Every row is still inside the band.
+
+**Done when 6, bytes (measured, not asserted):**
+- On the device (`e2e/card-images.spec.ts`, a generated photo-like 4000×3000 JPEG): the card
+  image is 18 106 bytes, and the 1280 px thumbnail is 56 916 bytes.
+- From PocketBase (`src/sync/cards.pocketbase.test.ts`, on `harness backend`): the generated
+  photo-like 1280×960 WebP thumbnail
+  (`src/sync/fixtures/thumbnail-1280x960.webp`) is 217 988 bytes, and its `?thumb=640x480` PNG
+  is 369 494 bytes, **1.70x** the thumbnail. That is under 2x, so nothing goes to the
+  Engineer.
+
+**Done when 2 to 5:** see the developer's Log line.
+
 # Log
 
 - 2026-11-24 architect: raised from Sander's production console check (all 23 cards at DPR 1
@@ -241,3 +309,22 @@ beside the project title; tiles "<project>, <date>"). Making card images announc
   PNG; an unlisted size returns the file itself. Depends on T-0039 for `PhotoImage`; the
   migration and the device's card images may start before it merges. Size full.
 - 2026-11-24 ux-designer: designed (invisible making, D-0040 until the card image exists, identical centre crop, visitor PNG trade-off, D-0020 untouched; Done when 9 added)
+- 2026-11-24 developer: built D-0041 in a draft PR. Migration `1794931800_card_thumbs.js`
+  (`thumbs: ["640x480"]` on photos.thumbnail, down `[]`). `CARD_WIDTH`/`CARD_HEIGHT`/`cardCrop`
+  in `src/photos/resize.ts`, with a test that the migration matches. The worker's
+  `encodeCard` takes the centre 4:3 crop at `round((source − crop)/2)` and scales it in halving
+  steps; it never enlarges. Card images are made at import and, for other photos, in the
+  rebuild pass beside the thumbnail check, written together with the thumbnail's width. They
+  are local only (`card`, `cardWidth`, where 0 means too small), with no outbox row and nothing
+  synced. Added `PublicPhoto.cardUrl`, and `PhotoImage` offers `card 640w` first (`offersCard`).
+  T-0039's `e2e/cover-after-update.spec.ts` and `e2e/thumbnails.spec.ts` now also accept the
+  card image (never the copy). Added a CI step for the new PocketBase test. Checks:
+  `pnpm run typecheck` clean; `pnpm test` 457 passed, 36 skipped; with a local
+  `harness backend`, `cards.pocketbase.test.ts` 3 passed (thumbs exactly `["640x480"]`; a
+  visitor gets 200 `image/png` 640×480 with `?thumb`, the WebP without it, and 404 on a private
+  photo; no request carries a card field; a pulled newer record keeps the card image).
+  `thumbnails`/`photos`/`sync` PocketBase tests 28 passed; `harness backend smoke` all passed
+  (on a fresh backend), then stopped. e2e `sharp-photos` + `card-images` `--repeat-each=3` 6
+  passed. `thumbnails`, `visitor`, `design` (baselines unchanged), `cover-after-update`,
+  `import` and `photos` 12 passed. The full e2e suite on the merge 81 passed. `harness check`
+  passed. Tables and bytes are in *Test*.
