@@ -274,3 +274,21 @@ committed):
   `e2e/thumbnails.spec.ts` unchanged and passing. Remaining: Done when 9, Sander in production
   after the merge.
 - 2026-11-24 tester: sent back: a sign-in revoked during the replacement step marks a private project's photos `done` without replacing them and without a sign-in pause (a 404 read as "not on the NAS"); see *Test*. Everything else passed.
+- 2026-11-24 developer: fixed the send-back. In `replaceThumbnails` (`src/sync/engine.ts`) a
+  404 or 400 now first asks the sign-in itself (`mayBeSignedOut` -> `auth.refreshAfterSync()`),
+  as the rest of the run does; refused, it throws `SignInRefused`, so the run pauses for sign-in
+  (`needsSignIn`) and no photo is marked done or skipped. Other branches checked: 410 comes only
+  from bin.pb.js on a record that really is purged; a marker or a current thumbnail read through
+  `getOne`/the file is real data (a guest only sees public photos as they are); a 404 on the NAS's
+  file leads to the upload, whose 404/400 now goes through the same check. New tests: in
+  `src/sync/thumbnails.pocketbase.test.ts`, "6: a sign-in revoked during the step marks nothing
+  done, and the run asks to sign in again" (private project, two rebuilt photos, the user's
+  password changed as superuser in `beforeSend` on the first `GET .../photos/records/<id>`: both
+  stay `check`, NAS still 512 px, `needsSignIn` true; without the fix it fails with
+  "expected { running: false, ... } to match object { needsSignIn: true }"), and in
+  `src/sync/thumbnails.test.ts` the same for a 404 and a 400 on the fake (fails without the fix
+  too). Check output, throwaway PocketBase from `harness backend start`: typecheck clean; PocketBase
+  files one at a time: auth 5 passed, sync 13 passed, photos 8 passed, thumbnails 7 passed (three
+  runs: 7 passed each); `pnpm test` "Test Files 34 passed | 4 skipped (38), Tests 426 passed |
+  33 skipped (459)"; build ok; `E2E_PORT=4794 pnpm run test:e2e` "79 passed, 2 skipped";
+  `harness check` all ✓. Remaining: Done when 9, Sander in production after the merge.

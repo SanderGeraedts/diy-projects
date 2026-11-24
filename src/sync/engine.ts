@@ -650,6 +650,13 @@ export function createSyncEngine(options: SyncEngineOptions) {
           console.warn('sync: thumbnails not replaced in this run', err)
           return
         }
+        // PocketBase answers a refused token as a guest's request: 404 (or 400) under
+        // owner-only rules. Ask the sign-in itself before either becomes a lasting state;
+        // refused, the run pauses for sign-in and every photo stays to check.
+        if (mayBeSignedOut(err)) {
+          await auth.refreshAfterSync()
+          if (auth.state() !== 'signed-in') throw new SignInRefused()
+        }
         if (err.status === 410) {
           await dropPurgedPhoto(id, epoch) // deleted for good (T-0022)
         } else if (err.status === 404) {

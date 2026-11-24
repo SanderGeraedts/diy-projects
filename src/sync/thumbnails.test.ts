@@ -322,6 +322,22 @@ describe('rebuilt thumbnails (T-0038, D-0039)', () => {
       }
     })
 
+    it('a 404 or 400 from a refused token marks nothing done: the run pauses for sign-in', async () => {
+      for (const status of [404, 400]) {
+        const server = new FakePocketBase()
+        const { phone, photos } = await rebuiltOn(server, 2)
+        // The token is refused mid-step; PocketBase then answers as to a guest.
+        server.interceptor = (op) => {
+          if (op !== 'getOne') return
+          phone.auth.set('expired')
+          return responseError(status)
+        }
+        expect(await phone.sync()).toMatchObject({ needsSignIn: true })
+        for (const p of photos) expect((await phone.db.photos.get(p.id))!.thumbnailOnNas).toBe('check')
+        expect(server.requests.filter((r) => r.op === 'getOne')).toHaveLength(1)
+      }
+    })
+
     it('a refused sign-in pauses sync, as in the rest of the run', async () => {
       const server = new FakePocketBase()
       const { phone, photos } = await rebuiltOn(server)

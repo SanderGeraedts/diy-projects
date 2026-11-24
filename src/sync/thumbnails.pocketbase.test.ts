@@ -95,7 +95,7 @@ describe.skipIf(!URL)('rebuilt thumbnails against a real PocketBase (T-0038)', {
   }
 
   /** A device: its own database, client and engine, signed in as `email`. */
-  async function device(email: string, measure = vi.fn(measureBlob)) {
+  async function device(email: string, measure = vi.fn(measureBlob), realRefresh = false) {
     const db = openDb(`thumbs-pocketbase-test-${++n}`)
     dbs.push(db)
     const pb = client()
@@ -110,7 +110,8 @@ describe.skipIf(!URL)('rebuilt thumbnails against a real PocketBase (T-0038)', {
       db,
       client: pb,
       // refreshAfterSync signs in again: keep it out of the auth rate limit in these tests.
-      auth: { ...auth, refreshAfterSync: async () => auth.state() },
+      // A device that must find a revoked sign-in out keeps the real one (an authRefresh).
+      auth: realRefresh ? auth : { ...auth, refreshAfterSync: async () => auth.state() },
       measure,
       // Its own lock: Node's Web Locks would make all simulated devices wait for each other.
       lock: (fn) => fn(),
@@ -412,5 +413,40 @@ describe.skipIf(!URL)('rebuilt thumbnails against a real PocketBase (T-0038)', {
     expect(patches(phone.sent, fresh!.id).map((s) => s.fields)).toEqual([null, ['copy', 'thumbnail'], ['original']])
     expect(phone.sent.filter((s) => s.method === 'GET' && s.url.includes(fresh!.id))).toEqual([])
     expect((await phone.db.photos.get(fresh!.id))!.thumbnailOnNas).toBe('done')
+  })
+
+  it('6: a sign-in revoked during the step marks nothing done, and the run asks to sign in again', async () => {
+    const email = await user()
+    const phone = await device(email, vi.fn(measureBlob), true)
+    // A private project: a guest (a refused token) gets 404 for its photos.
+    const project = await createProject({ title: `Privé ${Date.now().toString(36)}${++n}`, public: false }, phone.db)
+    const entry = await addEntry({ projectId: project.id, date: '2026-11-17' }, phone.db)
+    const photos = await addPhotos(entry.id, [older(5), older(6)], phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null, uploaded: 6 })
+    expect((await phone.rebuild('phone')).rebuilt).toBe(2)
+
+    // The sign-in is revoked (a new password) right before the step's first check.
+    const userId = phone.pb.authStore.record!.id
+    let revoked = false
+    const passOn = phone.pb.beforeSend!
+    phone.pb.beforeSend = async (url, options) => {
+      if (!revoked && (options.method ?? 'GET') === 'GET' && /\/api\/collections\/photos\/records\/[^/?]+/.test(url)) {
+        revoked = true
+        const password = 'a-new-ci-only-password-654321'
+        await su.collection('users').update(userId, { password, passwordConfirm: password })
+      }
+      return passOn(url, options)
+    }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(await phone.sync()).toMatchObject({ needsSignIn: true })
+    } finally {
+      warn.mockRestore()
+    }
+    expect(revoked).toBe(true)
+    for (const p of photos) {
+      expect((await phone.db.photos.get(p.id))!.thumbnailOnNas).toBe('check')
+      expect(await (await stored(p.id, 'thumbnail'))!.text()).toMatch(/^512x384/)
+    }
   })
 })
