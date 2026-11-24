@@ -169,6 +169,34 @@ unreachable: the existing unreachable message with the same back link. Zoomed in
 pans and arrow keys still move (resetting the zoom), as now. Small screens: nothing changes;
 the panel keeps its 40% maximum height and scrolls.
 
+## Review (2026-11-24, ux-designer, at 7eadebc)
+
+Looked at the running app (dev server, seeded demo data, desktop Chromium 1280×800 and
+1280×500 with a mouse and keyboard), read `src/viewer/PhotoViewer.tsx` and the new e2e tests.
+Order is newest first within a day (D-0031), so › always goes to an older photo; the design
+holds unchanged under that order.
+
+- **Strip and resistance:** neighbours come from the whole sequence; resistance only when
+  there is no `next`/`previous` in the project. Matches.
+- **Counter:** 25 okt `1 / 1`, 11 okt `2 / 2`, after › `1 / 3`; hidden only with one live
+  photo in the project (Fietsenrek, e2e). Still `aria-hidden`. Matches.
+- **Panel:** heading and note switch with the photo; a scrolled 11 okt panel (scrollTop 80)
+  is at 0 on 4 okt; within a day it keeps 80. Hidden by a click, it stays hidden after
+  crossing a day. Matches.
+- **‹ ›:** › on 11 okt/2 leads to 4 okt/1; ‹ on 11 okt/1 leads to 25 okt/1; no ‹ on 25 okt/1,
+  no › on 4 okt/3; same look and names. Matches (*Done when* 4 seen here too; the tester still
+  confirms it).
+- **Keyboard:** Tab to ›, Enter ×4 from 11 okt/1 reaches 4 okt/3; › disappears and focus is
+  on *Vorige foto*, not the page. Ends stop silently. Escape closes. Matches.
+- **Screen reader:** dialog name per day (`Foto 1 van 3, 4 okt 2026`); neighbours
+  `aria-hidden` with their own day's alt (`Foto 1 van 3, 4 okt 2026` beside 11 okt/2). Matches.
+- **Address and back:** three moves across two days, one back shows the project page, no
+  dialog. Matches.
+- **Delete:** next's photo, the next day's first when the day empties, previous at the end,
+  close with none left; plain background in between (`leaving`). Matches (e2e).
+
+No differences. Verdict: matches the design.
+
 # Test
 
 # Log
@@ -179,3 +207,4 @@ the panel keeps its 40% maximum height and scrolls.
 - 2026-11-24 architect: Renumbered T-0029 → T-0036 and D-0031 → D-0037 after main took those numbers (#58–#67); references to D-0029 now point at D-0031, which replaced it and orders a day's photos newest first. Merged origin/main into the branch: so "next" is an older photo within a day and across days; place numbers in *Done when* stay, photo ids at each place follow newest first (*Done when* 3). Ruled on the developer's flag: the cover-delete test's change to `/2026-10-11/1` then *Sluiten* is right under D-0037; *Done when* 3 amended. Back to the developer: after the merge two unit tests in `src/routes/paths.test.ts` (timeline and sequence) still expect oldest first within a day, and `e2e/viewer.spec.ts` expects `entry-1-photo-1` at `/2026-10-04/1`; both must follow D-0031.
 - 2026-11-24 developer: rebuilt on the merged main (07f1fa9): unit expectations in `paths.test.ts` now newest first within a day; e2e photo ids checked against the new places (`/2026-10-04/1` = entry-1-photo-3, `/2026-10-04/3` = entry-1-photo-1, `/2026-10-11/1` = entry-2-photo-2, `/2026-10-11/2` = entry-2-photo-1) and asserted in each cross-day and delete test. One more superseded assertion, for the architect: `e2e/photo-order.spec.ts` (T-0029) expected no ‹ and a stay-put ArrowLeft at `/2026-10-04/1`; under D-0037 that photo's previous is `/2026-10-11/2`, so the test now checks ArrowLeft goes there and ArrowRight comes back. Checks: `pnpm run typecheck` exit 0; `pnpm test` 30 files passed (3 skipped), 390 tests passed (26 skipped); `pnpm run build` exit 0; `E2E_PORT=4794 pnpm run test:e2e` 74 passed, 2 skipped; `pnpm exec harness check` ✓ tasks (36, index in step), ✓ decisions (43, 1 overrule valid), ✓ engineers (2), ✓ generated files current.
 - 2026-11-24 developer: CI run 45385217400 failed on a flaky e2e ("after crossing days, one back closes the viewer" passed only on retry, G-0031): ArrowRight was pressed before the viewer had loaded. The test now waits for each photo's dialog before the next key (also in `photo-order.spec.ts`), and the viewer's key handler reads the latest render's state through a ref, so a key right after a move never acts on the photo before. Checks: `pnpm run typecheck` exit 0; `pnpm test` 30 files passed (3 skipped), 390 tests passed (26 skipped); `pnpm run build` exit 0; the cross-day tests 3× repeated: 33 passed; `E2E_PORT=4794 pnpm run test:e2e` 74 passed, 2 skipped; `pnpm exec harness check` ✓ tasks (36), ✓ decisions (43), ✓ engineers (2), ✓ generated files.
+- 2026-11-24 ux-designer: reviewed: matches. Looked at the dev server (seeded data, desktop with mouse and keyboard) and the code at 7eadebc: counter per day incl. `1 / 1`, panel switches day and scrolls to top only on a new day, hidden panel stays hidden, ‹ › only at real neighbours, focus moves to ‹ when › goes, back closes after crossing days, neighbour alts per own day. No differences; handed to the tester.
