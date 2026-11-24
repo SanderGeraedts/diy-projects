@@ -118,6 +118,12 @@ at 100 %, and as sharp as now on the Fold and his phone. Visitors the same.
    And once as a visitor (a private window on the public address): the covers look the same,
    and the same one-liner reports 640 natural width on the cards. Keeps the task *Doing* with
    `Remaining:` until he confirms; his confirmation also closes T-0037's Done when 6.
+9. **Unchanged to the eye** (the ux-designer's review, by eye; an automated pixel diff is optional): for the generated
+   4000×3000 landscape and 3000×4000 portrait, a screenshot of the card and of the tile taken
+   with the card image and one taken without it (D-0040 path) show the same framing: no
+   visible shift of the subject, no edge appearing or disappearing, no stretch. While a card
+   image is made for a photo on screen, the image never disappears (already in check 2) and
+   the page text never changes. `/design`'s screenshot baselines are unchanged.
 
 # Notes
 
@@ -166,6 +172,63 @@ at 100 %, and as sharp as now on the Fold and his phone. Visitors the same.
 
 # Design
 
+No new screen, layout, look or words (D-0020 unchanged). This settles only what the user sees
+around the card image: the same pictures, framed the same, smoother at a pixel ratio of 1.
+
+**Making card images for existing photos: invisible**, as T-0037's rebuild. No message,
+banner, spinner, progress or count; the sync status bar doesn't show it and doesn't count it
+as unsent; the app stays fully usable, also offline, and an import is never held up by it. A
+failure shows nothing (a single console line).
+
+**Before a card image exists: exactly as today** (D-0040): the card or tile shows the
+thumbnail (and the copy where measured). The same holds for a photo too small to get one
+(copy's 4:3 crop under 640×480) and for a photo still being downloaded. Loading stays as now:
+the card's grey 4:3 box until the image shows, `loading="lazy"`, no placeholder, blur-up or
+fade.
+
+**When a card image arrives while its card or tile is on screen:** the picture stays put and
+may only get smoother. No empty frame, no flash of the grey box, no jump in the layout, no
+fade. The `<img>` is not unmounted: the new `srcset` is applied only once every object URL
+it names exists (T-0037's "render once" rule, with T-0039's stable object URLs), so the
+browser swaps from a loaded image to a loaded image.
+
+**Crop: identical, nothing shifts.** Cards (`aspect-[4/3]`, `object-cover`) and tiles
+(`aspect-[4/3]`, `object-cover`) both use the default `object-position` (50 % 50 %), which is
+a centre crop to the box's 4:3. The card image is that same centre 4:3 crop, made ahead of
+time, so `object-cover` then crops nothing more. For both landscape and portrait photos (and
+panoramas) the visible part is therefore the same as from the thumbnail or the copy. Required
+of the build:
+- the crop is centred in both directions, with the offset taken as
+  `round((source − crop) / 2)` on the copy, and the crop is the largest 4:3 area of the copy
+  (full width or full height), then scaled to 640×480; never stretched, never padded;
+- the result may differ from today's framing by at most 1 px of the 640 px image (about
+  half a CSS pixel on a 320 px card): invisible. Anything more (an off-centre crop, a sliver
+  of edge appearing or disappearing, a squashed image) is a defect;
+- PocketBase's `640x480` thumb is also a centre crop ("crop to W×H from centre"), so the
+  visitor's framing matches too.
+- The photo viewer is unchanged: the whole photo, from the copy.
+
+**Visitors** (signed out, on the public address): the same pages, cards and tiles, framed the same. Their card image is PocketBase's PNG
+of the thumbnail. The trade-off D-0041 accepts: per card or tile it may weigh as much as or
+up to about twice the 1280 px WebP it replaces, so on a slow connection a cover can take a
+little longer to appear; the grey box shows meanwhile, as now. On a fast laptop that is
+invisible and the covers look smoother. Before the backend has the migration, the same
+address returns the thumbnail itself, so visitors see exactly what they see today. A failed
+image behaves as today (no new error handling or message). The demo visitor view has no card
+image and is unchanged. If the PNG in Done when 6 is more than twice the thumbnail, the PR
+says so and the Engineer decides; the design itself doesn't change.
+
+**Design system (D-0020): untouched.** No token, colour, radius, spacing or word changes;
+4:3 and the 25 px corners stay on the element, not in the image. The `/design` page's sample
+photo is not in the database, so it gets no card image and shows the D-0040 path: its
+screenshot baselines must not change (a changed baseline in this PR is a defect).
+
+**Keyboard and screen reader: unchanged.** Same elements, order and alt texts (cards `alt=""`
+beside the project title; tiles "<project>, <date>"). Making card images announces nothing
+(no live region).
+
+**Added to Done when** (see check 9).
+
 # Test
 
 # Log
@@ -177,3 +240,4 @@ at 100 %, and as sharp as now on the Fold and his phone. Visitors the same.
   thumbnails" line. Probed PocketBase 0.40.6 on a throwaway backend: WebP thumbs come back as
   PNG; an unlisted size returns the file itself. Depends on T-0039 for `PhotoImage`; the
   migration and the device's card images may start before it merges. Size full.
+- 2026-11-24 ux-designer: designed (invisible making, D-0040 until the card image exists, identical centre crop, visitor PNG trade-off, D-0020 untouched; Done when 9 added)
