@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { auth, pb, setSyncNow } from '../auth/session'
 import { db } from '../db/db'
 import { removePurged, type BinKind } from '../db/write'
+import { measureImage } from '../photos'
 import { createSyncEngine, type SyncEngine, type SyncStatus } from './engine'
 import { purgeOnNas } from './purge'
 
@@ -10,7 +11,7 @@ import { purgeOnNas } from './purge'
 // dev and tests get null and never sync.
 
 export const syncEngine: SyncEngine | null =
-  pb && auth ? createSyncEngine({ db, client: pb, auth }) : null
+  pb && auth ? createSyncEngine({ db, client: pb, auth, measure: measureImage }) : null
 
 // D-0013: sign-out syncs first.
 if (syncEngine) setSyncNow(syncEngine.syncNow)

@@ -2,7 +2,7 @@
 id: T-0038
 title: "Upload each rebuilt thumbnail once over the older one on the NAS"
 description: "D-0039: an owner device's sync uploads each 1280 px thumbnail it rebuilt (T-0037) over the NAS's older 512 px one, once, only while the NAS's is still narrower, without a new updatedAt, history or unsent count, so visitors see older photos sharp."
-status: Open
+status: Doing
 size: small
 depends_on: [T-0037]
 decisions: [D-0039, D-0038, D-0002, D-0015, D-0014, D-0026, D-0023, D-0013, G-0019, G-0023]
@@ -179,3 +179,38 @@ progress for this work; the status bar doesn't count it.
   owner device to check, no `updatedAt`, history or unsent count) and closed issue #69. Read
   the backend: the owner may already replace a photo's file and photos have no history hook,
   so nothing on the NAS changes. Size small.
+- 2026-11-24 developer: built the replacement as the sync's last step (`replaceThumbnails` in
+  `src/sync/engine.ts`), run after a run that went through and right after its sign-in check
+  (a refused token reads as a guest, who would find no record and mark it done), so it never
+  starts on a run that failed. Per candidate, oldest first: re-read the photo (tombstoned or
+  changed: skip, stays a candidate), wait for an outbox row, `getOne` the record (new on
+  `RecordApi` and the fake), fetch its `thumbnail` with a file token and measure it with the
+  photo worker (`measure`, new engine option; `src/sync/app.ts` passes `measureImage`); within
+  1 px of `currentThumbnailWidth`: done, else `api.update(id, form)` with only `thumbnail`
+  (`thumbnailBody` in `src/sync/photos.ts`, the blob as it is). Local-only field
+  **`Photo.thumbnailOnNas?: 'check' | 'done'`** (absent counts as `check`; not indexed, no Dexie
+  version, not in `toServer`). Set to `done` when the NAS's thumbnail measures current, when the
+  replacement is confirmed, when `uploadPhotoFiles` confirms a thumbnail of the current size this
+  device made (imports after T-0037), on 404 of the record, and by the rebuild when it only
+  measures a thumbnail of the current size (downloaded ones); the rebuild sets `check` when it
+  rebuilds. Failures: 401/403 throw into the run's sign-in pause; 410 drops the photo; 404
+  marks done; 400 warns and skips the photo until the app starts again; anything else (offline,
+  timeout, 5xx) warns and stops the step for this run, without `lastError`, retry or
+  `photoUpload`. A 404 on the NAS's file, or a file that can't be measured, is replaced.
+  `src/main.tsx` asks for a sync after each rebuild pass, so rebuilt thumbnails go up soon.
+  No backend, `deploy/nas` or migration change. **Workflow change:** `ci.yml`'s
+  `pocketbase-auth` job runs the new `src/sync/thumbnails.pocketbase.test.ts` as its own step
+  (the suites run one file at a time there, for PocketBase's sign-in rate limit). Tests:
+  `src/sync/thumbnails.test.ts` (16, fake PocketBase: Done when 1, 3, 5, 6, 7 and the 401 and
+  missing-file cases), `src/sync/thumbnails.pocketbase.test.ts` (6, Done when 1 to 7 on a real
+  PocketBase: request counts, multipart fields, sha256, history count, the race with both checks
+  answered before either upload, a new device, a visitor's `thumbnailUrl`), two lines in
+  `src/photos/rebuild.test.ts`. Check output, against `pnpm exec harness backend start` (a
+  throwaway PocketBase on this machine): `pnpm run typecheck` clean; each PocketBase suite as CI
+  runs them: auth 5 passed, sync 13 passed, photos 8 passed, thumbnails 6 passed (three runs in
+  a row: 6 passed each); `pnpm test` "Test Files 34 passed | 4 skipped (38), Tests 425 passed |
+  32 skipped (457)" (all four PocketBase files in one parallel run hit PocketBase's sign-in rate
+  limit, 429, in auth, photos and thumbnails alike, which is why CI runs them one by one);
+  `pnpm run build` ok; `E2E_PORT=4794 pnpm run test:e2e` "79 passed, 2 skipped", with
+  `e2e/thumbnails.spec.ts` unchanged and passing. Remaining: Done when 9, Sander in production
+  after the merge.

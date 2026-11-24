@@ -7,9 +7,9 @@ import { fitLongEdge, THUMBNAIL_LONG_EDGE } from './resize'
 // (T-0037 Design). The state lives in Dexie (`thumbnailWidth`), so it carries on after a
 // reload, and photos downloaded later are checked on the next pass.
 //
-// A rebuild writes the local `thumbnail` blob and `thumbnailWidth` only: no outbox row, no
-// change to `uploads` or `updatedAt`, nothing sent to the NAS. Whether rebuilt thumbnails
-// replace the NAS's files is Q-007, still open.
+// A rebuild writes the local `thumbnail` blob, `thumbnailWidth` and `thumbnailOnNas` only: no
+// outbox row, no change to `uploads` or `updatedAt`, nothing sent to the NAS. The sync sends a
+// rebuilt thumbnail over the NAS's older one later (T-0038, D-0039, src/sync/engine.ts).
 
 export interface RebuildDeps {
   db: DiyDb
@@ -30,8 +30,7 @@ export interface RebuildResult {
 
 /**
  * True when the device hasn't measured this photo's thumbnail yet. A photo whose upload is
- * still pending is left until it is uploaded: its thumbnail is what goes to the NAS, and a
- * rebuilt one mustn't (Q-007).
+ * still pending is left until it is uploaded: its own upload sends the thumbnail it has.
  */
 export function needsCheck(photo: Photo): boolean {
   return photo.thumbnailWidth === undefined && photo.uploads.thumbnail !== 'pending' && photo.uploads.copy !== 'pending'
@@ -57,11 +56,16 @@ export async function rebuildThumbnails(deps: RebuildDeps, skip: ReadonlySet<str
       if (!photo || !needsCheck(photo)) continue
       const { width } = await deps.measure(photo.thumbnail)
       const wanted = photo.width > 0 && photo.height > 0 ? currentThumbnailWidth(photo) : width
-      let change: Pick<Photo, 'thumbnailWidth'> & Partial<Pick<Photo, 'thumbnail'>> = { thumbnailWidth: width }
+      // Already of the current size: what the NAS has too (downloaded, or made at this size
+      // and uploaded), so the sync needn't check it (T-0038).
+      let change: Pick<Photo, 'thumbnailWidth' | 'thumbnailOnNas'> & Partial<Pick<Photo, 'thumbnail'>> = {
+        thumbnailWidth: width,
+        thumbnailOnNas: 'done',
+      }
       // Older thumbnails are smaller; a v1 photo's "thumbnail" is its copy (db.ts upgradeToV2).
       if (Math.abs(width - wanted) > 1) {
         const thumbnail = await deps.makeThumbnail(photo.blob)
-        change = { thumbnail, thumbnailWidth: (await deps.measure(thumbnail)).width }
+        change = { thumbnail, thumbnailWidth: (await deps.measure(thumbnail)).width, thumbnailOnNas: 'check' }
       }
       const written = await db.transaction('rw', db.photos, async () => {
         const now = await db.photos.get(id)

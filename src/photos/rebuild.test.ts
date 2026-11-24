@@ -70,6 +70,8 @@ describe('rebuildThumbnails', () => {
     const after = (await db.photos.get('old'))!
     expect(await after.thumbnail.text()).toBe('1280x960')
     expect(after.thumbnailWidth).toBe(1280)
+    // T-0038: the sync is to check the NAS's thumbnail and send this one over an older one.
+    expect(after.thumbnailOnNas).toBe('check')
     expect(after.uploads).toEqual(old.uploads)
     expect(after.updatedAt).toBe(old.updatedAt)
     expect(await db.outbox.count()).toBe(0)
@@ -98,6 +100,8 @@ describe('rebuildThumbnails', () => {
     expect(await rebuildThumbnails(deps)).toEqual({ measured: 1, rebuilt: 0, failed: [] })
     expect(worker.makeThumbnail).not.toHaveBeenCalled()
     expect((await db.photos.get('new'))!.thumbnailWidth).toBe(960)
+    // T-0038: what the NAS has too, so the sync never checks it.
+    expect((await db.photos.get('new'))!.thumbnailOnNas).toBe('done')
   })
 
   it('rebuilds a v1 photo whose thumbnail is its copy', async () => {
@@ -106,7 +110,7 @@ describe('rebuildThumbnails', () => {
     expect((await db.photos.get('v1'))!.thumbnailWidth).toBe(1280)
   })
 
-  it('leaves a photo with a pending upload until it is uploaded, so no rebuilt thumbnail goes to the NAS', async () => {
+  it('leaves a photo with a pending upload until it is uploaded: its own upload sends its thumbnail', async () => {
     const pending = photo('pending', { width: 2560, height: 1920 }, { width: 512, height: 384 }, {
       uploads: { original: 'pending', copy: 'pending', thumbnail: 'pending' },
     })

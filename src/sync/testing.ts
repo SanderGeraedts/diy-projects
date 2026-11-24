@@ -34,7 +34,7 @@ export interface HistoryRow {
 }
 
 /** `upload` is an update with files (multipart); `download` fetches one file. */
-export type Operation = 'getList' | 'create' | 'update' | 'upload' | 'token' | 'download' | 'delete'
+export type Operation = 'getList' | 'getOne' | 'create' | 'update' | 'upload' | 'token' | 'download' | 'delete'
 
 /** Return an error to fail a request, or nothing to let it through. */
 export type Interceptor = (
@@ -209,6 +209,12 @@ export class FakePocketBase {
             )
             visible.sort((a, b) => (a.updated === b.updated ? cmp(a.id, b.id) : cmp(a.updated, b.updated)))
             return { items: visible.slice(0, perPage).map(clone) }
+          },
+          async getOne(id) {
+            guard('getOne', id)
+            const record = server.table(name).get(id)
+            if (!record || (record.owner !== userId && !server.isPublic(name, record))) throw responseError(404)
+            return clone(record)
           },
           async create(body) {
             guard('create', String(body.id))

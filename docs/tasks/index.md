@@ -7,12 +7,12 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Open
 
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
-- [T-0038 Upload each rebuilt thumbnail once over the older one on the NAS](T-0038-upload-rebuilt-thumbnails.md) (small): D-0039: an owner device's sync uploads each 1280 px thumbnail it rebuilt (T-0037) over the NAS's older 512 px one, once, only while the NAS's is still narrower, without a new updatedAt, history or unsent count, so visitors see older photos sharp.
 
 ## Doing
 
 - [T-0036 Move between days in the photo viewer](T-0036-viewer-across-days.md): D-0037: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have.
 - [T-0037 Show photos sharp on the overview's cards and the project page's tiles](T-0037-sharp-photos-on-cards-and-tiles.md) (small): D-0038: 1280 px thumbnails made in halving steps, srcset/sizes with the thumbnail and the copy on cards and tiles for owner and visitor, and each device rebuilding its older thumbnails from its copy; nothing changes on the NAS for existing photos (Q-007).
+- [T-0038 Upload each rebuilt thumbnail once over the older one on the NAS](T-0038-upload-rebuilt-thumbnails.md) (small): D-0039: an owner device's sync uploads each 1280 px thumbnail it rebuilt (T-0037) over the NAS's older 512 px one, once, only while the NAS's is still narrower, without a new updatedAt, history or unsent count, so visitors see older photos sharp.
 
 ## Done
 
