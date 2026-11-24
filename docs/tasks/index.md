@@ -11,6 +11,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Doing
 
 - [T-0036 Move between days in the photo viewer](T-0036-viewer-across-days.md): D-0037: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have.
+- [T-0037 Show photos sharp on the overview's cards and the project page's tiles](T-0037-sharp-photos-on-cards-and-tiles.md) (small): D-0038: 1280 px thumbnails made in halving steps, srcset/sizes with the thumbnail and the copy on cards and tiles for owner and visitor, and each device rebuilding its older thumbnails from its copy; nothing changes on the NAS for existing photos (Q-007).
 
 ## Done
 

@@ -17,6 +17,13 @@ import { photoNumber, projectTimeline } from './paths'
 import { SlugRedirect, useProjectBySlug } from './projectBySlug'
 import { EditProjectLink } from './ProjectLinks'
 
+/**
+ * A day tile's `sizes` (T-0037 Design): two columns with `gap-2` inside `main`'s
+ * `max-w-5xl p-4`, so (min(100vw, 1024px) - 32px - 8px) / 2; from 1024 px a tile is 492 px.
+ * Change these with the grid below or that padding.
+ */
+const TILE_SIZES = 'auto, (min-width: 1024px) 492px, calc((100vw - 40px) / 2)'
+
 const backLink = 'mb-3 inline-block text-sm text-grey no-underline hover:text-text'
 
 /** T-0026: the owner's project from the device, a visitor's from the NAS (D-0025). */
@@ -142,7 +149,7 @@ function ProjectView({
                   >
                     <PhotoImage
                       photo={ph}
-                      file="thumbnail"
+                      sizes={TILE_SIZES}
                       alt={`${project.title}, ${formatDate(e.date)}`}
                       className="aspect-[4/3] h-auto w-full rounded-card object-cover"
                     />

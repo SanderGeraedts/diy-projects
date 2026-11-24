@@ -20,6 +20,7 @@ then this list, then only the records your work touches. How the registry works 
 - [D-0015 The device that adds a photo uploads its 2560 px copy and thumbnail with the original; other devices download only those](D-0015-the-adding-device-uploads-the-copy-and-thumbnail-with-the-original.md): Each photo on the NAS has three files: the untouched original, the 2560 px WebP copy and a thumbnail, all uploaded by the device that added it; other devices download the copy and thumbnail, never the original, and the NAS does no image processing.
 - [D-0023 The front end is on Netlify at projects.sanderg.nl; the browser talks directly to PocketBase on the NAS through Tailscale Funnel; only the owner writes, anyone may read public projects](D-0023-backend-on-the-nas-with-owner-writes-and-public-reads.md): D-0005's hosting and lock-down, with one change: records stay owner-only to write, but public projects, their entries and their photo records, copies and thumbnails are readable without signing in; originals, private projects and history stay owner-only.
 - [D-0026 A permanent delete empties the records on the NAS and keeps each as a purge marker; a restore brings back what one delete cascaded to](D-0026-permanent-delete-leaves-a-purge-marker.md): Adds to D-0014's bin: a restore clears the tombstones that share the item's deletedAt; a permanent delete is the owner's DELETE of a tombstoned project or entry, taken over by a PocketBase hook that empties it and everything under it, drops their files and history, and keeps the record with purgedAt so late writes get 410 and other devices drop their copies.
+- [D-0038 Thumbnails are 1280 px on the long edge; cards and day grids show the thumbnail, with the copy as a srcset candidate](D-0038-thumbnails-are-1280-px-and-grids-pick-by-screen.md): Adds to D-0003 and D-0015: a photo's thumbnail is 1280 px on the long edge (half the 2560 px copy) instead of about 512; the overview's cards and the project page's tiles, the owner's and a visitor's, show it through srcset and sizes with the copy as the larger candidate; downscales of more than 2x are done in halving steps; each device rebuilds its own older thumbnails from its copy.
 
 ### Product
 
@@ -34,6 +35,8 @@ then this list, then only the records your work touches. How the registry works 
 - [D-0037 The photo viewer moves through all of a project's photos in the timeline's order, across days](D-0037-the-viewer-moves-through-the-whole-timeline.md): Arrow keys, the ‹ › buttons and swipes all go from a day's last photo to the first photo of the next day down the project page (and back), so "next" is always an older photo; days without live photos are skipped, for the owner and visitors; the counter and label stay per day, and a delete shows what next would have shown.
 
 ## Open questions
+
+- [Q-007 Do the rebuilt 1280 px thumbnails replace the older 512 px ones on the NAS?](Q-007-do-rebuilt-thumbnails-replace-the-older-ones-on-the-nas.md): D-0038 makes thumbnails 1280 px and has each device rebuild its own older ones locally; decide whether the owner's device also uploads them over the 512 px thumbnails of existing photos on the NAS, so visitors see older photos sharp too.
 
 ## Resolved questions
 

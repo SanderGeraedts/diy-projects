@@ -283,11 +283,12 @@ async function importOne(projectId: string, file: File, deps: ImportDeps): Promi
   const copy = await deps.makeCopy(file)
   const thumbnail = await deps.makeThumbnail(copy)
   const { width, height } = await deps.imageSize(copy)
+  const { width: thumbnailWidth } = await deps.imageSize(thumbnail)
 
   // One entry per project per day taken (D-0003), created when the day has none yet.
   const date = taken.takenAt.slice(0, 10)
   const entry = (await findEntry(projectId, date)) ?? (await addEntry({ projectId, date }))
-  const [photo] = await addPhotos(entry.id, [{ original: file, copy, thumbnail, takenAt: taken.takenAt, width, height }])
+  const [photo] = await addPhotos(entry.id, [{ original: file, copy, thumbnail, thumbnailWidth, takenAt: taken.takenAt, width, height }])
 
   // The first photo of a project without a cover becomes the cover.
   const project = await db.projects.get(projectId)

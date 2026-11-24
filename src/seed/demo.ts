@@ -122,6 +122,7 @@ export function buildDemoData(): DemoData {
           takenAt: `${e.date}T${String(10 + i).padStart(2, '0')}:00:00.000Z`,
           blob,
           thumbnail: blob,
+          thumbnailWidth: 1600, // the thumbnail is the copy
           original: null,
           uploads: { original: 'none', copy: 'none', thumbnail: 'none' },
           width: 1600,
