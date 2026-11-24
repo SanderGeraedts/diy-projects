@@ -21,6 +21,7 @@ then this list, then only the records your work touches. How the registry works 
 - [D-0023 The front end is on Netlify at projects.sanderg.nl; the browser talks directly to PocketBase on the NAS through Tailscale Funnel; only the owner writes, anyone may read public projects](D-0023-backend-on-the-nas-with-owner-writes-and-public-reads.md): D-0005's hosting and lock-down, with one change: records stay owner-only to write, but public projects, their entries and their photo records, copies and thumbnails are readable without signing in; originals, private projects and history stay owner-only.
 - [D-0026 A permanent delete empties the records on the NAS and keeps each as a purge marker; a restore brings back what one delete cascaded to](D-0026-permanent-delete-leaves-a-purge-marker.md): Adds to D-0014's bin: a restore clears the tombstones that share the item's deletedAt; a permanent delete is the owner's DELETE of a tombstoned project or entry, taken over by a PocketBase hook that empties it and everything under it, drops their files and history, and keeps the record with purgedAt so late writes get 410 and other devices drop their copies.
 - [D-0038 Thumbnails are 1280 px on the long edge; cards and day grids show the thumbnail, with the copy as a srcset candidate](D-0038-thumbnails-are-1280-px-and-grids-pick-by-screen.md): Adds to D-0003 and D-0015: a photo's thumbnail is 1280 px on the long edge (half the 2560 px copy) instead of about 512; the overview's cards and the project page's tiles, the owner's and a visitor's, show it through srcset and sizes with the copy as the larger candidate; downscales of more than 2x are done in halving steps; each device rebuilds its own older thumbnails from its copy.
+- [D-0039 The owner's devices upload each rebuilt 1280 px thumbnail once, over the older one on the NAS](D-0039-rebuilt-thumbnails-replace-the-older-ones-on-the-nas.md): Answers Q-007 and adds to D-0002 and D-0038: a photo's thumbnail on the NAS may be replaced (the only file of a photo that may change after it was added); an owner device uploads its rebuilt thumbnail through the normal sync, only while the NAS's thumbnail is still narrower, without a new updatedAt, history or unsent count, so visitors see older photos sharp too.
 
 ### Product
 
@@ -36,8 +37,6 @@ then this list, then only the records your work touches. How the registry works 
 
 ## Open questions
 
-- [Q-007 Do the rebuilt 1280 px thumbnails replace the older 512 px ones on the NAS?](Q-007-do-rebuilt-thumbnails-replace-the-older-ones-on-the-nas.md): D-0038 makes thumbnails 1280 px and has each device rebuild its own older ones locally; decide whether the owner's device also uploads them over the 512 px thumbnails of existing photos on the NAS, so visitors see older photos sharp too.
-
 ## Resolved questions
 
 - [Q-001 How should the guarded-path review be enforced while the repo is private on a free plan?](Q-001-how-to-enforce-review-of-guarded-prs-on-a-private-free-repo.md): GitHub Free offers no branch protection, rulesets or code-owner reviews on private repos, so nothing on GitHub stops anyone with write access from merging a guarded PR; decide whether to accept that until the repo goes public, pay for Pro, or add a local guard.
@@ -46,6 +45,7 @@ then this list, then only the records your work touches. How the registry works 
 - [Q-004 How does a second device (the laptop, or a reinstalled phone) get the 2560 px copy of each photo?](Q-004-how-do-other-devices-get-the-phone-sized-copy.md): D-0003 has the phone make a 2560 px copy before sync and keeps only originals on the NAS; decide how any other device gets its offline copy without downloading every original.
 - [Q-005 How are PocketBase's data and the photo originals on the NAS backed up?](Q-005-how-is-the-nas-data-backed-up.md): The NAS holds the only copy of every photo original (D-0003) and is the source of truth (D-0002), but no decision covers backups; decide what is backed up, where to, how often, and how a restore is tested.
 - [Q-006 Does the laptop keep its own TrueNAS key now that NAS work runs through the runner on the NAS?](Q-006-does-the-laptop-keep-its-own-truenas-key.md): G-0026 holds the TrueNAS key only in the infrastructure repository's GitHub environment, but this project's NAS setup still has a key for the claude-agent user in Sander's user environment; decide whether to revoke it and work only through harness nas --remote, or keep it and overrule G-0026 here.
+- [Q-007 Do the rebuilt 1280 px thumbnails replace the older 512 px ones on the NAS?](Q-007-do-rebuilt-thumbnails-replace-the-older-ones-on-the-nas.md): D-0038 makes thumbnails 1280 px and has each device rebuild its own older ones locally; decide whether the owner's device also uploads them over the 512 px thumbnails of existing photos on the NAS, so visitors see older photos sharp too.
 
 ## Replaced
 

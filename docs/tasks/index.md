@@ -7,6 +7,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Open
 
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
+- [T-0038 Upload each rebuilt thumbnail once over the older one on the NAS](T-0038-upload-rebuilt-thumbnails.md) (small): D-0039: an owner device's sync uploads each 1280 px thumbnail it rebuilt (T-0037) over the NAS's older 512 px one, once, only while the NAS's is still narrower, without a new updatedAt, history or unsent count, so visitors see older photos sharp.
 
 ## Doing
 
