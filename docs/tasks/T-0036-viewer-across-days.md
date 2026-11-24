@@ -199,6 +199,93 @@ No differences. Verdict: matches the design.
 
 # Test
 
+2026-11-24, tester, at 7f94499 (branch `viewer-across-days`, PR #68), after
+`pnpm install --frozen-lockfile` ("Lockfile is up to date").
+
+**CI** (run 45386561569 on 7f94499): `checks / checks` pass (unit 30 files passed, 3 skipped;
+390 tests passed, 26 skipped; e2e `76 passed (43.0s)`), `pocketbase-auth` pass, Netlify
+preview ready; the e2e shard jobs are skipped by design (`e2e-shards: 1`, e2e runs inside
+`checks`). No "passed only on a retry": the log has no flaky line and the G-0031 retry guard
+did not fire.
+
+**Done when 1**, run here:
+
+- `pnpm run typecheck`: exit 0.
+- `pnpm test`: exit 0, `Test Files  30 passed | 3 skipped (33)`, `Tests  390 passed | 26 skipped (416)`.
+- `pnpm run build`: exit 0 (`precache  23 entries (674.42 KiB)`, `dist/sw.js` generated).
+- `E2E_PORT=4794 pnpm run test:e2e`: exit 0, `2 skipped`, `74 passed (22.6s)`.
+- `pnpm exec harness check`: exit 0; ✓ tasks: 36 tasks, index in step; ✓ decisions: 43
+  records, index complete, 1 overrule valid; ✓ engineers: 2 listed; ✓ generated files: current.
+
+**Flakiness:** `E2E_PORT=4794 pnpm run test:e2e e2e/viewer.spec.ts e2e/visitor.spec.ts
+e2e/cover-delete.spec.ts e2e/photo-order.spec.ts --repeat-each=5 --workers=4 --retries=0`:
+exit 0, `115 passed (46.5s)` (23 tests × 5, no failures).
+
+**Done when 2:** `src/routes/paths.test.ts` "the project timeline and the viewer sequence"
+covers page order across entries, a note-only entry and an all-deleted entry (both listed
+in the timeline with no photos and absent from the sequence), a deleted entry, and two
+entries on 4 okt (`2026-10-04-2` / `2026-10-04`), with each day checked against
+`entryForDay`. Passes (in the 390 above).
+
+**Done when 3 and 6:** the e2e tests named there are in `e2e/viewer.spec.ts` (7 new),
+`e2e/visitor.spec.ts` (1 new), `e2e/cover-delete.spec.ts` (the one amended assertion) and
+`e2e/photo-order.spec.ts` (the superseded assertion the architect ruled on); all pass above
+and repeated.
+
+**Done when 4** (desktop Chromium 1280×800, `(pointer: fine)` true, dev server with seeded
+data, sync off; buttons clicked with the mouse at their centre):
+
+- `/projects/tuinbank/2026-10-11/2`: *Volgende foto* visible; click → `/2026-10-04/1`,
+  dialog `Foto 1 van 3, 4 okt 2026`, image `demo-garden-bench-entry-1-photo-3`, counter
+  `1 / 3`, heading `4 okt 2026`.
+- `/2026-10-11/1`: *Vorige foto* visible; click → `/2026-10-25/1`, `Foto 1 van 1, 25 okt
+  2026`, counter `1 / 1`.
+- `/2026-10-25/1`: no *Vorige foto*, *Volgende foto* shown. `/2026-10-04/3`: no *Volgende
+  foto*, *Vorige foto* shown. Pass.
+
+**Done when 7** (same browser, mouse and keyboard):
+
+- From `/2026-10-11/1`, Tab reaches *Volgende foto*; Enter ×4 goes `11 okt/2` → `4 okt/1` →
+  `4 okt/2` → `4 okt/3`, focus on *Volgende foto* each time; at `4 okt/3` › is gone and focus
+  is on *Vorige foto*. Enter on ‹ back to `25 okt/1`: ‹ goes and focus is on *Volgende foto*.
+- Long notes (40 lines each) saved on 11 okt and 4 okt via *Notitie bewerken* in the app.
+  Panel on 11 okt/1 scrolled with the mouse wheel to 146; ArrowRight to 11 okt/2 keeps 146
+  (same day); › click to 4 okt/1: scrollTop 0 and the panel shows 4 okt's note from line 1.
+- A click on the photo hides the panel (opacity 0); ArrowRight across 11 okt → 4 okt and
+  ArrowLeft back: still hidden; a click shows it again. Pass.
+
+**Tried to break it** (same browser, fresh seeded data per case; after each, the address,
+dialog name, image id, counter and heading agreed with each other):
+
+- Rapid keys across 11 okt/4 okt: 8× ArrowRight, 8× ArrowLeft and a mixed run, with 0, 30,
+  120 and 210 ms between presses; a held ArrowRight (40 repeats at 33 ms) from 25 okt/1
+  stops at 4 okt/3; a double click on › at 11 okt/2 lands on 4 okt/1 (one move). Presses
+  during the 200 ms slide are dropped, never misapplied. Consistent in every case.
+- Back: opened 25 okt from the project page, 9 moves across all three days, one `goBack()` →
+  `/projects/tuinbank`, no dialog; Escape after crossing days also closes to the project.
+- Fietsenrek (one photo): no ‹ ›, no counter, arrow keys stay; deleting its only photo
+  closes to the project page, no *Foto niet gevonden*.
+- Visitor (`?bezoeker`): › ×5 from 25 okt/1 walks `25/1 > 11/1 > 11/2 > 4/1 > 4/2 > 4/3`,
+  no › at the end, no *Verwijderen*; ArrowLeft ×6 back to 25 okt/1; one back closes; a mouse
+  drag at 11 okt/2 crosses to 4 okt/1; no owner database created.
+- Delete at day edges (owner): 11 okt/2 (a day's last) → 4 okt/1 `1 / 3`, then ArrowLeft →
+  11 okt/1 `Foto 1 van 1`; 4 okt/3 (project's last) → 4 okt/2 `Foto 2 van 2`; 25 okt/1
+  (project's first) → 11 okt/1 with no ‹; deleting the rest one by one ends on the project
+  page, never *Foto niet gevonden*.
+- Days without photos: a note-only entry added on 20 okt and a second, note-only entry on
+  11 okt (`2026-10-11-2`): 25 okt/1 → 11 okt/1 and 11 okt/2 → 4 okt/1 skip them, and back.
+- Small screen with a mouse (375×667): › at the right edge clear of the panel; click crosses
+  to 4 okt/1.
+- Addresses that don't exist (`/2026-10-25/2`, `/2026-10-11/0`, `/2026-10-12/1`,
+  `/2026-10-04-2/1`, `/2026-10-11/abc`): *Foto niet gevonden*, as before.
+
+**Record:** D-0037 exists and the code follows its guidance (one order in `paths.ts`, used by
+the page, `visitorTimeline` and the viewer; every move a `replace`); the UX review (matches)
+is above; the developer's lesson is in `docs/lessons.md`.
+
+**Verdict: passed.** Done when 1–4, 6 and 7 ran here and pass. Done when 5 is Sander's after
+the deploy, so the task stays *Doing*.
+
 # Log
 
 - 2026-11-24 architect: Raised from Sander's request. Recorded D-0037: the viewer moves through all of a project's live photos in the page's order; arrow keys, buttons and swipes all cross days; days without photos skipped; counter and label stay per day; a delete shows what next would have shown. No open question. Handed to the UX designer.
@@ -208,3 +295,4 @@ No differences. Verdict: matches the design.
 - 2026-11-24 developer: rebuilt on the merged main (07f1fa9): unit expectations in `paths.test.ts` now newest first within a day; e2e photo ids checked against the new places (`/2026-10-04/1` = entry-1-photo-3, `/2026-10-04/3` = entry-1-photo-1, `/2026-10-11/1` = entry-2-photo-2, `/2026-10-11/2` = entry-2-photo-1) and asserted in each cross-day and delete test. One more superseded assertion, for the architect: `e2e/photo-order.spec.ts` (T-0029) expected no ‹ and a stay-put ArrowLeft at `/2026-10-04/1`; under D-0037 that photo's previous is `/2026-10-11/2`, so the test now checks ArrowLeft goes there and ArrowRight comes back. Checks: `pnpm run typecheck` exit 0; `pnpm test` 30 files passed (3 skipped), 390 tests passed (26 skipped); `pnpm run build` exit 0; `E2E_PORT=4794 pnpm run test:e2e` 74 passed, 2 skipped; `pnpm exec harness check` ✓ tasks (36, index in step), ✓ decisions (43, 1 overrule valid), ✓ engineers (2), ✓ generated files current.
 - 2026-11-24 developer: CI run 45385217400 failed on a flaky e2e ("after crossing days, one back closes the viewer" passed only on retry, G-0031): ArrowRight was pressed before the viewer had loaded. The test now waits for each photo's dialog before the next key (also in `photo-order.spec.ts`), and the viewer's key handler reads the latest render's state through a ref, so a key right after a move never acts on the photo before. Checks: `pnpm run typecheck` exit 0; `pnpm test` 30 files passed (3 skipped), 390 tests passed (26 skipped); `pnpm run build` exit 0; the cross-day tests 3× repeated: 33 passed; `E2E_PORT=4794 pnpm run test:e2e` 74 passed, 2 skipped; `pnpm exec harness check` ✓ tasks (36), ✓ decisions (43), ✓ engineers (2), ✓ generated files.
 - 2026-11-24 ux-designer: reviewed: matches. Looked at the dev server (seeded data, desktop with mouse and keyboard) and the code at 7eadebc: counter per day incl. `1 / 1`, panel switches day and scrolls to top only on a new day, hidden panel stays hidden, ‹ › only at real neighbours, focus moves to ‹ when › goes, back closes after crossing days, neighbour alts per own day. No differences; handed to the tester.
+- 2026-11-24 tester: passed. Done when 1-4, 6 and 7 ran here (CI green on 7f94499 with no retries, e2e of the viewer, visitor, cover-delete and photo-order specs 5x repeated with 4 workers, buttons, focus, panel scroll and hidden panel checked in desktop Chromium with a mouse on the dev server); rapid keys, one-photo project, visitor, deletes at day edges and back after crossing days hold. Remaining: Sander confirms after deploy that the arrow keys cross days on his own projects (Done when 5).
