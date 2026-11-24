@@ -106,23 +106,23 @@ describe('the project timeline and the viewer sequence', () => {
       ['e-oct25', '2026-10-25', ['oct25-1']],
       ['e-gone', '2026-10-20', []],
       ['e-note', '2026-10-18', []],
-      ['e-oct11', '2026-10-11', ['oct11-1', 'oct11-2']],
+      ['e-oct11', '2026-10-11', ['oct11-2', 'oct11-1']],
       ['e-oct04-later', '2026-10-04-2', ['oct04-later-1']],
-      ['e-oct04', '2026-10-04', ['oct04-a', 'oct04-b', 'oct04-c']],
+      ['e-oct04', '2026-10-04', ['oct04-c', 'oct04-b', 'oct04-a']],
     ])
     expect(compareEntries({ id: 'a', date: '2026-10-04' }, { id: 'b', date: '2026-10-04' })).toBeGreaterThan(0)
   })
 
-  it('runs through the photos in page order, skipping days without live photos, with each day and place', () => {
+  it('runs through the photos in page order (newest first within a day, D-0031), skipping days without live photos, with each day and place', () => {
     const sequence = photoSequence(entries, photos)
     expect(sequence.map((s) => `${s.day}/${s.index + 1} of ${s.count}: ${s.photo.id}`)).toEqual([
       '2026-10-25/1 of 1: oct25-1',
-      '2026-10-11/1 of 2: oct11-1',
-      '2026-10-11/2 of 2: oct11-2',
+      '2026-10-11/1 of 2: oct11-2',
+      '2026-10-11/2 of 2: oct11-1',
       '2026-10-04-2/1 of 1: oct04-later-1',
-      '2026-10-04/1 of 3: oct04-a',
+      '2026-10-04/1 of 3: oct04-c',
       '2026-10-04/2 of 3: oct04-b',
-      '2026-10-04/3 of 3: oct04-c',
+      '2026-10-04/3 of 3: oct04-a',
     ])
     // Its days are the addresses' days: the same entry a day segment names.
     for (const s of sequence) expect(entryForDay(entries.filter((x) => !x.deletedAt), s.day)?.id).toBe(s.entry.id)

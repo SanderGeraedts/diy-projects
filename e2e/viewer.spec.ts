@@ -113,6 +113,7 @@ test('ArrowRight and ArrowLeft cross days, with that day’s label, note and cou
   await page.goto(day('2026-10-11', 2))
   await expect(page.getByRole('dialog', { name: 'Foto 2 van 2, 11 okt 2026' })).toBeVisible()
   await expect(page.getByTestId('photo-counter')).toHaveText('2 / 2')
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-2-photo-1')
   // The next photo waiting in the strip is 4 okt's first, with its own day's label.
   await expect(page.getByRole('img', { name: 'Foto 1 van 3, 4 okt 2026', includeHidden: true })).toHaveCount(1)
 
@@ -123,7 +124,7 @@ test('ArrowRight and ArrowLeft cross days, with that day’s label, note and cou
   await expect(dialog.getByRole('heading', { level: 2, name: '4 okt 2026' })).toBeVisible()
   await expect(dialog.getByText('Poten en zitregels op lengte gezaagd.')).toBeVisible()
   await expect(page.getByTestId('photo-counter')).toHaveText('1 / 3')
-  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-1')
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-3')
 
   await page.goto(day('2026-10-11', 1))
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 2, 11 okt 2026' })).toBeVisible()
@@ -132,6 +133,7 @@ test('ArrowRight and ArrowLeft cross days, with that day’s label, note and cou
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
   // A day with one photo still counts it, as the project has more.
   await expect(page.getByTestId('photo-counter')).toHaveText('1 / 1')
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-3-photo-1')
 })
 
 test('a swipe crosses days; the project’s first and last photo stay put', async ({ page }) => {
@@ -144,6 +146,7 @@ test('a swipe crosses days; the project’s first and last photo stay put', asyn
   // 4 okt's third photo is the project's last.
   await page.goto(day('2026-10-04', 3))
   await expect(page.getByRole('dialog', { name: 'Foto 3 van 3, 4 okt 2026' })).toBeVisible()
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-1')
   await page.keyboard.press('ArrowRight')
   await swipe(page, -200, 0)
   await page.waitForTimeout(400) // longer than the 200 ms slide a move would start
@@ -184,13 +187,17 @@ async function deleteShown(page: Page) {
 test('a day whose photos were all deleted is skipped', async ({ page }) => {
   await page.goto(day('2026-10-11', 1))
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 2, 11 okt 2026' })).toBeVisible()
+  // Newest first within a day (D-0031): 11 okt's place 1 is its photo 2.
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-2-photo-2')
   await deleteShown(page)
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 11 okt 2026' })).toBeVisible()
   await expect(page).toHaveURL(day('2026-10-11', 1))
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-2-photo-1')
   // 11 okt's last photo: next is 4 okt's first.
   await deleteShown(page)
   await expect(page).toHaveURL(day('2026-10-04', 1))
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })).toBeVisible()
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-3')
 
   await page.goto(day('2026-10-25', 1))
   await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
@@ -208,6 +215,7 @@ test('deleting a day’s only photo shows the next day’s first', async ({ page
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('heading', { level: 2, name: '11 okt 2026' })).toBeVisible()
   await expect(page.getByTestId('photo-counter')).toHaveText('1 / 2')
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-2-photo-2')
 })
 
 test('a project with one photo shows no counter', async ({ page }) => {
