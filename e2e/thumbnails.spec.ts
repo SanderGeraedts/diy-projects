@@ -147,7 +147,8 @@ test('older thumbnails are rebuilt in the background, unseen and locally only', 
   // The app starts on the project page; the check begins a moment later.
   await page.goto(projectPath)
   const tile = page.locator(`.timeline img[data-photo-id="${old.id}"]`)
-  await expect(tile).toHaveAttribute('srcset', / 512w, /)
+  // D-0040: an unmeasured thumbnail is offered alone, never with the copy as a candidate.
+  await expect(tile).not.toHaveAttribute('srcset')
   await expect.poll(() => tile.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
   const alt = await tile.getAttribute('alt')
   const text = await page.locator('body').innerText()

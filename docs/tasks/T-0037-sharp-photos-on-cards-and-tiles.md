@@ -363,6 +363,11 @@ Not run: Done when 6 (Sander on his laptop and the Fold, production, after the m
   Sander's own devices only.
   Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production, after his
   devices have rebuilt their thumbnails).
+- 2026-11-24 architect: Sander reports the jagged covers came back after an update; a card
+  whose thumbnail isn't measured yet takes the copy at a pixel ratio of 2 and up, and every
+  write to photos swaps every card's addresses. Fixed under T-0039 (D-0040).
+  Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production, after his
+  devices have rebuilt their thumbnails).
 - 2026-11-24 architect: Sander's console check in production, laptop, projects page: all 23
   cards at `devicePixelRatio` 1, 320 CSS px wide, loaded the thumbnail (srcset labels
   1280w/2560w, 960w/1920w, 721w/1441w and 1280w/1600w), never the copy. The file choice works
