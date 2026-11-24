@@ -155,6 +155,32 @@ is less than the `w` label; that slight softness for panoramas is accepted.
 `alt=""` beside the project title; tiles keep "<project>, <date>"). A rebuild announces
 nothing (no live region).
 
+**Review (2026-11-24, ux-designer): matches the design; no differences to fix.** Looked at the
+build on the dev server with seeded demo data plus two generated photos (4000×3000 and
+3000×4000, fine diagonal lines and text), side by side with `origin/main` (7ef8fa9), at the
+laptop (1280×800 @1.5), Fold inner (840×900 @2.625) and Pixel 7 (412×915 @2.625) sizes.
+
+- `sizes`: `CARD_SIZES` (ui.tsx, next to `ProjectCard`) and `TILE_SIZES` (ProjectPage.tsx) are
+  the designed strings character for character, and every card and tile in the browser
+  carried them at all three sizes.
+- Owner renders once: `PhotoWithSrcset` returns nothing until both object URLs exist, then one
+  `<img>` with `src`, `srcset` and `sizes` together; no `srcset` change was observed after the
+  image appeared. Without a thumbnail on the device it falls back to the copy, as designed.
+  `width`/`height` stay the copy's, `loading="lazy"` stays; alt texts unchanged (`""` on
+  cards, "Zaagbok, 1 nov 2026" on tiles).
+- Viewer unchanged: still `usePhotoUrl(photo, 'copy')`; its images have no `srcset` and load
+  the copy (1920 and 2560 px), same as on main.
+- Rebuild invisible: nothing in the UI reports it (no text, no status-bar count; it writes no
+  outbox row); e2e/thumbnails.spec.ts, run here against the dev server, passed 3 of 3,
+  including the check that the page text stays identical and the tile keeps a loaded image
+  and its alt throughout, ending labelled 1280w. Failures only `console.warn`.
+- Visually: the laptop tile is clearly sharper than on main (main enlarges a 512/384 px
+  thumbnail, the line pattern turns to mush and the text is soft; now 1280/960 px, crisp).
+  The laptop card is now a 1280 px image rather than the 2560 px copy; main showed faint
+  moiré bands in the line pattern, the branch is even. Layout, crop and corners are identical.
+- Accepted, as in the Notes: a visitor's older 512 px thumbnails on the NAS are labelled 1280w
+  and stay as soft as today until Q-007.
+
 # Test
 
 # Log
@@ -220,4 +246,7 @@ nothing (no live region).
   For the architect: e2e/photos.spec.ts starts a Vite server on a fixed port (5199) in
   `beforeAll`, so `--repeat-each` with more than one worker fails with "Port 5199 is already
   in use" (it passes with `--workers 1`); not changed here.
+- 2026-11-24 ux-designer: reviewed: matches the design (sizes exact, image rendered once,
+  viewer unchanged, rebuild unseen; tiles visibly sharper and cards free of moiré compared with
+  main at all three sizes); to the tester.
   Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production).
