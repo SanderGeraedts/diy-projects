@@ -71,7 +71,7 @@ test('the owner’s demo comes back with ?bezoeker=uit, with the public switch o
   await expect(page.getByText('Alleen jij ziet dit project.')).toBeVisible()
 })
 
-test('a visitor’s viewer crosses days too (T-0029)', async ({ page }) => {
+test('a visitor’s viewer crosses days too (T-0036)', async ({ page }) => {
   await page.goto('/?bezoeker')
   await expect(page.getByRole('heading', { name: 'Tuinbank' })).toBeVisible()
   await page.goto('/projects/tuinbank/2026-10-11/2')

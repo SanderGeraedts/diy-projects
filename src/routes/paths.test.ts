@@ -11,7 +11,7 @@ import {
   withSlug,
 } from './paths'
 
-// T-0027 (D-0029): an entry's day and a photo's place, the parts of addresses that replace ids.
+// T-0027 (D-0029, D-0031): an entry's day and a photo's place, the parts of addresses that replace ids.
 
 const entry = (id: string, date: string, createdAt = '2026-01-01T00:00:00.000Z') => ({ id, date, createdAt })
 
@@ -37,13 +37,16 @@ describe('entry days', () => {
 })
 
 describe('photo places', () => {
-  it('are 1-based, in the order photos are shown: taken, then added, then id', () => {
+  it('are 1-based, in the order photos are shown: newest first by taken, then added, then id (D-0031)', () => {
     const photos = [
-      { id: 'z', takenAt: '2026-10-04T10:00:00Z', createdAt: '2026-10-04T12:00:00Z' },
-      { id: 'y', takenAt: '2026-10-04T10:00:00Z', createdAt: '2026-10-04T11:00:00Z' },
       { id: 'x', takenAt: '2026-10-04T09:00:00Z', createdAt: '2026-10-04T13:00:00Z' },
+      { id: 'y', takenAt: '2026-10-04T10:00:00Z', createdAt: '2026-10-04T11:00:00Z' },
+      { id: 'z', takenAt: '2026-10-04T10:00:00Z', createdAt: '2026-10-04T12:00:00Z' },
     ]
-    expect([...photos].sort(comparePhotos).map((p) => p.id)).toEqual(['x', 'y', 'z'])
+    expect([...photos].sort(comparePhotos).map((p) => p.id)).toEqual(['z', 'y', 'x'])
+    // Ties on both times: by id, descending.
+    const tied = ['a', 'c', 'b'].map((id) => ({ id, takenAt: '2026-10-04T10:00:00Z', createdAt: '2026-10-04T11:00:00Z' }))
+    expect(tied.sort(comparePhotos).map((p) => p.id)).toEqual(['c', 'b', 'a'])
     expect(photoNumber(0)).toBe('1')
     expect(photoIndex('1')).toBe(0)
     expect(photoIndex('12')).toBe(11)
@@ -59,7 +62,7 @@ describe('withSlug', () => {
   })
 })
 
-// T-0029 (D-0031): the project page and the viewer share one order.
+// T-0036 (D-0037): the project page and the viewer share one order.
 describe('the project timeline and the viewer sequence', () => {
   const e = (id: string, date: string, createdAt: string, deletedAt: string | null = null) => ({
     id,

@@ -31,7 +31,7 @@ import {
 // Photos are never edited (D-0002): no rotate or crop.
 // T-0026: a visitor sees the same viewer, read from the NAS, without the cover and delete
 // actions (D-0025).
-// T-0029 (D-0031): it moves through all of the project's live photos in the project page's
+// T-0036 (D-0037): it moves through all of the project's live photos in the project page's
 // order, across days; the counter and label stay per day.
 
 const SETTLE_MS = 200
@@ -59,14 +59,15 @@ export function PhotoViewer() {
   return useVisitor() ? <VisitorPhotoViewer /> : <OwnerPhotoViewer />
 }
 
-// T-0027 (D-0029): the address is the project's slug, the entry's day and the photo's place
-// in it (routes/paths.ts), never an id.
+// T-0027 (D-0031): the address is the project's slug, the entry's day and the photo's place
+// in it (routes/paths.ts), never an id. Places follow comparePhotos, newest first, so "next"
+// (arrow right, swipe left) is the next photo shown, an older one.
 
 function OwnerPhotoViewer() {
   const { slug, day, n } = useParams({ from: '/projects/$slug/$day/$n' })
   const project = useProjectBySlug(slug)
   const projectId = project?.id ?? ''
-  // All of the project's entries and photos, so the viewer can move across days (D-0031).
+  // All of the project's entries and photos, so the viewer can move across days (D-0037).
   const sequence = useLiveQuery(async () => {
     if (!projectId) return null
     const [entries, photos] = await Promise.all([
@@ -132,7 +133,7 @@ function PhotoViewerView({
 
   const sequence = data?.sequence ?? []
   const index = photoIndex(n)
-  // The photo at this day and place; its neighbours may be another day's (D-0031).
+  // The photo at this day and place; its neighbours may be another day's (D-0037).
   const position = index >= 0 ? sequence.findIndex((p) => p.day === day && p.index === index) : -1
   const current = position >= 0 ? sequence[position] : undefined
   const previous = current ? sequence[position - 1] : undefined
@@ -281,9 +282,9 @@ function PhotoViewerView({
   }
 
   /**
-   * Tombstones the photo, then shows what next pointed at (D-0031): in the same day it takes
-   * the deleted one's place, so the address stays; else the next day's first. At the project's
-   * last photo, the previous one; with no live photo left, it closes.
+   * Tombstones the photo, then shows what next pointed at (D-0037), an older one: in the same
+   * day it takes the deleted one's place, so the address stays; else the next day's first. At
+   * the project's last photo, the previous one; with no live photo left, it closes.
    */
   const remove = async () => {
     if (!current) return
@@ -466,7 +467,7 @@ function PhotoViewerView({
   const showChrome = chrome && !zoomed && offset.y === 0
   const transition = animating ? `transform ${SETTLE_MS}ms ease-out, opacity ${SETTLE_MS}ms ease-out` : 'none'
   const date = formatDate(current.entry.date)
-  /** Per day, matching `<n>` in the address; a neighbour gets its own day's (D-0031). */
+  /** Per day, matching `<n>` in the address; a neighbour gets its own day's (D-0037). */
   const label = (p: ViewerPhoto) => `Foto ${p.index + 1} van ${p.count}, ${formatDate(p.entry.date)}`
   const button =
     'flex h-11 min-w-11 items-center justify-center rounded-full border-0 bg-panel px-3 text-text backdrop-blur-sm'
@@ -527,7 +528,7 @@ function PhotoViewerView({
         >
           ✕
         </button>
-        {/* The day's count, whenever there is somewhere to go, so also 1 / 1 (T-0029). */}
+        {/* The day's count, whenever there is somewhere to go, so also 1 / 1 (T-0036). */}
         {sequence.length > 1 && (
           <span className={`${button} text-sm`} aria-hidden="true" data-testid="photo-counter">
             {current.index + 1} / {current.count}
@@ -624,6 +625,7 @@ function ViewerImage({
       aria-hidden={current ? undefined : true}
       data-current={current ? '' : undefined}
       data-photo-id={photo.id}
+      data-taken-at={photo.takenAt}
       className="h-full w-full object-contain"
       style={style}
     />

@@ -5,21 +5,25 @@
 # own merge is decided.
 name: Auto-merge
 
+# Decided when CI completes and again when the backend workflow completes: a pull request
+# merges only when CI passed and, when backend.yml ran for it, that passed too (harness 0.7.0).
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [CI, backend]
     types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
-  actions: write # to start backend.yml after a merge
+  actions: write # to start CI and backend.yml on main after a merge
 
 jobs:
   merge:
-    uses: SanderGeraedts/harness/.github/workflows/auto-merge.yml@v0.1.0
+    uses: SanderGeraedts/harness/.github/workflows/auto-merge.yml@v0.9.0
     with:
       # A merge made with GITHUB_TOKEN starts no push workflows, so backend.yml wouldn't
       # publish the PocketBase image. These are the paths its push trigger watches.
       backend-workflow: backend.yml
-      backend-paths: '^(deploy/nas/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'
+      backend-paths: '^(backend/(Dockerfile|pb_migrations/|pb_hooks/|smoke-test\.sh)|\.github/workflows/backend\.yml)'
+      # The names of the workflows that must pass when they ran for the pull request.
+      wait-for: CI,backend

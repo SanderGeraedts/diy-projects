@@ -3,7 +3,7 @@ import type { BinKind } from '../db/write'
 
 // T-0022 (D-0014): "Definitief verwijderen" asks the NAS to delete a bin item for good. It is
 // the owner's DELETE of the tombstoned project or entry, on the paths the Funnel allowlist
-// already has; deploy/nas/pb_hooks/bin.pb.js does the work on the NAS (files, history, a
+// already has; backend/pb_hooks/bin.pb.js does the work on the NAS (files, history, a
 // marker per record) in one transaction. The device never deletes files one by one.
 
 /** The part of PocketBase's record API a purge needs (`pb` fits). */

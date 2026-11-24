@@ -9,7 +9,7 @@ each setting: [`docs/deploy/pocketbase-on-the-nas.md`](../../docs/deploy/pocketb
 | `compose.yml` | Three containers: `tailscale`, `pocketbase` (inside Tailscale's network), `watchtower` (updates only `pocketbase`). |
 | `serve.json` | Funnel's path allowlist on 443; the full PocketBase on 8443, tailnet only. |
 | `.env.example` | The secrets the NAS needs, as placeholders. The real `.env` lives only on the NAS. |
-| `Dockerfile`, `pb_migrations/`, `pb_hooks/` | The image, built and published by `.github/workflows/backend.yml` (T-0013). |
+| [`backend/`](../../backend/) | Not here: the image's source (`Dockerfile`, `pb_migrations/`, `pb_hooks/`, `smoke-test.sh`), built and published by `.github/workflows/backend.yml` (T-0013, T-0035). The NAS pulls the image by tag. |
 
 Placeholders used below (never commit the real values, D-0010):
 

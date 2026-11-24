@@ -30,7 +30,7 @@ function OwnerProjectPage() {
   // T-0027: found by its slug, or an earlier one, which redirects (D-0029).
   const project = useProjectBySlug(slug)
   const projectId = project?.id ?? ''
-  // T-0029: ordered by projectTimeline (routes/paths.ts), the order the photo viewer uses too.
+  // T-0036: ordered by projectTimeline (routes/paths.ts), the order the photo viewer uses too.
   const entries = useLiveQuery(
     () =>
       db.entries
@@ -87,13 +87,13 @@ function ProjectView({
   project: Project
   /** Live entries; shown in the page's order (projectTimeline). */
   entries: Entry[] | undefined
-  /** For the owner, deleted ones included. */
+  /** In any order (shown newest first, D-0031); for the owner, deleted ones included. */
   allPhotos: ShownPhoto[] | undefined
   /** A visitor: no create, edit, import, cover or delete controls (T-0026). */
   readOnly: boolean
 }) {
   // T-0027: an entry is named by its day, in its anchor and its photos' addresses (D-0029).
-  // T-0029 (D-0031): the same order and days as the photo viewer moves through.
+  // T-0036 (D-0037): the same order and days as the photo viewer moves through.
   const timeline = projectTimeline(entries ?? [], allPhotos ?? [])
   const livePhotos = (allPhotos ?? []).filter((ph) => ph.deletedAt === null).length
   return (
@@ -113,7 +113,7 @@ function ProjectView({
         <p className="mt-3">{project.description}</p>
       </header>
       {!readOnly && <AddEntryLink slug={project.slug} />}
-      {!readOnly && <ImportPhotos projectId={project.id} />}
+      {!readOnly && <ImportPhotos projectId={project.id} projectTitle={project.title} />}
       <ol className="timeline m-0 mt-8 list-none p-0">
         {timeline.map(({ entry: e, day, photos: entryPhotos }) => {
           const allDeleted =
@@ -137,6 +137,7 @@ function ProjectView({
                     key={ph.id}
                     to="/projects/$slug/$day/$n"
                     params={{ slug: project.slug, day, n: photoNumber(i) }}
+                    data-taken-at={ph.takenAt}
                     className="block"
                   >
                     <PhotoImage

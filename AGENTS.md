@@ -24,8 +24,10 @@ Rules that hold only for this project. Each one points at the decision behind it
   dev server and tests never get the production PocketBase address.
 - **Personal repository** (D-0010): commit as `sandergeraedts@live.nl`, and push or use `gh`
   only as `SanderGeraedts`.
-- **The NAS** (G-0022): the setup for `pnpm exec harness nas` on this project is in
-  [deploy/nas/admin/README.md](deploy/nas/admin/README.md). Never commit the NAS's host, a
-  tailnet name or a pool name.
+- **The NAS** (G-0026, G-0027): NAS work goes through `pnpm exec harness nas`, normally as
+  `harness nas --remote`, only in a session with the Engineer. This project's app and the
+  older local setup are in [deploy/nas/admin/README.md](deploy/nas/admin/README.md); T-0034
+  and Q-006 bring it in line with the runner. Never commit the NAS's host, a tailnet name, a
+  pool name or a dataset path.
 - **Backups** (G-0023): the NAS snapshots the app's dataset every hour and keeps each for two
   weeks, so a schema change needs no manual backup first.

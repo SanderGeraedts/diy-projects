@@ -2,7 +2,8 @@ import { ClientResponseError } from 'pocketbase'
 import { describe, expect, it, vi } from 'vitest'
 import type { ServerRecord } from '../sync/records'
 import { isVisitor } from './mode'
-import { CACHE_MS, createDemoSource, createPocketBaseSource, UnreachableError, visitorClient, type PublicClient } from './source'
+import { comparePhotos } from '../routes/paths'
+import { CACHE_MS, createDemoSource, createPocketBaseSource, UnreachableError, visitorClient, visitorTimeline, type PublicClient, type PublicPhoto } from './source'
 
 const T = '2026-11-16T12:00:00.000Z'
 
@@ -151,5 +152,24 @@ describe('createDemoSource (D-0006)', () => {
 
   it('stands in for an unreachable NAS', async () => {
     await expect(createDemoSource('unreachable').overview()).rejects.toBeInstanceOf(UnreachableError)
+  })
+})
+
+describe('visitorTimeline (T-0029, D-0031)', () => {
+  const shown = (id: string, takenAt: string, createdAt: string): PublicPhoto => ({
+    id, projectId: 'p1', entryId: 'e1', takenAt, createdAt, width: 4, height: 3, deletedAt: null, copyUrl: '', thumbnailUrl: '',
+  })
+
+  it("puts a visitor's photos newest first, in comparePhotos' order, not by time taken alone", () => {
+    const photos = [
+      shown('x', '2026-10-04T09:00:00Z', '2026-10-04T13:00:00Z'),
+      shown('b', '2026-10-04T10:00:00Z', '2026-10-04T11:00:00Z'),
+      shown('z', '2026-10-04T10:00:00Z', '2026-10-04T12:00:00Z'),
+      shown('a', '2026-10-04T10:00:00Z', '2026-10-04T11:00:00Z'),
+      shown('w', '2026-10-04T11:00:00Z', '2026-10-04T10:00:00Z'),
+    ]
+    const ids = visitorTimeline({ entries: [], photos }).photos.map((p) => p.id)
+    expect(ids).toEqual(['w', 'z', 'b', 'a', 'x'])
+    expect(ids).toEqual([...photos].sort(comparePhotos).map((p) => p.id))
   })
 })

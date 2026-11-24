@@ -6,11 +6,11 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Open
 
-None.
+- [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
 
 ## Doing
 
-- [T-0029 Move between days in the photo viewer](T-0029-viewer-across-days.md): D-0031: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have.
+- [T-0036 Move between days in the photo viewer](T-0036-viewer-across-days.md): D-0037: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have.
 
 ## Done
 
@@ -41,6 +41,12 @@ None.
 - [T-0026 Show public projects read-only to visitors who aren't signed in](T-0026-public-read-only-view.md): A per-project public switch (on by default, D-0025), PocketBase rules that let anyone read public projects, their entries and photo copies and thumbnails but never originals, and a read-only online view for visitors.
 - [T-0027 Address projects by slug, and entries and photos by date and place, never by id](T-0027-project-slugs.md): D-0029: /projects/<slug> from the title, unique per owner and settled on the NAS, old slugs kept and redirected, photos at /projects/<slug>/<yyyy-mm-dd>/<n>, entries linked by date; existing projects backfilled on the NAS and on devices.
 - [T-0028 Adopt the harness](T-0028-adopt-the-harness.md): D-0030: install the harness as a pinned dev dependency, keep only the project-specific rules and decisions here, and use its task index, checks, NAS tool, agent team and reusable CI and auto-merge workflows.
+- [T-0029 Show a day's photos newest first, on the page, in the viewer and in their addresses](T-0029-show-a-days-photos-newest-first.md): D-0031: within an entry, photos are shown newest first like the days, for the owner and for visitors; a photo's place in its address and the viewer's next/previous follow that order.
+- [T-0030 List projects on the overview by their newest photo](T-0030-sort-projects-by-newest-photo.md) (small): D-0032: the overview, the owner's and a visitor's, orders projects by the latest time taken among their live photos, newest first; projects without photos come last, by last edit.
+- [T-0031 Add photos by dropping them onto a project page](T-0031-drop-photos-onto-a-project.md): D-0033: image files dragged from the computer and dropped anywhere on the owner's project page go through the same import as "Foto's toevoegen"; non-images are listed as not added, and a stray drop anywhere in the app never opens the file in the browser.
+- [T-0032 Add the photos in a zip file by dropping it onto a project page](T-0032-drop-a-zip-of-photos-onto-a-project.md): D-0034: a .zip dropped onto the owner's project page is unpacked on the device with fflate, one file at a time, and its images go through the normal import; other files are skipped, an image over 40 MB and an unreadable zip are listed as not added.
+- [T-0033 Update the harness from v0.1.0 to v0.9.0](T-0033-update-the-harness-to-v0-9-0.md) (small): G-0005: pin the harness and both reusable workflows at v0.9.0, commit what harness sync writes (agents sized by G-0031, the grill skill, the templates, the ask rules), follow each version's update notes, and per changed global decision open a task or say why none is needed.
+- [T-0035 Make the backend run with harness backend, without Docker](T-0035-run-the-backend-with-harness-backend.md) (small): G-0032: move the PocketBase image's source to backend/ with a throwaway.sh, so pnpm exec harness backend starts and smoke-tests it on a machine without Docker; CI, the publish workflow and the NAS keep working.
 
 ## Dropped
 

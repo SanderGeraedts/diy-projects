@@ -3,7 +3,7 @@ import type { Entry } from '../db/db'
 // T-0027 (D-0029): addresses hold no ids. A project is /projects/<slug>; an entry is named by
 // its date, as the hash of its project's page ("#" and the date) and as the first part of a
 // photo's address; a photo is /projects/<slug>/<day>/<n>, its 1-based place among its entry's
-// photos in the order they're shown.
+// photos in the order they're shown: newest first (D-0031), so place 1 is the newest.
 //
 // A project has one live entry per date: adding a note or importing photos on a day that has
 // an entry adds to it (AddEntry.tsx, photos/importQueue.ts). Two devices that were offline can
@@ -36,15 +36,18 @@ export function entryForDay<E extends DatedEntry>(entries: readonly E[], day: st
   return entries.find((e) => days.get(e.id) === day)
 }
 
-/** The order an entry's photos are shown in: by time taken, then as they were added. */
+/**
+ * The order an entry's photos are shown and numbered in (D-0031): newest first, like the days.
+ * Latest time taken first; then the one added last; then by id, descending.
+ */
 export function comparePhotos(
   a: { takenAt: string; createdAt: string; id: string },
   b: { takenAt: string; createdAt: string; id: string },
 ): number {
-  return cmp(a.takenAt, b.takenAt) || cmp(a.createdAt, b.createdAt) || cmp(a.id, b.id)
+  return cmp(b.takenAt, a.takenAt) || cmp(b.createdAt, a.createdAt) || cmp(b.id, a.id)
 }
 
-// T-0029 (D-0031): the project page and the photo viewer share one order, so what is below a
+// T-0036 (D-0037): the project page and the photo viewer share one order, so what is below a
 // photo on the page is what comes next in the viewer.
 
 type TimelineEntry = DatedEntry & Pick<Entry, 'deletedAt'>

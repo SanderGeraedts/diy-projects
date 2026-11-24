@@ -29,7 +29,7 @@ export interface Project {
   public: boolean
   /**
    * The project's address, /projects/<slug> (D-0029, T-0027): made from the title, unique
-   * among this owner's projects. The NAS settles clashes (deploy/nas/pb_hooks/slugs.pb.js).
+   * among this owner's projects. The NAS settles clashes (backend/pb_hooks/slugs.pb.js).
    */
   slug: string
   /** Slugs it had before a rename; their addresses redirect here (D-0029). */
@@ -194,7 +194,7 @@ export async function upgradeToV4(tx: Transaction): Promise<void> {
 
 /**
  * v4 → v5: every project gets a slug from its title (D-0029), by creation, the same way the
- * NAS's migration does (deploy/nas/pb_migrations/1794931700_project_slugs.js). Keeps all data
+ * NAS's migration does (backend/pb_migrations/1794931700_project_slugs.js). Keeps all data
  * and adds no outbox rows: the slugs are this device's until the NAS's arrive. The NAS's
  * migration moves `updated` on every project, so the next pull brings them, and the sync
  * engine takes a project's slug and oldSlugs from the NAS whatever `updatedAt` says

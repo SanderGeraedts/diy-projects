@@ -94,7 +94,7 @@ Tailscale side, once:
 
 ## 3. The image and its workflow
 
-`deploy/nas/Dockerfile`:
+`backend/Dockerfile`:
 
 ```dockerfile
 FROM ghcr.io/muchobien/pocketbase:<pinned version>
@@ -106,11 +106,18 @@ LABEL org.opencontainers.image.source="https://github.com/SanderGeraedts/diy-pro
 PocketBase is pre-1.0: read its changelog before a minor-version bump (0.40 → 0.41), and
 treat a bump like a schema change.
 
+Without Docker (G-0032, T-0035): `pnpm exec harness backend` starts the PocketBase version
+this Dockerfile pins, from a per-user cache, with `backend/pb_migrations` and
+`backend/pb_hooks` on an empty database and the flags of `backend/throwaway.sh`;
+`pnpm exec harness backend smoke` runs `backend/smoke-test.sh` against it, and
+`pnpm exec harness backend stop` removes it. CI's `pocketbase-auth` job starts its backend
+the same way. With Docker, `bash backend/throwaway.sh` builds the image and starts it.
+
 `.github/workflows/backend.yml`, what worked:
 
 - **Triggers:** `push` to `main` and `pull_request`, both filtered to
-  `deploy/nas/Dockerfile`, `deploy/nas/pb_migrations/**`, `deploy/nas/pb_hooks/**` and the
-  workflow itself; plus `workflow_dispatch` for the first publish.
+  `backend/Dockerfile`, `backend/pb_migrations/**`, `backend/pb_hooks/**`,
+  `backend/smoke-test.sh` and the workflow itself; plus `workflow_dispatch` for the first publish.
 - **Concurrency:** one publish at a time, in push order (`cancel-in-progress: false`).
 - **Permissions:** `contents: read`, `packages: write`.
 - **Check on an empty database**, with the same command line as the NAS (`--http=0.0.0.0`
@@ -163,7 +170,7 @@ merge to main ─► Netlify deploys the app                      (minutes)
 
 ## 5. Migrations and hooks
 
-Migrations (`deploy/nas/pb_migrations/<unix time>_<what>.js`):
+Migrations (`backend/pb_migrations/<unix time>_<what>.js`):
 
 - **Never edit a migration that has run**; PocketBase applies each file once. Change things
   with a new file.
@@ -192,7 +199,7 @@ Migrations (`deploy/nas/pb_migrations/<unix time>_<what>.js`):
 - Collections only an admin may see (like `history`): all five rules `null`.
 - Write a working down-migration too.
 
-Hooks (`deploy/nas/pb_hooks/*.pb.js`):
+Hooks (`backend/pb_hooks/*.pb.js`):
 
 - Hooks run in their own JS context: **keep everything inside the handler** (no shared
   top-level helpers), and always call `e.next()`.

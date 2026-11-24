@@ -5,3 +5,5 @@ human corrected something (G-0014). Newest last. The architect turns a lesson th
 into a proposed rule change for the harness.
 
 `- YYYY-MM-DD T-NNNN <role>: what went wrong, and what would have prevented it`
+- 2026-11-22 T-0031 developer: `scrollIntoView` on the import block left it under the sticky header; the UX review caught it. Anything scrolled into view needs the header's scroll margin (`scroll-mt-20`, as the timeline days have), and an e2e check that it ends below the header.
+- 2026-11-23 T-0032 tester: the unzip tests built their zips only with `zipSync` (sizes in the header), so they missed that fflate's streaming `Unzip` splits data-descriptor entries at any `PK` signature in the data. Test a file-format reader on every variant real tools write (here: data descriptors, stored and deflated) with data that contains the format's own markers.

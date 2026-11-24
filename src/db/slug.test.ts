@@ -10,10 +10,10 @@ import { createProject, deleteProject, updateProject } from './write'
 const root = new URL('../../', import.meta.url)
 const read = (path: string) => readFileSync(new URL(path, root), 'utf8')
 
-/** deploy/nas/pb_hooks/slug.js, loaded as PocketBase's require() does (CommonJS). */
+/** backend/pb_hooks/slug.js, loaded as PocketBase's require() does (CommonJS). */
 function nasSlug() {
   const module = { exports: {} as Record<string, unknown> }
-  new Function('module', 'exports', read('deploy/nas/pb_hooks/slug.js'))(module, module.exports)
+  new Function('module', 'exports', read('backend/pb_hooks/slug.js'))(module, module.exports)
   return module.exports as {
     slugify(title: string): string
     settle(
@@ -26,7 +26,7 @@ function nasSlug() {
 
 /** The frozen slugify in the NAS's backfill migration. */
 function migrationSlugify(): (title: string) => string {
-  const source = read('deploy/nas/pb_migrations/1794931700_project_slugs.js')
+  const source = read('backend/pb_migrations/1794931700_project_slugs.js')
   const body = /\/\/ --- slugify \(frozen\) ---\n([\s\S]*?)\/\/ --- end slugify ---/.exec(source)?.[1]
   if (!body) throw new Error('no slugify in the migration')
   return new Function(`${body}; return slugify`)() as (title: string) => string

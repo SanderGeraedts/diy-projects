@@ -1,46 +1,68 @@
 #!/usr/bin/env bash
-# T-0013: smoke test for the PocketBase image, run by .github/workflows/backend.yml against a
-# container named `pb` on an empty database at http://127.0.0.1:8090. Needs curl and jq.
-# Never point this at the real NAS (D-0006).
+# T-0013: smoke test for the PocketBase image, on an empty database. Needs curl and jq.
+# Run by .github/workflows/backend.yml against a container named `pb`, and on a machine
+# without Docker by `pnpm exec harness backend smoke` (G-0032, T-0035), which sets
+# BACKEND_TEST_URL. Never point this at the real NAS (D-0006, G-0019): it refuses any
+# address that isn't this machine.
 set -euo pipefail
 
-B=http://127.0.0.1:8090
+B=${BACKEND_TEST_URL:-http://127.0.0.1:8090}
 # The app's origin PocketBase was started with (--origins); backend.yml sets a test one.
 APP=${APP_ORIGIN:-https://app.example}
 PASS='ci-only-password-123456'
+# The superuser: made below in the `pb` container, or already made by harness backend or
+# backend/throwaway.sh with these settings and defaults.
+SU_EMAIL=${BACKEND_TEST_SUPERUSER_EMAIL:-admin@throwaway.invalid}
+SU_PASS=${BACKEND_TEST_SUPERUSER_PASSWORD:-throwaway-only-password}
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 ok() { echo "ok: $*"; }
 
+case "$B" in
+  http://127.0.0.1:* | http://localhost:*) ;;
+  *) fail "$B is not on this machine; the smoke test runs against a throwaway backend only" ;;
+esac
+
+# Scratch files. On Windows a path both Git's bash and curl.exe read (C:/...).
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+if command -v cygpath >/dev/null 2>&1; then TMP=$(cygpath -m "$TMP"); fi
+
 # req METHOD PATH [TOKEN] [JSON]: prints "<status>\n<body>"; retries on 429 (rate limits are on).
 req() {
   local method=$1 path=$2 token=${3:-} body=${4:-} out code
-  local args=(-sS -o /tmp/body -w '%{http_code}' -X "$method" "$B$path")
+  local args=(-sS -o "$TMP/body" -w '%{http_code}' -X "$method" "$B$path")
   [ -n "$token" ] && args+=(-H "Authorization: $token")
-  [ -n "$body" ] && args+=(-H 'Content-Type: application/json' -d "$body")
+  # The JSON goes through a file: curl.exe on Windows doesn't get UTF-8 command-line arguments.
+  [ -n "$body" ] && printf '%s' "$body" >"$TMP/request" && args+=(-H 'Content-Type: application/json' --data-binary "@$TMP/request")
   for _ in 1 2 3 4 5; do
     code=$(curl "${args[@]}")
     [ "$code" != 429 ] && break
     sleep 3
   done
   echo "$code"
-  cat /tmp/body
+  cat "$TMP/body"
 }
 status() { head -n1 <<<"$1"; }
 body() { tail -n +2 <<<"$1"; }
 expect() { # expect RESPONSE CODE WHAT
   [ "$(status "$1")" = "$2" ] || fail "$3: expected $2, got $(status "$1"): $(body "$1")"
 }
-token() { # token COLLECTION EMAIL
+token() { # token COLLECTION EMAIL [PASSWORD]
   local r
-  r=$(req POST "/api/collections/$1/auth-with-password" "" "{\"identity\":\"$2\",\"password\":\"$PASS\"}")
+  r=$(req POST "/api/collections/$1/auth-with-password" "" "{\"identity\":\"$2\",\"password\":\"${3:-$PASS}\"}")
   expect "$r" 200 "sign in to $1 as $2"
   body "$r" | jq -r .token
 }
 
+# The `pb` container of backend.yml, when that is what runs.
+in_container() { command -v docker >/dev/null 2>&1 && [ "$(docker inspect -f '{{.State.Running}}' pb 2>/dev/null)" = true ]; }
+
 # Superuser, made the way it's done on the NAS (docs/deploy/pocketbase-on-the-nas.md, 6).
-docker exec pb pocketbase superuser upsert admin@ci.invalid "$PASS" --dir=/pb_data >/dev/null
-SU=$(token _superusers admin@ci.invalid)
+if in_container; then
+  docker exec pb pocketbase superuser upsert "$SU_EMAIL" "$SU_PASS" --dir=/pb_data >/dev/null
+fi
+SU=$(token _superusers "$SU_EMAIL" "$SU_PASS")
 
 # Every collection exists, with the settings the decisions ask for.
 for c in users projects entries photos history; do
@@ -160,12 +182,12 @@ file() {
   local url="$B/api/files/photos/$1/$2" code
   [ -n "${3:-}" ] && url="$url?token=$3"
   for _ in 1 2 3 4 5; do
-    code=$(curl -sS -o /tmp/file -w '%{http_code}' "$url")
+    code=$(curl -sS -o "$TMP/file" -w '%{http_code}' "$url")
     [ "$code" != 429 ] && break
     sleep 3
   done
   echo "$code"
-  cat /tmp/file
+  cat "$TMP/file"
 }
 refused() { # refused RESPONSE WHAT: anything but a 2xx
   case "$(status "$1")" in 2*) fail "$2: got $(status "$1"): $(body "$1")" ;; esac
@@ -185,20 +207,20 @@ pentry() { # pentry PROJECT [DELETED_AT]
 pphoto() { # pphoto PROJECT ENTRY [DELETED_AT]
   echo "{\"owner\":\"$A_ID\",\"projectId\":\"$1\",\"entryId\":\"$2\",\"takenAt\":\"$NOW\",\"width\":4,\"height\":3,\"deletedAt\":\"${3:-}\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"}"
 }
-printf 'original bytes' >/tmp/original.jpg
-printf 'copy bytes' >/tmp/copy.webp
-printf 'thumbnail bytes' >/tmp/thumbnail.webp
+printf 'original bytes' >"$TMP/original.jpg"
+printf 'copy bytes' >"$TMP/copy.webp"
+printf 'thumbnail bytes' >"$TMP/thumbnail.webp"
 upload() { # upload PHOTO_ID: the owner uploads all three files; prints the record
   local code
   for _ in 1 2 3 4 5; do
-    code=$(curl -sS -o /tmp/body -w '%{http_code}' -X PATCH -H "Authorization: $A" \
-      -F 'original=@/tmp/original.jpg;type=image/jpeg' -F 'copy=@/tmp/copy.webp;type=image/webp' \
-      -F 'thumbnail=@/tmp/thumbnail.webp;type=image/webp' "$B/api/collections/photos/records/$1")
+    code=$(curl -sS -o "$TMP/body" -w '%{http_code}' -X PATCH -H "Authorization: $A" \
+      -F "original=@$TMP/original.jpg;type=image/jpeg" -F "copy=@$TMP/copy.webp;type=image/webp" \
+      -F "thumbnail=@$TMP/thumbnail.webp;type=image/webp" "$B/api/collections/photos/records/$1")
     [ "$code" != 429 ] && break
     sleep 3
   done
-  [ "$code" = 200 ] || fail "upload the files of $1: $code $(cat /tmp/body)"
-  cat /tmp/body
+  [ "$code" = 200 ] || fail "upload the files of $1: $code $(cat "$TMP/body")"
+  cat "$TMP/body"
 }
 
 # A public project, a private one and a tombstoned public one; live and tombstoned entries
@@ -309,7 +331,7 @@ for who in "" "$S"; do
   refused "$(req DELETE "/api/collections/entries/records/$PUB_E" "$who")" "delete the public entry"
   refused "$(req DELETE "/api/collections/photos/records/$PUB_F" "$who")" "delete the public photo"
 done
-code=$(curl -sS -o /tmp/body -w '%{http_code}' -X PATCH -F 'copy=@/tmp/original.jpg;type=image/jpeg' \
+code=$(curl -sS -o "$TMP/body" -w '%{http_code}' -X PATCH -F "copy=@$TMP/original.jpg;type=image/jpeg" \
   "$B/api/collections/photos/records/$PUB_F")
 case "$code" in 2*) fail "guest replaced the public photo's copy" ;; esac
 r=$(req GET "/api/collections/projects/records/$PUB" "$A")
@@ -330,8 +352,30 @@ ok "switching a project off hides it from guests, files included"
 # src/sync/sync.pocketbase.test.ts; the permanent delete runs here, in pb_hooks/bin.pb.js. ---
 
 PHOTOS_ID=$(jq -r .id <<<"$photos")
+# The backend's data folder, when it isn't the `pb` container: BACKEND_TEST_DATA_DIR, or the
+# one harness backend started this address with (its state, in the cache that holds the jq it
+# put on the PATH).
+DATA=${BACKEND_TEST_DATA_DIR:-}
+if ! in_container && [ -z "$DATA" ]; then
+  JQ_PATH=$(command -v jq)
+  case "$JQ_PATH" in
+    */tools/*)
+      for state in "${JQ_PATH%/tools/*}"/backends/*/state.json; do
+        [ -f "$state" ] || continue
+        DATA=$(jq -r --arg u "$B" 'select(.url == $u) | .dataDir' "$state")
+        [ -n "$DATA" ] && break
+      done
+      ;;
+  esac
+  [ -n "$DATA" ] || fail "can't find the backend's data folder to check its files on disk; set BACKEND_TEST_DATA_DIR"
+  DATA=${DATA//\\//}
+fi
 on_disk() { # on_disk PHOTO_ID: the photo's files in the NAS's storage folder (without the .attrs sidecars)
-  docker exec pb sh -c "ls /pb_data/storage/$PHOTOS_ID/$1 2>/dev/null || true" | grep -v -e '^thumbs_' -e '\.attrs$' || true
+  if in_container; then
+    docker exec pb sh -c "ls /pb_data/storage/$PHOTOS_ID/$1 2>/dev/null || true"
+  else
+    ls "$DATA/storage/$PHOTOS_ID/$1" 2>/dev/null || true
+  fi | grep -v -e '^thumbs_' -e '\.attrs$' || true
 }
 tomb() { # tomb COLLECTION ID: the owner tombstones a record, as the app's delete does
   expect "$(req PATCH "/api/collections/$1/records/$2" "$A" "{\"deletedAt\":\"$LATER\",\"updatedAt\":\"$LATER\"}")" 200 "tombstone $1 $2"
@@ -401,10 +445,10 @@ expect "$(file "$KEEP_F" "$(jq -r .copy <<<"$keep_f")" "$A_FT")" 200 "another pr
 ok "deleted for good: files gone from disk, history gone, a marker per record; the rest untouched"
 
 # A marker refuses a late upload, a late edit and a re-create from another device: 410.
-code=$(curl -sS -o /tmp/body -w '%{http_code}' -X PATCH -H "Authorization: $A" \
-  -F 'original=@/tmp/original.jpg;type=image/jpeg' -F 'copy=@/tmp/copy.webp;type=image/webp' \
-  -F 'thumbnail=@/tmp/thumbnail.webp;type=image/webp' "$B/api/collections/photos/records/$BIN_F")
-[ "$code" = 410 ] || fail "a late upload of a purged photo: expected 410, got $code $(cat /tmp/body)"
+code=$(curl -sS -o "$TMP/body" -w '%{http_code}' -X PATCH -H "Authorization: $A" \
+  -F "original=@$TMP/original.jpg;type=image/jpeg" -F "copy=@$TMP/copy.webp;type=image/webp" \
+  -F "thumbnail=@$TMP/thumbnail.webp;type=image/webp" "$B/api/collections/photos/records/$BIN_F")
+[ "$code" = 410 ] || fail "a late upload of a purged photo: expected 410, got $code $(cat "$TMP/body")"
 [ -z "$(on_disk "$BIN_F")" ] || fail "a late upload put files back on disk"
 [ "$(body "$(req GET "/api/collections/photos/records/$BIN_F" "$A")" | jq -r .copy)" = "" ] || fail "a late upload set a file"
 expect "$(req PATCH "/api/collections/projects/records/$BIN" "$A" '{"title":"Back","deletedAt":"","updatedAt":"2027-01-01T00:00:00.000Z"}')" 410 "a late edit of a purged project"

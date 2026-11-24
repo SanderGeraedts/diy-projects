@@ -2,8 +2,8 @@
 //
 // The same rules run in three places, which must agree:
 // - here, on the device, when a project is made or renamed, and in the Dexie upgrade;
-// - deploy/nas/pb_hooks/slug.js, which the NAS's hook (slugs.pb.js) uses to settle clashes;
-// - deploy/nas/pb_migrations/1794931700_project_slugs.js, which gave existing projects theirs.
+// - backend/pb_hooks/slug.js, which the NAS's hook (slugs.pb.js) uses to settle clashes;
+// - backend/pb_migrations/1794931700_project_slugs.js, which gave existing projects theirs.
 // src/db/slug.test.ts runs all three on the same titles.
 
 /** The longest slug made from a title; a `-2` suffix may come on top. */

@@ -53,6 +53,8 @@ test('imports photos taken on two days into two entries, offline', async ({ page
   const input = page.locator('input[type="file"]')
   await expect(input).toHaveAttribute('accept', 'image/*')
   await expect(input).toHaveAttribute('multiple', '')
+  // T-0031: no drop hint on a touch phone; it shows only where a mouse can drop files.
+  await expect(page.getByText("of sleep foto's of zipbestanden naar deze pagina")).toBeHidden()
   const status = page.getByTestId('import-status')
 
   await input.setInputFiles([first, broken, second, third])
@@ -68,13 +70,13 @@ test('imports photos taken on two days into two entries, offline', async ({ page
   await expect(page.getByTestId('import-failed').getByRole('listitem')).toHaveText(['kapot.jpg: kon niet worden gelezen'])
   await expect(page.getByTestId('import-file-date')).toHaveCount(0)
 
-  // Two entries, newest first, each with its own photos (in the order taken).
+  // Two entries, newest first, each with its own photos (newest first too, D-0031).
   const entries = page.locator('.timeline > li')
   await expect(page.locator('.timeline time')).toHaveText(['3 sep 2026', '1 sep 2026'])
   const widths = (date: string) =>
     entries.filter({ has: page.locator(`time[datetime="${date}"]`) }).locator('img').evaluateAll((imgs) => imgs.map((img) => img.getAttribute('width')))
   await expect.poll(() => widths('2026-09-03')).toEqual(['2400'])
-  await expect.poll(() => widths('2026-09-01')).toEqual(['2560', '1707'])
+  await expect.poll(() => widths('2026-09-01')).toEqual(['1707', '2560'])
 
   await page.getByRole('button', { name: 'Sluiten' }).click()
   await expect(status).toHaveCount(0)
@@ -92,6 +94,6 @@ test('imports photos taken on two days into two entries, offline', async ({ page
   await page.reload()
   await card.click()
   await expect(page.locator('.timeline time')).toHaveCount(3)
-  await expect.poll(() => widths('2026-09-01')).toEqual(['2560', '1707'])
+  await expect.poll(() => widths('2026-09-01')).toEqual(['1707', '2560'])
   expect(await page.evaluate(() => navigator.onLine)).toBe(false)
 })

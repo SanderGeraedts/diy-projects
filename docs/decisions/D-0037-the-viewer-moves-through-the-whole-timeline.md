@@ -1,7 +1,7 @@
 ---
-id: D-0031
+id: D-0037
 title: "The photo viewer moves through all of a project's photos in the timeline's order, across days"
-description: "Arrow keys, the ‹ › buttons and swipes all go from a day's last photo to the first photo of the next day down the project page (and back), skipping days without live photos, for the owner and visitors; the counter and label stay per day, and a delete shows what next would have shown."
+description: "Arrow keys, the ‹ › buttons and swipes all go from a day's last photo to the first photo of the next day down the project page (and back), so \"next\" is always an older photo; days without live photos are skipped, for the owner and visitors; the counter and label stay per day, and a delete shows what next would have shown."
 status: Accepted
 date: 2026-11-24
 decided_by: architect
@@ -19,15 +19,17 @@ ArrowLeft/ArrowRight, the ‹ › buttons and swipes stop at a day's first and l
 Sander, on 2026-11-24: "I noticed I can't navigate with the arrow keys between days, only
 within one day. Please fix that." He asked for next to go from a day's last photo to the
 first photo of the next day, in the timeline's order, for owner and visitor, and left the
-rest to the architect. Addresses stay as D-0029 has them: `/projects/<slug>/<day>/<n>`.
+rest to the architect. Addresses stay as D-0031 has them: `/projects/<slug>/<day>/<n>`, with a day's photos shown
+and numbered newest first, so place 1 is the day's newest photo.
 
 # Decision
 
 - **One sequence per project**: the viewer moves through all of the project's live photos in
   the order the project page shows them. Entries in the page's order (newest date first; on
-  one date, the order the page uses), and within an entry its photos by `comparePhotos`
-  (time taken, then when added, then id). "Next" is the photo below on the page: from the
-  last photo of 25 okt it goes to the first photo of 11 okt.
+  one date, by id descending), and within an entry its photos by `comparePhotos`, newest
+  first (D-0031: time taken, then when added, then id, each descending). "Next" is the photo
+  below on the page, so it is always an older photo, within a day and across days: from 11
+  okt's last (oldest) photo it goes to 4 okt's first (newest) photo, `/2026-10-04/1`.
 - **Every way of moving crosses days alike**: ArrowRight/ArrowLeft, the › ‹ buttons and a
   horizontal swipe. The buttons show and the swipe resistance applies only at the first and
   last photo of the whole project.
@@ -59,8 +61,9 @@ project-wide counter would disagree with both.
   one entry's; the visitor's already has the whole timeline.
 - The page's entry order and the viewer's must not drift apart; one shared function should
   define it.
-- "Next" goes back in time across days (the timeline is newest first) while it goes forward in
-  time within a day. That is the page's own order; changing it means changing the page too.
+- "Next" always goes back in time, within a day and across days, because the page shows both
+  days and a day's photos newest first (D-0025, D-0031). Changing the viewer's direction means
+  changing the page's order too.
 
 # Guidance for agents
 

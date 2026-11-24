@@ -400,7 +400,7 @@ export async function restoreEntry(id: string, target: DiyDb = defaultDb): Promi
 
 /**
  * What a permanent delete of a bin item removes, the same as the NAS does
- * (deploy/nas/pb_hooks/bin.pb.js): a project with every entry and photo of it, an entry
+ * (backend/pb_hooks/bin.pb.js): a project with every entry and photo of it, an entry
  * with every photo of it, whatever their own tombstones say.
  */
 export async function purgeScope(

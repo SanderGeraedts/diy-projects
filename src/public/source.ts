@@ -1,14 +1,14 @@
 import PocketBase, { BaseAuthStore } from 'pocketbase'
 import type { Entry, Project } from '../db/db'
 import { isSlug } from '../db/slug'
-import { compareEntries } from '../routes/paths'
+import { compareEntries, comparePhotos } from '../routes/paths'
 import { buildDemoData } from '../seed/demo'
 import { downloadable } from '../sync/photos'
 import { entryFromServer, projectFromServer, type ServerRecord } from '../sync/records'
 
 // T-0026 (D-0025): what a visitor who isn't signed in reads. Online only, straight from
 // PocketBase, nothing stored on the device: no Dexie, no outbox, no sync. PocketBase's rules
-// decide what a visitor gets (deploy/nas/pb_migrations/1794931500_public_projects.js): public
+// decide what a visitor gets (backend/pb_migrations/1794931500_public_projects.js): public
 // projects that aren't tombstoned, their live entries and photo records, and those photos'
 // copies and thumbnails, never an original. The filters here only keep requests small; they
 // are not the boundary.
@@ -48,11 +48,14 @@ export interface PublicSource {
   project(slug: string): Promise<PublicProject | null>
 }
 
-/** A visitor's timeline: entries in the page's order (compareEntries, T-0029), photos by date taken. */
+/**
+ * A visitor's timeline: entries in the page's order (compareEntries, T-0036), photos newest
+ * first (D-0031), as the owner's (T-0005).
+ */
 export function visitorTimeline({ entries, photos }: Pick<PublicProject, 'entries' | 'photos'>) {
   return {
     entries: [...entries].sort(compareEntries),
-    photos: [...photos].sort((a, b) => a.takenAt.localeCompare(b.takenAt)),
+    photos: [...photos].sort(comparePhotos),
   }
 }
 

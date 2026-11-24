@@ -1,10 +1,10 @@
 ---
-id: T-0029
+id: T-0036
 title: "Move between days in the photo viewer"
-description: "D-0031: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have."
+description: "D-0037: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have."
 status: Doing
 depends_on: []
-decisions: [D-0031, D-0029, D-0025, D-0020, D-0002, D-0007, G-0019, G-0021]
+decisions: [D-0037, D-0031, D-0025, D-0020, D-0002, D-0007, G-0019, G-0021]
 raised_on: 2026-11-24
 done_on: ""
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/68"]
@@ -17,17 +17,18 @@ only within one day. Please fix that."
 
 The full-screen viewer (`src/viewer/PhotoViewer.tsx`) only knows one entry's photos, so
 every way of moving stops at a day's first and last photo. Make it move through all of the
-project's live photos as D-0031 sets out:
+project's live photos as D-0037 sets out:
 
 - **Order**: the project page's order. Entries newest date first (the owner's page reads
   `[projectId+date]` reversed, so equal dates fall back to id descending; `visitorTimeline`
-  sorts by date then id, both descending), photos within an entry by `comparePhotos`. "Next"
-  is the photo below on the page.
+  sorts by date then id, both descending), photos within an entry by `comparePhotos`, which since
+  D-0031 is newest first (place 1 is a day's newest photo). "Next" is the photo below on the
+  page, so it is always an older photo, within a day and across days.
 - **All three ways cross days**: ArrowRight/ArrowLeft, the › ‹ buttons, horizontal swipes.
   Buttons, and the end-of-strip resistance, only stop at the project's first and last photo.
 - **Skip** entries with no live photos (note-only, or every photo deleted).
 - **Address**: crossing days replaces the URL with the new day's segment and place
-  (`/projects/<slug>/<day>/<n>`, D-0029, using `entryDays` for `-2` days). Back still closes
+  (`/projects/<slug>/<day>/<n>`, D-0031, using `entryDays` for `-2` days). Back still closes
   the viewer.
 - **Counter "x / y" and dialog label "Foto x van y, <date>"** stay per day and match `<n>`;
   the date and note panel show the current photo's day. The previous/next images in the
@@ -59,8 +60,19 @@ project's live photos as D-0031 sets out:
      `/2026-10-04/1`;
    - deleting the only photo of 25 okt shows `/2026-10-11/1`.
    Visitor (`?bezoeker`): ArrowRight from 11 okt's last photo reaches 4 okt's first.
-   The existing viewer, cover-delete and visitor tests still pass unchanged (the 4 okt
-   swipe test still stops at `/2026-10-04/3`, being the project's last photo).
+   Places are per day and newest first (D-0031), so the addresses above are the same as
+   before the merge, but the photo at each place is the day's newest first: at
+   `/2026-10-04/1` the current image is `demo-garden-bench-entry-1-photo-3` (taken 12:00),
+   at `/2026-10-04/3` it is `…-photo-1`; at `/2026-10-11/1` it is `demo-garden-bench-entry-2-photo-2`,
+   at `/2026-10-11/2` `…-entry-2-photo-1`. Any e2e or unit assertion of a photo id or of
+   the order within a day uses that order.
+   The existing viewer and visitor tests pass unchanged (the 4 okt swipe test still stops at
+   `/2026-10-04/3`, being the project's last photo). One existing test changes, as D-0037
+   requires: `e2e/cover-delete.spec.ts` "deleting the cover asks first…" deletes 25 okt's only
+   photo, so the viewer now shows `/projects/tuinbank/2026-10-11/1` instead of closing;
+   the test expects that address and then closes with *Sluiten*. The rest of that test
+   (the entry keeps its note, the cover falls back to 11 okt's newest photo, the deleted
+   photo's address shows *Foto niet gevonden*) stays as it is.
 4. The tester, in a desktop browser with a mouse on the dev server (`pnpm run dev`, seeded
    data), confirms the › button shows on `/projects/tuinbank/2026-10-11/2` and goes to
    `/2026-10-04/1`, the ‹ button shows on `/2026-10-11/1` and goes to `/2026-10-25/1`, and
@@ -107,7 +119,7 @@ address: on 11 okt it reads `1 / 2`, `2 / 2`; after the next photo it reads `1 /
 It now shows whenever the project has more than one live photo, including on a day with a
 single photo (`1 / 1`), so it doesn't appear and disappear as the user moves through the
 project. It stays hidden only when the project has exactly one live photo (nowhere to go).
-Never a project-wide count (D-0031). Still `aria-hidden`: the dialog's name carries it.
+Never a project-wide count (D-0037). Still `aria-hidden`: the dialog's name carries it.
 
 **The bottom panel (date heading with accent bar, note, owner's actions).** Always shows the
 current photo's day. It changes at the moment the new photo becomes the current one (when
@@ -161,6 +173,7 @@ the panel keeps its 40% maximum height and scrolls.
 
 # Log
 
-- 2026-11-24 architect: Raised from Sander's request. Recorded D-0031: the viewer moves through all of a project's live photos in the page's order; arrow keys, buttons and swipes all cross days; days without photos skipped; counter and label stay per day; a delete shows what next would have shown. No open question. Handed to the UX designer.
+- 2026-11-24 architect: Raised from Sander's request. Recorded D-0037: the viewer moves through all of a project's live photos in the page's order; arrow keys, buttons and swipes all cross days; days without photos skipped; counter and label stay per day; a delete shows what next would have shown. No open question. Handed to the UX designer.
 - 2026-11-24 ux-designer: designed. Counter per day, now also `1 / 1` on single-photo days (hidden only when the project has one photo); panel switches with the photo and scrolls to top on a new day; ‹ › only at real neighbours in the whole project; focus never lost when a button disappears. Handed to the developer.
-- 2026-11-24 developer: built. `projectTimeline`/`photoSequence`/`compareEntries` in `src/routes/paths.ts` are the one order for the project page (`ProjectPage.tsx`, and `visitorTimeline`) and the viewer; `PhotoViewer.tsx` reads all of the project's live entries and photos (owner, Dexie live query; visitor, the loaded timeline) and moves through them across days with keys, buttons and swipes; counter/label per day (`1 / 1` on single-photo days, hidden with one live photo in the project); panel scrolls to top on a new day; a focused ‹/› that disappears hands focus to the other arrow or *Sluiten*; delete shows what next pointed at. Unit tests in `paths.test.ts`, e2e in `viewer.spec.ts` (7 new) and `visitor.spec.ts` (1 new). Conflict for the architect: *Done when* 3 says the existing cover-delete tests pass unchanged, but `cover-delete.spec.ts` "deleting the cover…" deleted 25 okt's only photo and expected the viewer to close, which D-0031 (and *Done when* 3's own "deleting the only photo of 25 okt shows `/2026-10-11/1`") changes; I changed that one assertion to expect `/2026-10-11/1` and then close with *Sluiten*. Checks: `pnpm run typecheck` exit 0; `pnpm test` 27 files passed, 336 tests passed (26 skipped); `pnpm run build` ok; `E2E_PORT=4794 pnpm run test:e2e` 59 passed, 2 skipped; `pnpm exec harness check` all ✓ (tasks 29, index in step; decisions 36; engineers 2; generated files current). *Done when* 4, 5 and 7 are for the tester and Sander.
+- 2026-11-24 developer: built. `projectTimeline`/`photoSequence`/`compareEntries` in `src/routes/paths.ts` are the one order for the project page (`ProjectPage.tsx`, and `visitorTimeline`) and the viewer; `PhotoViewer.tsx` reads all of the project's live entries and photos (owner, Dexie live query; visitor, the loaded timeline) and moves through them across days with keys, buttons and swipes; counter/label per day (`1 / 1` on single-photo days, hidden with one live photo in the project); panel scrolls to top on a new day; a focused ‹/› that disappears hands focus to the other arrow or *Sluiten*; delete shows what next pointed at. Unit tests in `paths.test.ts`, e2e in `viewer.spec.ts` (7 new) and `visitor.spec.ts` (1 new). Conflict for the architect: *Done when* 3 says the existing cover-delete tests pass unchanged, but `cover-delete.spec.ts` "deleting the cover…" deleted 25 okt's only photo and expected the viewer to close, which D-0037 (and *Done when* 3's own "deleting the only photo of 25 okt shows `/2026-10-11/1`") changes; I changed that one assertion to expect `/2026-10-11/1` and then close with *Sluiten*. Checks: `pnpm run typecheck` exit 0; `pnpm test` 27 files passed, 336 tests passed (26 skipped); `pnpm run build` ok; `E2E_PORT=4794 pnpm run test:e2e` 59 passed, 2 skipped; `pnpm exec harness check` all ✓ (tasks 29, index in step; decisions 36; engineers 2; generated files current). *Done when* 4, 5 and 7 are for the tester and Sander.
+- 2026-11-24 architect: Renumbered T-0029 → T-0036 and D-0031 → D-0037 after main took those numbers (#58–#67); references to D-0029 now point at D-0031, which replaced it and orders a day's photos newest first. Merged origin/main into the branch: so "next" is an older photo within a day and across days; place numbers in *Done when* stay, photo ids at each place follow newest first (*Done when* 3). Ruled on the developer's flag: the cover-delete test's change to `/2026-10-11/1` then *Sluiten* is right under D-0037; *Done when* 3 amended. Back to the developer: after the merge two unit tests in `src/routes/paths.test.ts` (timeline and sequence) still expect oldest first within a day, and `e2e/viewer.spec.ts` expects `entry-1-photo-1` at `/2026-10-04/1`; both must follow D-0031.

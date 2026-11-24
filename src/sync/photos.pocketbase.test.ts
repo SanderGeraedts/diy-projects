@@ -1,5 +1,5 @@
 // @vitest-environment node
-// T-0017: photo files against a real, throwaway PocketBase built from deploy/nas (its
+// T-0017: photo files against a real, throwaway PocketBase built from backend/ (its
 // migrations and hooks). CI's `pocketbase-auth` job starts one on an empty database and sets
 // the variables below. Skipped everywhere else. Never point this at the NAS (D-0006).
 //

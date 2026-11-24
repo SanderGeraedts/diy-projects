@@ -43,7 +43,13 @@
     ],
     "ask": [
       "Bash(*--confirmed*)",
-      "PowerShell(*--confirmed*)"
+      "PowerShell(*--confirmed*)",
+      "Bash(*confirmed=true*)",
+      "Bash(*project-down*)",
+      "Bash(*confirmation=*)",
+      "PowerShell(*confirmed=true*)",
+      "PowerShell(*project-down*)",
+      "PowerShell(*confirmation=*)"
     ]
   }
 }

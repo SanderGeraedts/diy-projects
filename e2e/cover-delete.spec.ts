@@ -64,7 +64,7 @@ test('deleting the cover asks first, then falls back to the newest remaining pho
   await expect(page.locator('img[data-current]')).toHaveAttribute('data-photo-id', benchPhoto(3, 1))
 
   // Verwijderen deletes it; it was the entry's only photo, so the viewer shows the next day's
-  // first (T-0029, D-0031), and Sluiten goes back to the project.
+  // first (T-0036, D-0037), and Sluiten goes back to the project.
   await page.getByRole('button', { name: 'Verwijderen' }).click()
   await confirm.getByRole('button', { name: 'Verwijderen' }).click()
   await expect(page).toHaveURL(benchPhotoUrl(2, 1))
