@@ -7,9 +7,8 @@ import { AccentHeading } from '../components/ui'
 import { db, type Entry, type Project } from '../db/db'
 import { deletePhoto, updateProject } from '../db/write'
 import { usePublic, useVisitor } from '../public/mode'
-import { visitorTimeline } from '../public/source'
 import { UNREACHABLE } from '../public/ui'
-import { comparePhotos, entryForDay, photoIndex, photoNumber } from '../routes/paths'
+import { photoIndex, photoNumber, photoSequence, type SequencePhoto } from '../routes/paths'
 import { SlugRedirect, useProjectBySlug } from '../routes/projectBySlug'
 import { ConfirmDelete, PhotoActions } from './PhotoActions'
 import {
@@ -32,6 +31,8 @@ import {
 // Photos are never edited (D-0002): no rotate or crop.
 // T-0026: a visitor sees the same viewer, read from the NAS, without the cover and delete
 // actions (D-0025).
+// T-0029 (D-0031): it moves through all of the project's live photos in the project page's
+// order, across days; the counter and label stay per day.
 
 const SETTLE_MS = 200
 const DOUBLE_TAP_MS = 300
@@ -45,11 +46,13 @@ type Gesture =
   | { kind: 'drag'; start: Point; startTransform: Transform; axis: 'x' | 'y' | null; startTime: number; moved: boolean }
   | { kind: 'pinch'; startDistance: number; startMid: Point; startTransform: Transform }
 
-/** What the viewer shows: the photo's entry, its project and the entry's live photos in order. */
+/** One photo the viewer can show, with its entry, day and place in that day (routes/paths.ts). */
+type ViewerPhoto = SequencePhoto<Pick<Entry, 'id' | 'date' | 'note'>, ShownPhoto>
+
+/** What the viewer shows: the project and all its live photos in the project page's order. */
 interface ViewerData {
-  entry: Pick<Entry, 'date' | 'note'> | undefined
   project: Pick<Project, 'id' | 'coverPhotoId'> | undefined
-  siblings: ShownPhoto[]
+  sequence: ViewerPhoto[]
 }
 
 export function PhotoViewer() {
@@ -63,17 +66,18 @@ function OwnerPhotoViewer() {
   const { slug, day, n } = useParams({ from: '/projects/$slug/$day/$n' })
   const project = useProjectBySlug(slug)
   const projectId = project?.id ?? ''
-  const found = useLiveQuery(async () => {
+  // All of the project's entries and photos, so the viewer can move across days (D-0031).
+  const sequence = useLiveQuery(async () => {
     if (!projectId) return null
-    const entries = (await db.entries.where('projectId').equals(projectId).toArray()).filter((e) => !e.deletedAt)
-    const entry = entryForDay(entries, day)
-    if (!entry) return null
-    const all = await db.photos.where('entryId').equals(entry.id).toArray()
-    return { entry, siblings: all.filter((p) => !p.deletedAt).sort(comparePhotos) }
-  }, [projectId, day])
+    const [entries, photos] = await Promise.all([
+      db.entries.where('projectId').equals(projectId).toArray(),
+      db.photos.where('projectId').equals(projectId).toArray(),
+    ])
+    return photoSequence(entries, photos)
+  }, [projectId])
   if (project && project.slug !== slug) return <SlugRedirect slug={project.slug} />
   const data: ViewerData | null | undefined =
-    project === null ? null : project === undefined || found === undefined ? undefined : found && { ...found, project }
+    project === null ? null : project === undefined || sequence === undefined ? undefined : sequence && { sequence, project }
   return <PhotoViewerView slug={slug} day={day} n={n} data={data} readOnly={false} />
 }
 
@@ -100,16 +104,10 @@ function VisitorPhotoViewer() {
   }
   let data: ViewerData | null | undefined
   if (loaded.state === 'ready') {
-    const timeline = loaded.data && visitorTimeline(loaded.data)
-    const entry = timeline && entryForDay(timeline.entries, day)
-    data =
-      loaded.data && timeline && entry
-        ? {
-            entry,
-            project: loaded.data.project,
-            siblings: timeline.photos.filter((p) => p.entryId === entry.id).sort(comparePhotos),
-          }
-        : null
+    data = loaded.data && {
+      project: loaded.data.project,
+      sequence: photoSequence(loaded.data.entries, loaded.data.photos),
+    }
   }
   return <PhotoViewerView slug={slug} day={day} n={n} data={data} readOnly />
 }
@@ -124,7 +122,7 @@ function PhotoViewerView({
   slug: string
   day: string
   n: string
-  /** undefined while loading, null when there's no such entry to show. */
+  /** undefined while loading, null when there's no such project to show. */
   data: ViewerData | null | undefined
   /** A visitor: no cover or delete actions (T-0026). */
   readOnly: boolean
@@ -132,11 +130,13 @@ function PhotoViewerView({
   const navigate = useNavigate()
   const router = useRouter()
 
-  const siblings = data?.siblings ?? []
+  const sequence = data?.sequence ?? []
   const index = photoIndex(n)
-  const current = index >= 0 ? siblings[index] : undefined
-  const previous = current && index > 0 ? siblings[index - 1] : undefined
-  const next = current ? siblings[index + 1] : undefined
+  // The photo at this day and place; its neighbours may be another day's (D-0031).
+  const position = index >= 0 ? sequence.findIndex((p) => p.day === day && p.index === index) : -1
+  const current = position >= 0 ? sequence[position] : undefined
+  const previous = current ? sequence[position - 1] : undefined
+  const next = current ? sequence[position + 1] : undefined
 
   const ready = current !== undefined
   const stageRef = useRef<HTMLDivElement>(null)
@@ -150,6 +150,12 @@ function PhotoViewerView({
   const [error, setError] = useState<string | null>(null)
   /** Set once this photo is deleted, so the viewer moves on instead of saying it's gone. */
   const leaving = useRef(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const previousButton = useRef<HTMLButtonElement>(null)
+  const nextButton = useRef<HTMLButtonElement>(null)
+  const closeButton = useRef<HTMLButtonElement>(null)
+  /** The arrow button that had focus when a move started, to keep focus in the viewer. */
+  const arrowFocus = useRef<'next' | 'previous' | null>(null)
 
   /** True while the strip slides to a neighbour; input waits for the new photo. */
   const navigating = useRef(false)
@@ -189,28 +195,43 @@ function PhotoViewerView({
   // A new photo starts unzoomed and centred, before it is painted.
   useLayoutEffect(() => {
     navigating.current = false
-    leaving.current = false
+    // Between a delete and the photo shown instead, the plain background stays.
+    if (current) leaving.current = false
     setConfirming(false)
     setError(null)
     setAnimating(false)
     setOffset({ x: 0, y: 0 })
     setTransform(IDENTITY)
-  }, [current?.id])
+    // A focused arrow button that went away at the project's end hands focus to the other
+    // arrow, or to Sluiten, never to the page behind.
+    const had = arrowFocus.current
+    arrowFocus.current = null
+    const same = had === 'next' ? nextButton.current : had === 'previous' ? previousButton.current : null
+    if (had && !same) {
+      const other = had === 'next' ? previousButton.current : nextButton.current
+      ;(other ?? closeButton.current)?.focus()
+    }
+  }, [current?.photo.id])
+
+  // A new day's note starts at its top; within a day the panel keeps its scroll position.
+  useLayoutEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0
+  }, [current?.entry.id])
 
   const close = useCallback(() => {
     if (router.history.canGoBack()) router.history.back()
     else void navigate({ to: '/projects/$slug', params: { slug }, replace: true })
   }, [router, navigate, slug])
 
-  /** Shows the entry's photo at `at` (0-based). */
+  /** Shows the photo of `day` at place `at` (0-based), replacing the address. */
   const show = useCallback(
-    (at: number) =>
+    (to: { day: string; at: number }) =>
       void navigate({
         to: '/projects/$slug/$day/$n',
-        params: { slug, day, n: photoNumber(at) },
+        params: { slug, day: to.day, n: photoNumber(to.at) },
         replace: true,
       }),
-    [navigate, slug, day],
+    [navigate, slug],
   )
 
   /** Slides the strip to a neighbour, then switches the URL to it. */
@@ -219,12 +240,15 @@ function PhotoViewerView({
       const target = direction === 'next' ? next : previous
       if (!target || navigating.current) return
       navigating.current = true
+      const active = document.activeElement
+      arrowFocus.current =
+        active && active === nextButton.current ? 'next' : active && active === previousButton.current ? 'previous' : null
       setAnimating(true)
       setTransform(IDENTITY)
       setOffset({ x: direction === 'next' ? -stage.width : stage.width, y: 0 })
-      window.setTimeout(() => show(direction === 'next' ? index + 1 : index - 1), SETTLE_MS)
+      window.setTimeout(() => show({ day: target.day, at: target.index }), SETTLE_MS)
     },
-    [next, previous, show, stage.width, index],
+    [next, previous, show, stage.width],
   )
 
   useEffect(() => {
@@ -247,7 +271,7 @@ function PhotoViewerView({
     setError(null)
     try {
       if (!data?.project) return
-      await updateProject(data.project.id, { coverPhotoId: current.id })
+      await updateProject(data.project.id, { coverPhotoId: current.photo.id })
     } catch (err) {
       console.error(err)
       setError('Dat is niet gelukt. Probeer het opnieuw.')
@@ -257,20 +281,23 @@ function PhotoViewerView({
   }
 
   /**
-   * Tombstones the photo, then shows the next one in the entry (which takes its place, so the
-   * address stays), or the previous, or closes.
+   * Tombstones the photo, then shows what next pointed at (D-0031): in the same day it takes
+   * the deleted one's place, so the address stays; else the next day's first. At the project's
+   * last photo, the previous one; with no live photo left, it closes.
    */
   const remove = async () => {
     if (!current) return
+    const target = next ?? previous
     setBusy(true)
     setError(null)
     try {
       leaving.current = true
-      await deletePhoto(current.id)
+      await deletePhoto(current.photo.id)
       setConfirming(false)
-      if (next) show(index)
-      else if (previous) show(index - 1)
-      else close()
+      if (target) {
+        const shifts = target.entry.id === current.entry.id && target.index > current.index
+        show({ day: target.day, at: shifts ? target.index - 1 : target.index })
+      } else close()
     } catch (err) {
       console.error(err)
       leaving.current = false
@@ -280,7 +307,9 @@ function PhotoViewerView({
     }
   }
 
-  const photoSize: Size = current ? { width: current.width, height: current.height } : { width: 0, height: 0 }
+  const photoSize: Size = current
+    ? { width: current.photo.width, height: current.photo.height }
+    : { width: 0, height: 0 }
   const fitted = fitSize(photoSize, stage)
   const zoomMax = maxScale(photoSize, stage)
   const clamp = (t: Transform) => clampTransform(t, fitted, stage, zoomMax)
@@ -436,8 +465,9 @@ function PhotoViewerView({
   const zoomed = transform.scale > 1
   const showChrome = chrome && !zoomed && offset.y === 0
   const transition = animating ? `transform ${SETTLE_MS}ms ease-out, opacity ${SETTLE_MS}ms ease-out` : 'none'
-  const date = data.entry ? formatDate(data.entry.date) : ''
-  const label = (i: number) => `Foto ${i + 1} van ${siblings.length}${date ? `, ${date}` : ''}`
+  const date = formatDate(current.entry.date)
+  /** Per day, matching `<n>` in the address; a neighbour gets its own day's (D-0031). */
+  const label = (p: ViewerPhoto) => `Foto ${p.index + 1} van ${p.count}, ${formatDate(p.entry.date)}`
   const button =
     'flex h-11 min-w-11 items-center justify-center rounded-full border-0 bg-panel px-3 text-text backdrop-blur-sm'
 
@@ -445,7 +475,7 @@ function PhotoViewerView({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={label(index)}
+      aria-label={label(current)}
       className="fixed inset-0 z-30 flex flex-col overflow-hidden bg-bg"
       style={{ opacity: offset.y > 0 ? Math.max(0.4, 1 - offset.y / (stage.height || 1)) : 1, transition }}
     >
@@ -463,11 +493,11 @@ function PhotoViewerView({
           style={{ transform: `translate(calc(-100% + ${offset.x}px), ${offset.y}px)`, transition }}
         >
           {[previous, current, next].map((p, slot) => (
-            <div key={p?.id ?? `empty-${slot}`} className="h-full w-full shrink-0 overflow-hidden">
+            <div key={p?.photo.id ?? `empty-${slot}`} className="h-full w-full shrink-0 overflow-hidden">
               {p && (
                 <ViewerImage
-                  photo={p}
-                  alt={label(index + slot - 1)}
+                  photo={p.photo}
+                  alt={label(p)}
                   current={slot === 1}
                   style={
                     slot === 1
@@ -488,18 +518,26 @@ function PhotoViewerView({
         className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
         style={{ opacity: showChrome ? 1 : 0, transition: 'opacity 150ms' }}
       >
-        <button type="button" aria-label="Sluiten" className={`${button} pointer-events-auto text-xl`} onClick={close}>
+        <button
+          ref={closeButton}
+          type="button"
+          aria-label="Sluiten"
+          className={`${button} pointer-events-auto text-xl`}
+          onClick={close}
+        >
           ✕
         </button>
-        {siblings.length > 1 && (
-          <span className={`${button} text-sm`} aria-hidden="true">
-            {index + 1} / {siblings.length}
+        {/* The day's count, whenever there is somewhere to go, so also 1 / 1 (T-0029). */}
+        {sequence.length > 1 && (
+          <span className={`${button} text-sm`} aria-hidden="true" data-testid="photo-counter">
+            {current.index + 1} / {current.count}
           </span>
         )}
       </div>
 
       {previous && (
         <button
+          ref={previousButton}
           type="button"
           aria-label="Vorige foto"
           className={`${button} absolute top-1/2 left-4 hidden -translate-y-1/2 text-xl pointer-fine:flex`}
@@ -510,6 +548,7 @@ function PhotoViewerView({
       )}
       {next && (
         <button
+          ref={nextButton}
           type="button"
           aria-label="Volgende foto"
           className={`${button} absolute top-1/2 right-4 hidden -translate-y-1/2 text-xl pointer-fine:flex`}
@@ -520,6 +559,7 @@ function PhotoViewerView({
       )}
 
       <div
+        ref={panelRef}
         className="absolute inset-x-0 bottom-0 max-h-[40%] overflow-y-auto bg-panel px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
         style={{
           opacity: showChrome ? 1 : 0,
@@ -527,17 +567,13 @@ function PhotoViewerView({
           transition: 'opacity 150ms',
         }}
       >
-        {data.entry && (
-          <>
-            <AccentHeading level={2}>
-              <time dateTime={data.entry.date}>{date}</time>
-            </AccentHeading>
-            {data.entry.note && <p className="mt-2 mb-0">{data.entry.note}</p>}
-          </>
-        )}
+        <AccentHeading level={2}>
+          <time dateTime={current.entry.date}>{date}</time>
+        </AccentHeading>
+        {current.entry.note && <p className="mt-2 mb-0">{current.entry.note}</p>}
         {!readOnly && (
           <PhotoActions
-            isCover={data.project?.coverPhotoId === current.id}
+            isCover={data.project?.coverPhotoId === current.photo.id}
             busy={busy}
             error={confirming ? null : error}
             onUseAsCover={() => void makeCover()}

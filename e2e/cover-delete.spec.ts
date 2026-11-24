@@ -63,9 +63,12 @@ test('deleting the cover asks first, then falls back to the newest remaining pho
   await expect(confirm).toHaveCount(0)
   await expect(page.locator('img[data-current]')).toHaveAttribute('data-photo-id', benchPhoto(3, 1))
 
-  // Verwijderen deletes it; it was the entry's only photo, so the viewer closes.
+  // Verwijderen deletes it; it was the entry's only photo, so the viewer shows the next day's
+  // first (T-0029, D-0031), and Sluiten goes back to the project.
   await page.getByRole('button', { name: 'Verwijderen' }).click()
   await confirm.getByRole('button', { name: 'Verwijderen' }).click()
+  await expect(page).toHaveURL(benchPhotoUrl(2, 1))
+  await page.getByRole('button', { name: 'Sluiten' }).click()
   await expect(page).toHaveURL(benchUrl)
   await expect(page.getByRole('link', { name: 'Tuinbank, 25 okt 2026' })).toHaveCount(0)
   // The entry keeps its date and note.

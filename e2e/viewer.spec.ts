@@ -104,3 +104,114 @@ test('opens a photo offline', async ({ page, context }) => {
   await swipe(page, -200, 0)
   await expect(page).toHaveURL(photo(3))
 })
+
+// T-0029 (D-0031): the viewer moves through all of the project's photos, across days, in the
+// project page's order: 25 okt (1 photo), 11 okt (2), 4 okt (3). Counter and label stay per day.
+const day = (date: string, n: number) => `${project}/${date}/${n}`
+
+test('ArrowRight and ArrowLeft cross days, with that day’s label, note and counter', async ({ page }) => {
+  await page.goto(day('2026-10-11', 2))
+  await expect(page.getByRole('dialog', { name: 'Foto 2 van 2, 11 okt 2026' })).toBeVisible()
+  await expect(page.getByTestId('photo-counter')).toHaveText('2 / 2')
+  // The next photo waiting in the strip is 4 okt's first, with its own day's label.
+  await expect(page.getByRole('img', { name: 'Foto 1 van 3, 4 okt 2026', includeHidden: true })).toHaveCount(1)
+
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(day('2026-10-04', 1))
+  const dialog = page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('heading', { level: 2, name: '4 okt 2026' })).toBeVisible()
+  await expect(dialog.getByText('Poten en zitregels op lengte gezaagd.')).toBeVisible()
+  await expect(page.getByTestId('photo-counter')).toHaveText('1 / 3')
+  await expect(currentImage(page)).toHaveAttribute('data-photo-id', 'demo-garden-bench-entry-1-photo-1')
+
+  await page.goto(day('2026-10-11', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 2, 11 okt 2026' })).toBeVisible()
+  await page.keyboard.press('ArrowLeft')
+  await expect(page).toHaveURL(day('2026-10-25', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
+  // A day with one photo still counts it, as the project has more.
+  await expect(page.getByTestId('photo-counter')).toHaveText('1 / 1')
+})
+
+test('a swipe crosses days; the project’s first and last photo stay put', async ({ page }) => {
+  await page.goto(day('2026-10-11', 2))
+  await expect(page.getByRole('dialog', { name: 'Foto 2 van 2, 11 okt 2026' })).toBeVisible()
+  await swipe(page, -200, 0)
+  await expect(page).toHaveURL(day('2026-10-04', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })).toBeVisible()
+
+  // 4 okt's third photo is the project's last.
+  await page.goto(day('2026-10-04', 3))
+  await expect(page.getByRole('dialog', { name: 'Foto 3 van 3, 4 okt 2026' })).toBeVisible()
+  await page.keyboard.press('ArrowRight')
+  await swipe(page, -200, 0)
+  await page.waitForTimeout(400) // longer than the 200 ms slide a move would start
+  await expect(page).toHaveURL(day('2026-10-04', 3))
+  await expect(page.getByRole('dialog', { name: 'Foto 3 van 3, 4 okt 2026' })).toBeVisible()
+
+  // 25 okt's photo is the project's first.
+  await page.goto(day('2026-10-25', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
+  await page.keyboard.press('ArrowLeft')
+  await swipe(page, 200, 0)
+  await page.waitForTimeout(400)
+  await expect(page).toHaveURL(day('2026-10-25', 1))
+})
+
+test('after crossing days, one back closes the viewer', async ({ page }) => {
+  await page.goto(project)
+  await page.getByRole('link', { name: 'Tuinbank, 25 okt 2026' }).click()
+  await expect(page).toHaveURL(day('2026-10-25', 1))
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(day('2026-10-11', 1))
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(day('2026-10-11', 2))
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(day('2026-10-04', 1))
+
+  await page.goBack()
+  await expect(page).toHaveURL(project)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: 'Tuinbank' })).toBeVisible()
+})
+
+async function deleteShown(page: Page) {
+  await page.getByRole('button', { name: 'Verwijderen' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Verwijderen' }).click()
+}
+
+test('a day whose photos were all deleted is skipped', async ({ page }) => {
+  await page.goto(day('2026-10-11', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 2, 11 okt 2026' })).toBeVisible()
+  await deleteShown(page)
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 11 okt 2026' })).toBeVisible()
+  await expect(page).toHaveURL(day('2026-10-11', 1))
+  // 11 okt's last photo: next is 4 okt's first.
+  await deleteShown(page)
+  await expect(page).toHaveURL(day('2026-10-04', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })).toBeVisible()
+
+  await page.goto(day('2026-10-25', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(day('2026-10-04', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })).toBeVisible()
+})
+
+test('deleting a day’s only photo shows the next day’s first', async ({ page }) => {
+  await page.goto(day('2026-10-25', 1))
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 25 okt 2026' })).toBeVisible()
+  await deleteShown(page)
+  await expect(page).toHaveURL(day('2026-10-11', 1))
+  const dialog = page.getByRole('dialog', { name: 'Foto 1 van 2, 11 okt 2026' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('heading', { level: 2, name: '11 okt 2026' })).toBeVisible()
+  await expect(page.getByTestId('photo-counter')).toHaveText('1 / 2')
+})
+
+test('a project with one photo shows no counter', async ({ page }) => {
+  await page.goto('/projects/fietsenrek-voor-de-schuur/2026-11-01/1')
+  await expect(page.getByRole('dialog', { name: 'Foto 1 van 1, 1 nov 2026' })).toBeVisible()
+  await expect(page.getByTestId('photo-counter')).toHaveCount(0)
+})

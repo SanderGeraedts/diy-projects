@@ -2,7 +2,7 @@
 id: T-0029
 title: "Move between days in the photo viewer"
 description: "D-0031: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have."
-status: Open
+status: Doing
 depends_on: []
 decisions: [D-0031, D-0029, D-0025, D-0020, D-0002, D-0007, G-0019, G-0021]
 raised_on: 2026-11-24
@@ -163,3 +163,4 @@ the panel keeps its 40% maximum height and scrolls.
 
 - 2026-11-24 architect: Raised from Sander's request. Recorded D-0031: the viewer moves through all of a project's live photos in the page's order; arrow keys, buttons and swipes all cross days; days without photos skipped; counter and label stay per day; a delete shows what next would have shown. No open question. Handed to the UX designer.
 - 2026-11-24 ux-designer: designed. Counter per day, now also `1 / 1` on single-photo days (hidden only when the project has one photo); panel switches with the photo and scrolls to top on a new day; ‹ › only at real neighbours in the whole project; focus never lost when a button disappears. Handed to the developer.
+- 2026-11-24 developer: built. `projectTimeline`/`photoSequence`/`compareEntries` in `src/routes/paths.ts` are the one order for the project page (`ProjectPage.tsx`, and `visitorTimeline`) and the viewer; `PhotoViewer.tsx` reads all of the project's live entries and photos (owner, Dexie live query; visitor, the loaded timeline) and moves through them across days with keys, buttons and swipes; counter/label per day (`1 / 1` on single-photo days, hidden with one live photo in the project); panel scrolls to top on a new day; a focused ‹/› that disappears hands focus to the other arrow or *Sluiten*; delete shows what next pointed at. Unit tests in `paths.test.ts`, e2e in `viewer.spec.ts` (7 new) and `visitor.spec.ts` (1 new). Conflict for the architect: *Done when* 3 says the existing cover-delete tests pass unchanged, but `cover-delete.spec.ts` "deleting the cover…" deleted 25 okt's only photo and expected the viewer to close, which D-0031 (and *Done when* 3's own "deleting the only photo of 25 okt shows `/2026-10-11/1`") changes; I changed that one assertion to expect `/2026-10-11/1` and then close with *Sluiten*. Checks: `pnpm run typecheck` exit 0; `pnpm test` 27 files passed, 336 tests passed (26 skipped); `pnpm run build` ok; `E2E_PORT=4794 pnpm run test:e2e` 59 passed, 2 skipped; `pnpm exec harness check` all ✓ (tasks 29, index in step; decisions 36; engineers 2; generated files current). *Done when* 4, 5 and 7 are for the tester and Sander.
