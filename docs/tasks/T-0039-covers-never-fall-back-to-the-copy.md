@@ -148,6 +148,33 @@ changes; the viewer keeps the copy; visitors are unchanged.
 Nothing new is visible: covers and tiles look as T-0037 designed them; only the jagged copy no
 longer appears on cards. (Small task: the UX designer reviews after the build.)
 
+**Review (ux-designer, 2026-11-24): matches.** Looked at on the dev server with the seeded demo
+data plus generated 4000×3000, 3000×4000 and 4000×2250 JPEGs, in Chromium at laptop 1280×800
+@1 and @2, Fold 840×900 @2.625 and Pixel 412×915 @2.625, with a per-frame probe (an image
+frame with no picture, a size change, `src`/`srcset` changes, which file a card loaded, image
+errors) and screenshots.
+
+- **Cards, unmeasured (as after a download):** the cover shows the thumbnail alone (no
+  `srcset`) at every pixel ratio; the copy was never loaded. When the rebuild measures it,
+  only `srcset` is added; the picture stays, no flash, no layout change.
+- **Cards, older 512 px thumbnail:** shown alone, slightly soft at @2.625 (D-0040's accepted
+  consequence), never the copy; the rebuild swaps `src` once. The probe saw `naturalWidth` 0
+  for one animation frame in some swaps, but a screencast of 22 such swaps showed no frame
+  without the picture: Chrome keeps painting the old thumbnail until the new one is ready.
+- **Writes elsewhere** (a write to every photo's `thumbnailOnNas`, as T-0038's sync does):
+  0 attribute changes and 0 reloads on cards and on tiles.
+- **Tiles:** the same rule (no `srcset` while unmeasured, the full one after); no empty or
+  moving tiles.
+- **Viewer:** stepping through with the arrow keys, waiting past the 2 s revoke and going back,
+  and a write while it was open: no blank frame, no image errors, no console errors.
+- **Navigation** overview → project → back after more than 2 s: covers there at once, no
+  errors.
+- **Visitor view** (`?bezoeker`): `srcset` "thumbnail 1280w, copy 1600w", unchanged.
+- **Keyboard and screen reader:** `alt` text, links and focus order are unchanged.
+- Not this task: at @2 and on the Fold a portrait tile (thumbnail 960w) loads the copy
+  because the tile needs more than 960 device pixels. That is D-0038's choice for a
+  measured photo, not a regression.
+
 # Test
 
 **Developer, Done when 1** (`e2e/cover-after-update.spec.ts`, preview build, Chromium as
@@ -219,3 +246,8 @@ pixel @2.625 | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
   component); `thumbnails.spec.ts` now expects no `srcset` before the rebuild. Local: typecheck
   clean; vitest 432 passed; e2e sharp-photos, thumbnails, viewer, visitor, design, photos,
   cover-delete, overview-order, import 31 passed, 2 skipped; `harness check` passes.
+- 2026-11-24 ux-designer: reviewed: matches (see *Design*). Dev server, demo data, generated
+  photos, DPR 1, 2 and 2.625: covers and tiles of unmeasured photos never load the copy;
+  writes leave cards untouched; no visible flash, empty frame or layout jump on cards, tiles
+  or in the viewer, also through a measure, a rebuild and navigation; visitor view unchanged.
+  No fixes needed; to the tester.
