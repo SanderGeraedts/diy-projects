@@ -183,6 +183,110 @@ laptop (1280×800 @1.5), Fold inner (840×900 @2.625) and Pixel 7 (412×915 @2.6
 
 # Test
 
+**Tester, 2026-11-24, at 8688e46 (branch `t-0037-sharp-photos`, up to date with `origin/main`
+7ef8fa9). Verdict: passed; Done when 6 remains for Sander after the deploy.**
+
+CI (run 45398716208, attempt 1, on 8688e46): `checks / checks` pass (vitest `409 passed | 26
+skipped`, Playwright `81 passed`, no `flaky` line; the workflow fails on one),
+`pocketbase-auth` pass, Netlify preview pass; the e2e shard jobs are skipped by design (e2e runs
+inside `checks / checks`).
+
+Local, after `rm -rf node_modules` and `pnpm install --frozen-lockfile`:
+
+- `pnpm run typecheck`: `tsc --noEmit`, no errors.
+- `pnpm test`: `Test Files 33 passed | 3 skipped (36)`, `Tests 409 passed | 26 skipped (435)`
+  (the skipped ones need a throwaway PocketBase; run below).
+- `pnpm run build`: ok (`precache 23 entries`, `dist/sw.js`).
+- `E2E_PORT=4794 pnpm run test:e2e`: `79 passed`, `2 skipped`.
+- `pnpm exec harness check`: tasks, decisions (45 records, 1 overrule valid), engineers,
+  generated files all ✓.
+
+Done when 1 (`e2e/sharp-photos.spec.ts`), on this branch, all 9 within 0.9 to 3:
+
+```
+viewport | place | photo     | CSS px | DPR   | delivered | r
+laptop   | card  | landscape |  320.0 | 1.5   |      1280 | 2.67
+laptop   | tile  | portrait  |  492.0 | 1.5   |       960 | 1.30
+laptop   | tile  | landscape |  492.0 | 1.5   |      1280 | 1.73
+fold     | card  | landscape |  258.7 | 2.625 |      1280 | 1.89
+fold     | tile  | portrait  |  400.0 | 2.625 |      1920 | 1.83
+fold     | tile  | landscape |  400.0 | 2.625 |      1280 | 1.22
+phone    | card  | landscape |  380.0 | 2.625 |      1280 | 1.28
+phone    | tile  | portrait  |  186.0 | 2.625 |       960 | 1.97
+phone    | tile  | landscape |  186.0 | 2.625 |      1280 | 2.62
+```
+
+The same spec on a worktree of `origin/main` (7ef8fa9), built there: **failed**, 7 soft
+failures (e.g. `Expected: <= 3, Received: 5.333…`; `Expected: >= 0.9, Received: 0.520…`):
+
+```
+laptop   | card  | landscape |  320.0 | 1.5   |      2560 | 5.33
+laptop   | tile  | portrait  |  492.0 | 1.5   |       384 | 0.52
+laptop   | tile  | landscape |  492.0 | 1.5   |       512 | 0.69
+fold     | card  | landscape |  258.7 | 2.625 |      2560 | 3.77
+fold     | tile  | portrait  |  400.0 | 2.625 |       384 | 0.37
+fold     | tile  | landscape |  400.0 | 2.625 |       512 | 0.49
+phone    | card  | landscape |  380.0 | 2.625 |      2560 | 2.57
+phone    | tile  | portrait  |  186.0 | 2.625 |       384 | 0.79
+phone    | tile  | landscape |  186.0 | 2.625 |       512 | 1.05
+```
+
+Done when 2 (`e2e/photos.spec.ts`): `stripes: copy {"type":"image/webp","width":2560,"height":1707,"mean":127,"sd":0}, thumbnail {"type":"image/webp","width":1280,"height":854,"mean":127,"sd":0}`.
+The same spec's import test: a 6000×4000 JPEG gives a 2560 px copy and a 1280 px thumbnail.
+
+Done when 3 and 8 (`e2e/thumbnails.spec.ts`, `src/photos/rebuild.test.ts`): pass; the e2e checks
+the page text is identical throughout, the tile stays loaded with its alt, 512w becomes 1280w,
+outbox 0, `uploads`/`updatedAt` unchanged, a 400 px photo only measured and unchanged after a
+reload. Done when 4 and 7 (`e2e/thumbnails.spec.ts`, `src/components/PhotoImage.test.tsx`):
+pass; exact `sizes` on every card and tile for owner and `?bezoeker`, viewer image without
+`srcset`; the unit test shows a visitor's `srcset` with distinct thumbnail and copy addresses
+(`thumb.webp 960w, copy.webp 1920w`), as in the demo visitor view both are one address.
+`e2e/visitor.spec.ts` passes.
+
+Flakiness, `--retries 0`:
+
+- thumbnails, sharp-photos, visitor, viewer, design, cover-delete, import specs,
+  `--repeat-each 5 --workers 4`: `125 passed`, `10 skipped`.
+- thumbnails + sharp-photos, `--repeat-each 10 --workers 6`: `40 passed`.
+- `e2e/photos.spec.ts`, `--repeat-each 5 --workers 1` (fixed port 5199): `10 passed`.
+- `src/photos` + `PhotoImage.test.tsx`: `74 passed`.
+
+Tried to break it (throwaway probes, not committed):
+
+- **Against a throwaway PocketBase** (`pnpm exec harness backend start`, never the NAS): the
+  repository's PocketBase suites (`vitest run src/sync`, `6 passed`, `82 passed`), plus a probe
+  with two simulated devices and a fake worker: (1) a photo with a pending upload is skipped
+  (`{ measured: 0, rebuilt: 0, failed: [] }`, makeThumbnail not called, thumbnail unchanged);
+  (2) after the upload, the phone's rebuild gives `thumbnailWidth` 1280, `updatedAt` and
+  `uploads` unchanged, outbox 0, and the next sync sends nothing (`pushed: 0, uploaded: 0`,
+  no request to `/collections/photos/records`; NAS thumbnail's sha256 unchanged);
+  (3) a second device pulls the photo (`thumbnailWidth` absent, uploads `none`), rebuilds it,
+  and its next sync also sends nothing, NAS thumbnail unchanged; (4) a newer record for that
+  photo pulled from the NAS keeps the rebuilt thumbnail and its width (`photoFromServer` spreads
+  the local photo); (5) a new photo with `thumbnailWidth` 1280 is pushed with body
+  `{"projectId",…,"width":2560,"height":1920,"createdAt","updatedAt","deletedAt":""}`: no
+  `thumbnailWidth`, and the NAS record has no such field. 2 of 2 passed.
+- **Failed rebuild not retried in a loop:** a checker whose `makeThumbnail` always throws, called
+  five times (two in a row, three at once): `makeThumbnail` called once, a `console.warn`
+  `thumbnails: photo … not checked Error: boom`, thumbnail and `thumbnailWidth` unchanged.
+- **Browser** (vite preview): four 4000×3000 photos imported, viewer loads the 2560 px copy
+  (`naturalWidth` 2560, no `srcset`); made old (512 px, unmeasured), then reloaded twice within
+  1.5 s (interrupting the rebuild) and imported a fifth photo while it ran: the import finished,
+  all five end at 1280 px with `thumbnailWidth` 1280, the four old ones keep `uploads` uploaded,
+  only the new one is pending, outbox 2 (the new photo's own rows), no console warnings, viewer
+  still the copy.
+- **Visitor starts no rebuild:** 13 demo photos with `thumbnailWidth` removed, 2.5 s on
+  `?bezoeker`: all 13 still unmeasured. Back as owner, every card and tile loads an image
+  (`complete`, `naturalWidth` > 0) with a two-candidate `srcset`.
+- Read: `needsCheck` skips pending copy or thumbnail; nothing sets an upload back to `pending`
+  after `uploaded` (only `addPhotos` writes `pending`), so a rebuilt thumbnail can't be uploaded
+  later; the write re-reads the photo in a transaction and only touches `thumbnail` and
+  `thumbnailWidth`; `toServer` lists its photo fields explicitly; the rebuild is started only in
+  `startOwner`. The trigger after a sync pull (main.tsx, `pulled > 0` at the end of a run) was
+  read, not run: production only has a sync engine.
+
+Not run: Done when 6 (Sander on his laptop and the Fold, production, after the merge).
+
 # Log
 
 - 2026-11-24 architect: verified the causes (owner's cards load the 2560 px copy, about 5 to 8x
@@ -249,4 +353,8 @@ laptop (1280×800 @1.5), Fold inner (840×900 @2.625) and Pixel 7 (412×915 @2.6
 - 2026-11-24 ux-designer: reviewed: matches the design (sizes exact, image rendered once,
   viewer unchanged, rebuild unseen; tiles visibly sharper and cards free of moiré compared with
   main at all three sizes); to the tester.
-  Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production).
+- 2026-11-24 tester: passed (Done when 1 to 5, 7 and 8 run, see *Test*; fails on main as
+  required; the rebuild never writes an outbox row or uploads, checked against a throwaway
+  PocketBase).
+  Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production, after his
+  devices have rebuilt their thumbnails).
