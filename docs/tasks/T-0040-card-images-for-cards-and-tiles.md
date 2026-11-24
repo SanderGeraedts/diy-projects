@@ -339,6 +339,97 @@ neighbour, not the smaller one. Every row is still inside the band.
 
 **Done when 2 to 5:** see the developer's Log line.
 
+## Tester, 2026-11-24 (head 93498ab, Windows, Chromium; generated photos and throwaway backends only)
+
+**CI, read, not repeated** (runs 45443686253 `CI` and 45443685150 `backend`, both attempt 1, on
+93498ab): `checks / checks` pass (vitest "Test Files 34 passed | 5 skipped (39), Tests 457
+passed | 36 skipped (493)"; e2e "83 passed (1.7m)", no `flaky` line); `pocketbase-auth` pass,
+with the new step "Card image tests" "Tests 3 passed (3)" and sync 13, photos 8, thumbnails 7
+passed; `image` (backend workflow) pass, "All smoke tests passed."; Netlify preview ready. The
+e2e shard jobs are skipped, as on every run (the e2e runs inside `checks / checks`). The
+workflow change in `ci.yml` only adds the step `Card image tests`
+(`pnpm exec vitest run --reporter=verbose src/sync/cards.pocketbase.test.ts`) before
+`PocketBase logs`; nothing removed, no `continue-on-error`, no condition, no other file under
+`.github/`.
+
+**Clean install and checks:**
+- `pnpm install --frozen-lockfile`: "Lockfile is up to date, resolution step is skipped".
+- `pnpm run typecheck`: `tsc --noEmit`, no output (clean).
+- `pnpm test`: "Test Files 34 passed | 5 skipped (39)", "Tests 457 passed | 36 skipped (493)".
+- The new and affected unit tests (`src/photos`, `PhotoImage.test.tsx`, `public/source.test.ts`,
+  `sync/thumbnails.test.ts`), 3 runs: "Tests 133 passed (133)" each time.
+- `pnpm run build`: passed.
+- `pnpm exec harness check`: "tasks: 40 tasks, index in step", "decisions: 48 records, index
+  complete, 1 overrule valid", "engineers: 2 listed", "generated files: current".
+
+**Done when 1 (band 0.7 to 2.2):** on this branch `sharp-photos` passed with the developer's
+table, row for row (laptop @1 card 640 → 2.00, tiles 640 → 1.30 / 1.30; the largest r is 1.98).
+**On `origin/main` (99dcc1a) with this branch's spec, rebuilt from main: fails**, "1 failed",
+the four rows over 2.2:
+
+```
+laptop   | 1     | card  | landscape |  320.0 |      1280 | 4.00
+laptop   | 1     | tile  | landscape |  492.0 |      1280 | 2.60
+laptop   | 1.5   | card  | landscape |  320.0 |      1280 | 2.67
+phone    | 2.625 | tile  | landscape |  186.0 |      1280 | 2.62
+```
+
+(A first try on main passed, because `vite preview` served this branch's `dist`; the spec must
+run against a build of the code under test.)
+
+**Done when 2, 9 (e2e, repeated):** `sharp-photos`, `card-images`, `thumbnails`,
+`cover-after-update` with `--repeat-each=3 --workers=4 --retries=0`: "18 passed (1.3m)".
+`card-images` prints "bytes: card image 18106, thumbnail 56916". Affected specs:
+`visitor`, `design` (baselines unchanged), `import`, `photos` `--repeat-each=2`: "16 passed";
+`bin`, `delete`, `cover-delete`, `drop`, `sync-status`, `viewer`: "36 passed".
+
+**Done when 3, 4 (throwaway backend, `pnpm exec harness backend start`, one file at a time,
+stopped afterwards: "The throwaway backend is stopped, and its database removed."):**
+- `cards.pocketbase.test.ts`: "Tests 3 passed (3)": the migration allows exactly one thumb,
+  640x480, on the thumbnail only; a visitor gets a 640×480 PNG of a public photo's thumbnail,
+  the WebP without `?thumb`, and nothing (404) of a private one; the card image is never
+  synced, the NAS has no such field, a pulled newer record keeps it. "bytes: thumbnail WebP
+  217988, PocketBase 640x480 PNG 369494 (1.70x)" (Done when 6: under 2x).
+- `photos.pocketbase.test.ts` "8 passed", `sync.pocketbase.test.ts` "13 passed",
+  `auth.pocketbase.test.ts` "5 passed".
+- `thumbnails.pocketbase.test.ts` (T-0038's, changed here only to pass `makeCard` to the
+  rebuild): the very first run on a fresh backend had "1 failed | 6 passed (7)", the failing
+  test "2: a race: both checked before either upload; one rebuilt file stays, both mark it
+  done" (its message wasn't kept). It then passed 58 runs in a row on this branch (fresh
+  backends, after `cards`, alone), and 20 of 20 on `origin/main`. Not reproducible, so not
+  attributed; CI ran it once, green, without a retry. Recorded as a lesson.
+
+**Tried to break it:**
+- **The migration's down step** on a scratch database with the pinned PocketBase 0.40.6, the
+  schema read straight from SQLite: after `migrate up` thumbnail `["640x480"]` (migration row
+  1); after `migrate down 1` (answered y) thumbnail `[]`, row 0, original and copy `[]`
+  throughout; after `migrate up` again `["640x480"]`. (`serve` re-applies a reverted migration
+  on start, so the down state can't be read through the API.)
+- **Never synced:** `toServer` for photos sends only projectId, entryId, takenAt, width,
+  height and the times; `photoFromServer` spreads the local record, so a pull keeps `card` and
+  `cardWidth`; `downloadNewPhotos` only stores photos the device doesn't have. The rebuild
+  writes only `card`/`cardWidth` (and the thumbnail fields), in a transaction that drops the
+  write when the photo is gone or its copy changed; nothing in the rebuild touches the outbox.
+  The e2e and backend checks above confirm: outbox 0, `uploads`/`updatedAt` unchanged.
+- **Too small:** `cardCrop` returns null under 640×480 (600×450 copy: `cardWidth: 0`, not
+  retried; e2e and unit). A photo whose encoder throws joins the checker's `failed` set and is
+  skipped until the next start (unit "logs a throwing encoder once and does not loop").
+- **A failed card image doesn't block an import:** `cardFor` catches and stores the photo
+  without one (unit "still adds the photo when the card image fails").
+- **Private photo's `?thumb`:** 404 signed out (backend test above).
+- **Purge and sign-out:** the card image is a field of the photo row; `forgetPurged` deletes
+  the row and `clearLocalData` clears the photos table, so nothing is left behind.
+- **Demo start, console** (preview build, Chromium 1280×800, 6 s each): first start "0
+  warnings/errors", second start "0", visitor demo `/?bezoeker` "0"; the 13 demo photos are
+  stored `[cardWidth 0, no card]`; owner demo cards offer `1600w, 1600w` (D-0040), visitor demo
+  `1280w, 1600w` (no card candidate).
+- Not blocking, noted: a visitor's card candidate is PocketBase's thumb of whatever thumbnail
+  the NAS holds; a photo whose NAS thumbnail were still a 512 px one would get it upscaled to
+  640. Since T-0038 the owner's devices replace those, and Sander's console check showed 1280
+  px thumbnails everywhere.
+
+**Verdict: passed** for Done when 1 to 7 and 9. Done when 8 is Sander's, in production.
+
 # Log
 
 - 2026-11-24 architect: raised from Sander's production console check (all 23 cards at DPR 1
@@ -376,3 +467,4 @@ neighbour, not the smaller one. Every row is still inside the band.
   `e2e/thumbnails.spec.ts` now asserts no `thumbnails:` console warnings 3 s after start. It
   failed before the fix (13 warnings) and passes after. `pnpm test`, `pnpm run typecheck`
   and the affected e2e pass.
+- 2026-11-24 tester: passed Done when 1 to 7 and 9 (band test fails on main, passes here; CI green on the first attempt; migration down works; card image never synced; demo start clean). Remaining: Done when 8, Sander in production on his laptop at 100 % and the Fold (covers and day tiles smooth, the console one-liner 2.2 or less on every card, 640 natural width as a visitor); his confirmation also closes T-0037's Done when 6.
