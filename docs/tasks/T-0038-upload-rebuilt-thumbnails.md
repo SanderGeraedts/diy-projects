@@ -172,6 +172,65 @@ progress for this work; the status bar doesn't count it.
 
 # Test
 
+2026-11-24 tester, on `569c6ac` (draft PR #71). **Verdict: sent back** (one failure, below).
+
+**CI (read, not repeated).** Run 45410662438: `checks / checks` pass (pnpm test "Test Files 34
+passed | 4 skipped (38), Tests 425 passed | 32 skipped (457)"; e2e "81 passed", no `flaky`
+line), `pocketbase-auth` pass (auth 5, sync 13, photos 8, thumbnails 6 passed). The e2e shard
+jobs show "skipping" as on every PR (e2e runs inside `checks`). The `ci.yml` change only adds
+the step `pnpm exec vitest run --reporter=verbose src/sync/thumbnails.pocketbase.test.ts` to
+`pocketbase-auth`; nothing is removed or loosened. `auto-merge.yml` sets no `hold-paths`, so a
+PR that touches `.github/workflows` is not held for a human.
+
+**Done when, run here** after `pnpm install --frozen-lockfile` ("Lockfile is up to date"),
+against `pnpm exec harness backend start` (a throwaway PocketBase on this machine, stopped
+after; never the NAS), the PocketBase files one at a time:
+
+- `auth.pocketbase.test.ts`: "Tests 5 passed (5)"; `sync.pocketbase.test.ts`: "Tests 13 passed
+  (13)"; `photos.pocketbase.test.ts`: "Tests 8 passed (8)"; `thumbnails.pocketbase.test.ts`:
+  "Tests 6 passed (6)" (Done when 1 to 7), then three more runs: 6 passed each.
+- `thumbnails.test.ts`, `rebuild.test.ts`, `engine.test.ts` five times in a row: "Tests 71
+  passed (71)" each.
+- `pnpm run typecheck`: clean. `pnpm test`: "Test Files 34 passed | 4 skipped (38), Tests 425
+  passed | 32 skipped (457)". `pnpm run build`: ok. `E2E_PORT=4794 pnpm run test:e2e`: "79
+  passed, 2 skipped"; `e2e/thumbnails.spec.ts` unchanged on the branch and
+  `--repeat-each=5 --workers=4`: "15 passed". `pnpm exec harness check`: tasks, decisions,
+  engineers, generated files all ✓.
+
+**Tried to break it** (a throwaway test file against the same throwaway PocketBase, not
+committed):
+
+- Sign-in refused before the run (password changed as superuser): `needsSignIn` true, no
+  PATCH, photo stays `check`. Passed.
+- Sign-in revoked during the step, public project first: the file-token request gets 401, the
+  run pauses for sign-in, all three photos stay `check`, the NAS keeps 512 px. Passed.
+- **Sign-in revoked during the step, private project: FAILED.** Two older photos in a project
+  with `public: false`, synced, rebuilt; the user's password is changed (as superuser) right
+  before the step's first `getOne`. Output: `{"lastError":null,"needsSignIn":false,"states":["done","done"],"revoked":true}`,
+  and the NAS still holds `512x384` for both. PocketBase reads the refused token as a guest,
+  `getOne` answers 404, and `replaceThumbnails` takes the 404 as "not on the NAS" and marks
+  every remaining photo `done` for good, with no sign-in pause. The rest of the run asks the
+  sign-in after a 400/404 (`mayBeSignedOut`, then `auth.refreshAfterSync()`); this step doesn't.
+  The run's refresh just before the step narrows the window but doesn't close it (a revoke or
+  password change on another device while a long step runs). To see it: in a PocketBase test,
+  revoke the sign-in in `beforeSend` on the first `GET /api/collections/photos/records/<id>`
+  of a private photo, sync, and read `thumbnailOnNas`.
+- A network failure on the second of three uploads: run "lastError null, nextRetryAt null",
+  one warning, states `["done","check","check"]`; the next run sends PATCHes `[0,1,1]`; three
+  more syncs send nothing for any of them (no loop). Passed.
+- A real 400 (a 2.5 MB rebuilt thumbnail; the NAS allows 2 MB): one warning "the NAS refused
+  the thumbnail of photo …", no error, the next photo still replaced, the refused one not
+  requested again in the next sync. Passed.
+- Purged on the NAS during the step (delete, sync and purge from the phone at the laptop's
+  check): no error, the photo is gone from the laptop. Passed.
+- `thumbnailOnNas` not on the NAS record, and a pushed photo body doesn't contain it. Passed.
+- Covered by the committed tests, checked by reading them: `updatedAt`, `copy`, `original` and
+  every other field unchanged, no new history row, old file 404, second device measures and
+  sends no PATCH, the race leaves one file, tombstoned/restored/outbox/pending photos, no
+  `photoUpload` in any status, `countUnsynced` 0, the visitor's `thumbnailUrl` changes.
+- Seen, not a failure: during the step the status button still reads "Bezig met
+  synchroniseren…", as for any run; no count or new text.
+
 # Log
 
 - 2026-11-24 architect: Q-007 answered by Sander ("Yes to Q-007, upload the rebuilt
@@ -214,3 +273,4 @@ progress for this work; the status bar doesn't count it.
   `pnpm run build` ok; `E2E_PORT=4794 pnpm run test:e2e` "79 passed, 2 skipped", with
   `e2e/thumbnails.spec.ts` unchanged and passing. Remaining: Done when 9, Sander in production
   after the merge.
+- 2026-11-24 tester: sent back: a sign-in revoked during the replacement step marks a private project's photos `done` without replacing them and without a sign-in pause (a 404 read as "not on the NAS"); see *Test*. Everything else passed.
