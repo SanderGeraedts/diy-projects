@@ -82,6 +82,13 @@ Deliver D-0038:
    devices have rebuilt their thumbnails): the overview's covers no longer look jagged and
    the project page's photos no longer look soft. What he sees: the same pages and layout,
    only sharper photos. Keeps the task *Doing* with `Remaining:` until he confirms.
+7. **`sizes` as designed** (e2e or unit): every overview card and day tile, owner and
+   `?bezoeker`, has exactly the `sizes` value given in *Design* for its place, and the photo
+   viewer's image has no `srcset`.
+8. **A rebuild is invisible** (in the test of 3): while and after the rebuild, no new text
+   appears on the page (the status bar shows nothing new and no unsent count), and the tile
+   showing that photo keeps a loaded image (`complete` and a non-zero `naturalWidth`) with its
+   alt text unchanged; afterwards its `srcset` labels the thumbnail 1280w.
 
 # Notes
 
@@ -109,7 +116,44 @@ Deliver D-0038:
 
 # Design
 
-Nothing to design: the same layout, sharper images. (small, G-0031)
+Small task (G-0031): no new screen, layout, look or words. This settles only what changes
+for the user around the images: nothing, apart from sharper photos.
+
+**While older thumbnails are rebuilt: nothing is shown.** No message, banner, spinner,
+progress or count. The sync status bar (`SyncStatusBar`) doesn't show it and doesn't count it
+as unsent work; the app stays fully usable, also offline. A photo already on screen whose
+thumbnail is rebuilt stays visible: the new image replaces the old in place, with no empty
+frame, no jump in the layout and no fade. If a rebuild fails, nothing is shown either (the
+old thumbnail stays; a log line in the console is enough).
+
+**Loading and placeholders: unchanged.** The card keeps its grey 4:3 box until the image
+shows; the tile behaves as now. No new placeholder, blur-up, skeleton or fade-in. For the
+owner, render the `<img>` once, with `srcset` complete (both object URLs ready), so the
+browser makes one choice and the image doesn't load twice or switch after it first shows.
+A photo without a thumbnail on the device shows its copy as now. Images stay
+`loading="lazy"`; `width`/`height` stay the copy's (they only set the aspect ratio).
+
+**`sizes`** (root font size 16 px; `main` is `max-w-5xl` = 1024 px with `p-4`, so the content
+is min(100vw, 1024 px) − 32 px; 100vw overstates by a scrollbar's width, which only errs
+towards a sharper pick). The same values for the owner and a visitor (`?bezoeker` uses the
+same pages):
+
+- **Overview card** (`auto-fill minmax(16rem, 1fr)`, `gap-4`): one column below 560 px, two
+  from 560, three from 832; at 1056 px and wider the content is capped and a card is
+  330.67 px (four columns never fit):
+  `sizes="auto, (min-width: 1056px) 331px, (min-width: 832px) calc((100vw - 64px) / 3), (min-width: 560px) calc((100vw - 48px) / 2), calc(100vw - 32px)"`
+- **Day tile** (`grid-cols-2 gap-2`):
+  `sizes="auto, (min-width: 1056px) 492px, calc((100vw - 40px) / 2)"`
+- **Photo viewer**: unchanged, the copy only (no `srcset`).
+
+If the overview's grid or the page's padding changes later, these values change with it;
+keep them next to the components that own the layout, not in one shared constant that hides
+the arithmetic. Photos wider than 4:3 are cropped by `object-cover`, so their visible width
+is less than the `w` label; that slight softness for panoramas is accepted.
+
+**Keyboard and screen reader: unchanged.** Same elements, order and alt texts (cards keep
+`alt=""` beside the project title; tiles keep "<project>, <date>"). A rebuild announces
+nothing (no live region).
 
 # Test
 
@@ -120,3 +164,4 @@ Nothing to design: the same layout, sharper images. (small, G-0031)
   thumbnails, halving steps, srcset/sizes with thumbnail and copy, local rebuild); raised
   Q-007 on replacing the older thumbnails on the NAS, which only a follow-up task waits on;
   size small.
+- 2026-11-24 ux-designer: designed (nothing shown during rebuilds, loading unchanged, `sizes` per layout; Done when 7 and 8 added).
