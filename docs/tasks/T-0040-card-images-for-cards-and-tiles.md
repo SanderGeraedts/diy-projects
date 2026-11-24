@@ -229,6 +229,42 @@ beside the project title; tiles "<project>, <date>"). Making card images announc
 
 **Added to Done when** (see check 9).
 
+**Review (ux-designer, 2026-11-24): matches; Done when 9 passes.** Looked at 6fcff1a on the dev
+server with the seeded demo data plus generated 4000×3000, 3000×4000 and 6000×2000 JPEGs (a
+test pattern with coloured edge bands, a magenta outline of the expected centre 4:3 crop and a
+centre cross), in Chromium at laptop 1280×800 @1 and @2, Fold 840×900 @2.625 and Pixel
+412×915 @2.625. For every card and tile: a screenshot with the srcset as built, with the `640w`
+candidate taken out (the D-0040 path, what `origin/main` serves), and with the card image, the
+thumbnail and the copy each forced alone, compared by a shift search (±4 device px) and by eye.
+
+- **Framing:** the best match between card image and thumbnail is at shift (0,0) in 22 of 24
+  places and 1 device px (under half a CSS px) at Fold and @2 for two tiles; the same edge
+  bands and the same magenta crop lines show in both, also for the portrait (top and bottom
+  cut) and the 3:1 photo (sides cut). No edge appears or disappears, no stretch, no shift. The
+  remaining pixel differences are resolution (moiré in the fine test pattern), not framing.
+- **Which file:** @1 cards and tiles take `640w` (main: 1280/960); @2 cards `640w`, tiles the
+  thumbnail; Fold and phone cards the thumbnail, phone tiles `640w`. Matches the developer's table.
+- **Card images made in the background** (card images dropped, and once also the thumbnail's
+  measurement, then a start), a per-frame probe on the overview and a project page: 0 frames
+  without a picture, 0 `<img>` replaced, the page text identical in every frame, the outbox,
+  `uploads` and `updatedAt` unchanged; srcset went from the D-0040 one to `640w, …` in place.
+- **Page and layout:** overview, project page, alt texts and order unchanged; no new words.
+- **/design:** no baseline changed in this branch; CI's Linux run (83 passed, none skipped)
+  compared them and passed.
+- **Visitor (demo, `?bezoeker`):** unchanged: no card candidate (`1280w, 1600w`), the same
+  cards and tiles, no database. The PocketBase thumb's framing was not looked at by eye here;
+  `cards.pocketbase.test.ts` covers its size and type, and PocketBase documents `WxH` as a
+  centre crop.
+- **Smoothness at @1:** headless and headed Chromium here downscale all three candidates
+  (640, 1280, 2560) equally smoothly, so the jaggedness Sander sees can't be reproduced on
+  this machine; the card image is not visibly softer than the thumbnail on cards or tiles.
+  The improvement itself is Done when 8, Sander's check.
+
+Not blocking: on the dev server and previews every start logs one console warning per demo
+photo ("thumbnails: photo demo-… not checked … could not be decoded"), 13 lines, because the
+demo photos are SVGs the worker can't decode, so they get no card image (the *Notes* expected
+they would). Nothing shows on screen and they keep the D-0040 path; main logged none.
+
 # Test
 
 Developer's run, 2026-11-24 (Chromium, the preview build, generated photos only).
@@ -328,3 +364,4 @@ neighbour, not the smaller one. Every row is still inside the band.
   passed. `thumbnails`, `visitor`, `design` (baselines unchanged), `cover-after-update`,
   `import` and `photos` 12 passed. The full e2e suite on the merge 81 passed. `harness check`
   passed. Tables and bytes are in *Test*.
+- 2026-11-24 ux-designer: reviewed: matches (framing identical with and without the card image at @1, @2, Fold and phone; no flash or text change while card images are made; /design and the visitor view unchanged; smoothness at @1 not reproducible here, left to Done when 8; demo SVG photos log a console warning each start, not blocking)
