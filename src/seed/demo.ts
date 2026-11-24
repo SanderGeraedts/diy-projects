@@ -123,6 +123,10 @@ export function buildDemoData(): DemoData {
           blob,
           thumbnail: blob,
           thumbnailWidth: 1600, // the thumbnail is the copy
+          // T-0040: no card image. The demo copy is an SVG, which the photo worker can't
+          // decode, and a vector drawing is sharp at any size anyway; so the background pass
+          // leaves it alone (cards and tiles show it as D-0040 does).
+          cardWidth: 0,
           original: null,
           uploads: { original: 'none', copy: 'none', thumbnail: 'none' },
           width: 1600,

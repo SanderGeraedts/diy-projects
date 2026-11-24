@@ -225,11 +225,19 @@ async function checkSizes(page: Page, project: string, slug: string) {
 }
 
 test('cards and tiles carry the designed sizes and a srcset, the viewer the copy only (owner)', async ({ page }) => {
+  // T-0040: the demo app starts without the background pass warning about its photos.
+  const warnings: string[] = []
+  page.on('console', (message) => {
+    if (message.text().startsWith('thumbnails:')) warnings.push(message.text())
+  })
   await page.goto('/')
+  // The pass starts a second after the app; give it time to go through the demo photos.
+  await page.waitForTimeout(3000)
   const { viewerSrc, thumbnail, copy } = await checkSizes(page, 'Tuinbank', 'tuinbank')
   expect(thumbnail).toMatch(/^blob:/)
   expect(copy).toMatch(/^blob:/)
   expect(viewerSrc).toMatch(/^blob:/)
+  expect(warnings).toEqual([])
 })
 
 test('a visitor’s cards and tiles have the thumbnail and the copy in their srcset, and the viewer shows the copy', async ({ page }) => {

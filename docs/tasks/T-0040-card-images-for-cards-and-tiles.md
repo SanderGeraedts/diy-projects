@@ -164,6 +164,10 @@ at 100 %, and as sharp as now on the Fold and his phone. Visitors the same.
   `thumbnailOnNas`), T-0039 (D-0040), T-0035 (`harness backend`).
 - A local-only field that isn't indexed needs no Dexie version (D-0007), as `thumbnailWidth`.
   Demo photos (D-0006) get card images from the same job on the owner's preview.
+  *Changed 2026-11-24 (developer, after the UX review): the demo photos are SVGs the photo
+  worker can't decode, so the seed stores them with `cardWidth: 0` (no card image) and the
+  background pass skips them. Their cards and tiles stay on the D-0040 path, and a vector
+  drawing needs no smaller file.*
 - Never point anything but production at the NAS (G-0019): every PocketBase check uses
   `pnpm exec harness backend start`. Never write the NAS's host, tailnet name or a dataset path
   anywhere.
@@ -365,3 +369,10 @@ neighbour, not the smaller one. Every row is still inside the band.
   `import` and `photos` 12 passed. The full e2e suite on the merge 81 passed. `harness check`
   passed. Tables and bytes are in *Test*.
 - 2026-11-24 ux-designer: reviewed: matches (framing identical with and without the card image at @1, @2, Fold and phone; no flash or text change while card images are made; /design and the visitor view unchanged; smoothness at @1 not reproducible here, left to Done when 8; demo SVG photos log a console warning each start, not blocking)
+- 2026-11-24 developer: fixed the problem from the UX review. On every dev or preview start the
+  background pass logged 13 "thumbnails: photo demo-… not checked … could not be decoded"
+  warnings, because the seeded demo photos are SVGs. Fix: the seed records them with
+  `cardWidth: 0`, so the pass skips them (Notes updated). Check: the owner test in
+  `e2e/thumbnails.spec.ts` now asserts no `thumbnails:` console warnings 3 s after start. It
+  failed before the fix (13 warnings) and passes after. `pnpm test`, `pnpm run typecheck`
+  and the affected e2e pass.
