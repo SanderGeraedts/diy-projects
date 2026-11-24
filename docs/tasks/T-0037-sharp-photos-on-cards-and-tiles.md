@@ -89,7 +89,7 @@ Deliver D-0038:
   layout doesn't change, so there is no design before the build. The UX designer may still
   look at the result.
 - **Not in this task**: uploading rebuilt thumbnails over the older 512 px files on the NAS.
-  That waits on **Q-007** (raised for the Engineer); visitors see photos added before this
+  That waits on **Q-007** (raised for the Engineer, issue #69); visitors see photos added before this
   change as soft as today until then. Nothing here writes to the NAS other than the normal
   upload of new photos (which now carry a 1280 px thumbnail).
 - Sizes live in `src/photos/resize.ts`; the worker is `src/photos/photo.worker.ts`,

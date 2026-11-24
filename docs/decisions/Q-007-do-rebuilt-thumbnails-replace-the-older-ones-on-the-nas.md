@@ -5,8 +5,8 @@ description: "D-0038 makes thumbnails 1280 px and has each device rebuild its ow
 status: Open
 raised_on: 2026-11-24
 raised_by: architect
-issue: ""
-blocks: []
+issue: "https://github.com/SanderGeraedts/diy-projects/issues/69"
+blocks: []                  # a follow-up task to T-0037 (the upload); T-0037 itself does not wait
 resolved_by: []
 tags: [photos, sync, storage]
 ---
