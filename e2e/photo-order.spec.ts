@@ -52,10 +52,16 @@ for (const who of ['owner', 'visitor'] as const) {
     await expect(page.getByRole('dialog', { name: 'Foto 1 van 3, 4 okt 2026' })).toBeVisible()
     await expect(currentImage(page)).toHaveAttribute('data-taken-at', at(12))
     await expect(counter(page, '1 / 3')).toBeVisible()
-    // Place 1 is the newest: nothing before it.
-    await expect(navButton(page, 'Vorige foto')).toHaveCount(0)
+    // Place 1 is the day's newest: nothing of 4 okt before it. Since D-0037 (T-0036) previous
+    // crosses to the day above on the page, 11 okt's last photo, and next comes back here.
+    await expect(navButton(page, 'Vorige foto')).toHaveCount(1)
     await expect(navButton(page, 'Volgende foto')).toHaveCount(1)
-    await pressAndStay(page, 'ArrowLeft', photo(1))
+    await page.keyboard.press('ArrowLeft')
+    await expect(page).toHaveURL(`${project}/2026-10-11/2`)
+    await expect(page.getByRole('dialog', { name: 'Foto 2 van 2, 11 okt 2026' })).toBeVisible()
+    await page.keyboard.press('ArrowRight')
+    await expect(page).toHaveURL(photo(1))
+    await expect(currentImage(page)).toHaveAttribute('data-taken-at', at(12))
 
     // Next goes to the older photo.
     await page.keyboard.press('ArrowRight')

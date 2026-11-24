@@ -10,7 +10,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Doing
 
-None.
+- [T-0036 Move between days in the photo viewer](T-0036-viewer-across-days.md): D-0037: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have.
 
 ## Done
 

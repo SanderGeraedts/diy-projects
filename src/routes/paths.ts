@@ -47,6 +47,65 @@ export function comparePhotos(
   return cmp(b.takenAt, a.takenAt) || cmp(b.createdAt, a.createdAt) || cmp(b.id, a.id)
 }
 
+// T-0036 (D-0037): the project page and the photo viewer share one order, so what is below a
+// photo on the page is what comes next in the viewer.
+
+type TimelineEntry = DatedEntry & Pick<Entry, 'deletedAt'>
+type TimelinePhoto = { entryId: string; takenAt: string; createdAt: string; id: string; deletedAt: string | null }
+
+/** The order the project page shows entries in: newest date first; on one date, id descending. */
+export function compareEntries(a: { date: string; id: string }, b: { date: string; id: string }): number {
+  return cmp(b.date, a.date) || cmp(b.id, a.id)
+}
+
+/** One entry on the project page: its day segment and its live photos in order. */
+export interface TimelineDay<E, P> {
+  entry: E
+  day: string
+  photos: P[]
+}
+
+/**
+ * A project's timeline as its page shows it: its live entries in page order, each with its
+ * day segment and its live photos by `comparePhotos`. Deleted entries and photos never count.
+ */
+export function projectTimeline<E extends TimelineEntry, P extends TimelinePhoto>(
+  entries: readonly E[],
+  photos: readonly P[],
+): TimelineDay<E, P>[] {
+  const live = entries.filter((e) => !e.deletedAt).sort(compareEntries)
+  const days = entryDays(live)
+  const byEntry = new Map<string, P[]>()
+  for (const p of photos) if (!p.deletedAt) byEntry.set(p.entryId, [...(byEntry.get(p.entryId) ?? []), p])
+  return live.map((entry) => ({
+    entry,
+    day: days.get(entry.id) ?? entry.date,
+    photos: (byEntry.get(entry.id) ?? []).sort(comparePhotos),
+  }))
+}
+
+/** One photo in the viewer's sequence: its entry and day, its 0-based place there, and the day's count. */
+export interface SequencePhoto<E, P> {
+  photo: P
+  entry: E
+  day: string
+  index: number
+  count: number
+}
+
+/**
+ * All of a project's live photos in the page's order, the order the viewer moves through.
+ * Entries without live photos (note-only, or every photo deleted) have none, so are skipped.
+ */
+export function photoSequence<E extends TimelineEntry, P extends TimelinePhoto>(
+  entries: readonly E[],
+  photos: readonly P[],
+): SequencePhoto<E, P>[] {
+  return projectTimeline(entries, photos).flatMap(({ entry, day, photos: list }) =>
+    list.map((photo, index) => ({ photo, entry, day, index, count: list.length })),
+  )
+}
+
 /** A photo's place segment: 1-based, as a string. */
 export const photoNumber = (index: number) => String(index + 1)
 

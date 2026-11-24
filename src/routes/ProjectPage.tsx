@@ -1,5 +1,4 @@
 import { Link, useParams } from '@tanstack/react-router'
-import Dexie from 'dexie'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { formatDate } from '../components/format'
 import { PhotoImage, type ShownPhoto } from '../components/PhotoImage'
@@ -14,7 +13,7 @@ import { AddEntryLink } from './AddEntry'
 import { DeleteEntryButton, DeleteProjectButton } from './Delete'
 import { EntryNote } from './EntryNote'
 import { ImportPhotos } from './ImportPhotos'
-import { entryDays, comparePhotos, photoNumber } from './paths'
+import { photoNumber, projectTimeline } from './paths'
 import { SlugRedirect, useProjectBySlug } from './projectBySlug'
 import { EditProjectLink } from './ProjectLinks'
 
@@ -31,12 +30,12 @@ function OwnerProjectPage() {
   // T-0027: found by its slug, or an earlier one, which redirects (D-0029).
   const project = useProjectBySlug(slug)
   const projectId = project?.id ?? ''
+  // T-0036: ordered by projectTimeline (routes/paths.ts), the order the photo viewer uses too.
   const entries = useLiveQuery(
     () =>
       db.entries
-        .where('[projectId+date]')
-        .between([projectId, ''], [projectId, Dexie.maxKey])
-        .reverse()
+        .where('projectId')
+        .equals(projectId)
         .filter((e) => e.deletedAt === null)
         .toArray(),
     [projectId],
@@ -86,17 +85,17 @@ function ProjectView({
   readOnly,
 }: {
   project: Project
-  /** Live entries, newest first. */
+  /** Live entries; shown in the page's order (projectTimeline). */
   entries: Entry[] | undefined
   /** In any order (shown newest first, D-0031); for the owner, deleted ones included. */
   allPhotos: ShownPhoto[] | undefined
   /** A visitor: no create, edit, import, cover or delete controls (T-0026). */
   readOnly: boolean
 }) {
-  // D-0031: a day's photos newest first, numbered in that order in their addresses.
-  const photos = allPhotos?.filter((ph) => ph.deletedAt === null).sort(comparePhotos)
   // T-0027: an entry is named by its day, in its anchor and its photos' addresses (D-0029).
-  const days = entryDays(entries ?? [])
+  // T-0036 (D-0037): the same order and days as the photo viewer moves through.
+  const timeline = projectTimeline(entries ?? [], allPhotos ?? [])
+  const livePhotos = (allPhotos ?? []).filter((ph) => ph.deletedAt === null).length
   return (
     <article>
       <Link to="/" className={backLink}>
@@ -116,11 +115,9 @@ function ProjectView({
       {!readOnly && <AddEntryLink slug={project.slug} />}
       {!readOnly && <ImportPhotos projectId={project.id} projectTitle={project.title} />}
       <ol className="timeline m-0 mt-8 list-none p-0">
-        {(entries ?? []).map((e) => {
-          const entryPhotos = (photos ?? []).filter((ph) => ph.entryId === e.id)
+        {timeline.map(({ entry: e, day, photos: entryPhotos }) => {
           const allDeleted =
             entryPhotos.length === 0 && e.note === '' && (allPhotos ?? []).some((ph) => ph.entryId === e.id)
-          const day = days.get(e.id) ?? e.date
           return (
             <li key={e.id} id={day} className="mb-8 scroll-mt-20">
               <AccentHeading level={2}>
@@ -156,9 +153,9 @@ function ProjectView({
           )
         })}
       </ol>
-      {!readOnly && entries && photos && (
+      {!readOnly && entries && allPhotos && (
         <footer className="mt-8 border-t border-grey-light pt-4">
-          <DeleteProjectButton project={project} entries={entries.length} photos={photos.length} />
+          <DeleteProjectButton project={project} entries={entries.length} photos={livePhotos} />
         </footer>
       )}
     </article>
