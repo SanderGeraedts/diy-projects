@@ -7,6 +7,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Open
 
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
+- [T-0039 Keep project covers on the thumbnail after an update, a sync, a rebuild or a download](T-0039-covers-never-fall-back-to-the-copy.md) (small): D-0040: a regression after T-0037/T-0038; an overview card whose thumbnail isn't measured yet takes the 2560 px copy (jagged) at a pixel ratio of 2 and up, and every write to photos reloads every card; offer an unmeasured thumbnail alone and keep a photo's object URLs while its files are the same.
 
 ## Doing
 
