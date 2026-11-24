@@ -1,15 +1,19 @@
 import { ClientResponseError } from 'pocketbase'
 import { REAUTH_MESSAGE } from '../auth/auth'
-import type { DiyDb, OutboxItem, Project, SyncedTable } from '../db/db'
+import type { DiyDb, OutboxItem, Photo, Project, SyncedTable } from '../db/db'
 import { slugify, slugsOf, uniqueSlug } from '../db/slug'
 import { forgetPurged, markPhotoFileUploaded } from '../db/write'
+import { currentThumbnailWidth } from '../photos/rebuild'
 import { startBusy } from '../sw/busy'
 import {
   confirmedFiles,
   downloadable,
   fetchFile as defaultFetchFile,
+  hasCurrentThumbnail,
   nextUpload,
   stepFiles,
+  thumbnailBody,
+  thumbnailToReplace,
   uploadBody,
   UPLOAD_STEPS,
   type FetchFile,
@@ -44,6 +48,11 @@ import {
 //    only when all three are confirmed. A tombstoned photo uploads nothing more (D-0014).
 //    Photos from other devices are downloaded during the pull: copy and thumbnail only.
 // 4. renews the sign-in (D-0013).
+// 5. after a run that went through, replaces the NAS's older thumbnails with the ones this
+//    device rebuilt at the current size (T-0038, D-0039): one photo at a time, only while the
+//    NAS's is still narrower, as an update with only the `thumbnail` file (no `updatedAt`, so
+//    no new version and no history). Not unsent work: no outbox row, no `photoUpload`, and a
+//    failure is no sync error; the next run tries again.
 //
 // The bin (T-0022, D-0014): a record the NAS deleted for good stays there as a marker with
 // `purgedAt` (backend/pb_hooks/bin.pb.js). A marker that comes in through a pull, or a
@@ -66,6 +75,7 @@ import {
 /** The part of PocketBase's record API sync uses; the real client fits, and so does a fake. */
 export interface RecordApi {
   getList(page: number, perPage: number, options?: Record<string, unknown>): Promise<{ items: ServerRecord[] }>
+  getOne(id: string, options?: Record<string, unknown>): Promise<ServerRecord>
   create(body: Record<string, unknown>, options?: Record<string, unknown>): Promise<ServerRecord>
   update(id: string, body: Record<string, unknown> | FormData, options?: Record<string, unknown>): Promise<ServerRecord>
 }
@@ -134,6 +144,11 @@ export interface SyncEngineOptions {
   pageSize?: number
   /** Downloads one photo file (T-0017); `fetch` by default. */
   fetchFile?: FetchFile
+  /**
+   * Decodes an image and returns its pixel size (the photo worker's `measureImage`), to check
+   * the NAS's thumbnail before replacing it (T-0038). Without it, thumbnails aren't replaced.
+   */
+  measure?: (image: Blob) => Promise<{ width: number; height: number }>
 }
 
 export const BUSY_REASON = 'de synchronisatie'
@@ -234,6 +249,7 @@ export function createSyncEngine(options: SyncEngineOptions) {
   const retryMaxMs = options.retryMaxMs ?? 5 * 60_000
   const pageSize = options.pageSize ?? 200
   const fetchFile = options.fetchFile ?? defaultFetchFile
+  const measure = options.measure
   const requestOptions = { requestKey: null } // never let the SDK auto-cancel a sync request
 
   let status: SyncStatus = {
@@ -549,6 +565,10 @@ export function createSyncEngine(options: SyncEngineOptions) {
         await db.transaction('rw', db.photos, db.syncState, async () => {
           await checkEpoch(epoch)
           for (const file of confirmed) await markPhotoFileUploaded(id, file, db)
+          // A thumbnail made at the current size and uploaded here: the NAS has it (T-0038).
+          if (confirmed.includes('thumbnail') && hasCurrentThumbnail(photo)) {
+            await db.photos.update(id, { thumbnailOnNas: 'done' })
+          }
         })
         counts.uploaded += confirmed.length
         if (confirmed.length < files.length) {
@@ -557,6 +577,100 @@ export function createSyncEngine(options: SyncEngineOptions) {
       }
     }
     if (refused) throw refused
+  }
+
+  // --- Rebuilt thumbnails (T-0038, D-0039) ---
+
+  /** Photos whose thumbnail the NAS refused (400): not tried again until the app starts again. */
+  const refusedThumbnails = new Set<string>()
+
+  async function markThumbnailDone(id: string, epoch: string): Promise<void> {
+    await db.transaction('rw', db.photos, db.syncState, async () => {
+      await checkEpoch(epoch)
+      await db.photos.update(id, { thumbnailOnNas: 'done' })
+    })
+  }
+
+  /** Whether the NAS's thumbnail of this photo already has the current size. */
+  async function nasHasCurrentThumbnail(remote: ServerRecord, photo: Photo): Promise<boolean> {
+    const name = typeof remote.thumbnail === 'string' ? remote.thumbnail : ''
+    if (!name) return false
+    let file: Blob
+    try {
+      file = await fetchFile(await fileUrl(remote, name))
+    } catch (err) {
+      // The file is gone while the record exists: there is nothing to keep.
+      if (err instanceof ClientResponseError && err.status === 404) return false
+      throw err
+    }
+    let width: number
+    try {
+      width = (await measure!(file)).width
+    } catch (err) {
+      console.warn(`sync: the NAS's thumbnail of photo ${photo.id} can't be measured; replacing it`, err)
+      return false
+    }
+    return Math.abs(width - currentThumbnailWidth(photo)) <= 1
+  }
+
+  /** Checks one photo's thumbnail on the NAS and replaces it when older. Throws what the NAS says. */
+  async function replaceThumbnail(id: string, epoch: string): Promise<void> {
+    const api = client.collection('photos')
+    const pending = async () => (await db.outbox.where('[table+recordId]').equals(['photos', id]).count()) > 0
+    const photo = await db.photos.get(id)
+    // Tombstoned (a restore brings it back) or otherwise changed since the list was made.
+    if (!photo || !thumbnailToReplace(photo)) return
+    // A change still in the outbox goes first; this waits for a later run.
+    if (await pending()) return
+    const remote = await api.getOne(id, requestOptions)
+    if (isPurged(remote)) return dropPurgedPhoto(id, epoch)
+    if (await nasHasCurrentThumbnail(remote, photo)) return markThumbnailDone(id, epoch)
+    const now = await db.photos.get(id)
+    if (!now || !thumbnailToReplace(now) || (await pending())) return
+    const stored = await api.update(id, thumbnailBody(now), requestOptions)
+    if (isPurged(stored)) return dropPurgedPhoto(id, epoch)
+    if (confirmedFiles(stored, ['thumbnail']).length > 0) await markThumbnailDone(id, epoch)
+  }
+
+  /**
+   * The run's last step: every photo whose rebuilt thumbnail may still be newer than the
+   * NAS's, oldest first. Only a refused sign-in (or a cleared device) leaves this step with an
+   * error; anything else stops it quietly or skips the photo, and the next run carries on.
+   */
+  async function replaceThumbnails(epoch: string): Promise<void> {
+    if (!measure) return
+    const photos = (await db.photos.filter(thumbnailToReplace).toArray()).filter((p) => !refusedThumbnails.has(p.id))
+    photos.sort((a, b) => (a.createdAt === b.createdAt ? cmp(a.id, b.id) : cmp(a.createdAt, b.createdAt)))
+    for (const { id } of photos) {
+      try {
+        await replaceThumbnail(id, epoch)
+      } catch (err) {
+        if (err instanceof Cancelled || isAuthError(err)) throw err
+        if (!(err instanceof ClientResponseError)) {
+          console.warn('sync: thumbnails not replaced in this run', err)
+          return
+        }
+        // PocketBase answers a refused token as a guest's request: 404 (or 400) under
+        // owner-only rules. Ask the sign-in itself before either becomes a lasting state;
+        // refused, the run pauses for sign-in and every photo stays to check.
+        if (mayBeSignedOut(err)) {
+          await auth.refreshAfterSync()
+          if (auth.state() !== 'signed-in') throw new SignInRefused()
+        }
+        if (err.status === 410) {
+          await dropPurgedPhoto(id, epoch) // deleted for good (T-0022)
+        } else if (err.status === 404) {
+          await markThumbnailDone(id, epoch) // not on the NAS (a demo photo, or from before sync)
+        } else if (err.status === 400) {
+          console.warn(`sync: the NAS refused the thumbnail of photo ${id}`, err)
+          refusedThumbnails.add(id)
+        } else {
+          // Offline, a timeout, 5xx, ...: keep the rest for the next run.
+          console.warn('sync: thumbnails not replaced in this run', err)
+          return
+        }
+      }
+    }
   }
 
   // --- A run ---
@@ -630,6 +744,10 @@ export function createSyncEngine(options: SyncEngineOptions) {
       })
       failures = 0
       update({ lastSuccessAt: now, lastError: null, lastErrorAt: null, needsSignIn: false, ...counts })
+
+      // T-0038: last, with the sign-in just confirmed (a refused token reads as a guest, who
+      // would find no record and mark it done).
+      await replaceThumbnails(epoch)
     } catch (err) {
       if (err instanceof Cancelled) {
         update({ ...counts })

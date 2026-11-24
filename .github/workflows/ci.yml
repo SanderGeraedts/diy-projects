@@ -76,6 +76,10 @@ jobs:
         # T-0017: uploads that resume byte for byte, the original dropped only after all three
         # files are confirmed, a second device with copy and thumbnail only, no upload after a delete.
         run: pnpm exec vitest run --reporter=verbose src/sync/photos.pocketbase.test.ts
+      - name: Rebuilt thumbnail tests
+        # T-0038: a rebuilt thumbnail replaces the NAS's older one once, from the first device,
+        # with only the thumbnail; racing devices, other devices and a visitor.
+        run: pnpm exec vitest run --reporter=verbose src/sync/thumbnails.pocketbase.test.ts
       - name: PocketBase logs
         if: always()
         run: cat ~/.cache/harness/backends/*/backend.log || true

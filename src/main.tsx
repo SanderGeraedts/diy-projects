@@ -29,13 +29,15 @@ function startOwner() {
  */
 function startThumbnailCheck() {
   const checker = createThumbnailChecker({ db, measure: measureImage, makeThumbnail })
-  // Out of the way of the first screen.
-  setTimeout(() => void checker.check(), 1000)
-  let wasRunning = false
   const engine = syncEngine
+  // T-0038: a sync after each pass sends the rebuilt thumbnails to the NAS (D-0039).
+  const check = () => void checker.check().then(() => engine?.syncSoon())
+  // Out of the way of the first screen.
+  setTimeout(check, 1000)
+  let wasRunning = false
   engine?.subscribe(() => {
     const status = engine.getStatus()
-    if (wasRunning && !status.running && status.pulled > 0) void checker.check()
+    if (wasRunning && !status.running && status.pulled > 0) check()
     wasRunning = status.running
   })
 }

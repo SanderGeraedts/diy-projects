@@ -2,12 +2,12 @@
 id: Q-007
 title: "Do the rebuilt 1280 px thumbnails replace the older 512 px ones on the NAS?"
 description: "D-0038 makes thumbnails 1280 px and has each device rebuild its own older ones locally; decide whether the owner's device also uploads them over the 512 px thumbnails of existing photos on the NAS, so visitors see older photos sharp too."
-status: Open
+status: Resolved
 raised_on: 2026-11-24
 raised_by: architect
 issue: "https://github.com/SanderGeraedts/diy-projects/issues/69"
-blocks: []                  # a follow-up task to T-0037 (the upload); T-0037 itself does not wait
-resolved_by: []
+blocks: [T-0038]
+resolved_by: [D-0039]
 tags: [photos, sync, storage]
 ---
 
@@ -47,4 +47,8 @@ follow-up task (the upload) does.
 
 # Answer
 
-Empty while open.
+Resolved on 2026-11-24 by D-0039 (option 1): the Engineer answered "Yes to Q-007, upload the
+rebuilt thumbnails". An owner device uploads each rebuilt thumbnail once through the normal
+sync, only while the NAS's thumbnail is still the older size, without a new `updatedAt`,
+history or unsent count; the original and the copy never change. Nothing on the NAS changes.
+T-0038 builds it.

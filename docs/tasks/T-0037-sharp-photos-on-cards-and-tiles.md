@@ -358,3 +358,8 @@ Not run: Done when 6 (Sander on his laptop and the Fold, production, after the m
   PocketBase).
   Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production, after his
   devices have rebuilt their thumbnails).
+- 2026-11-24 architect: Q-007 answered by D-0039; visitors' soft older photos (the 512 px
+  thumbnails still on the NAS) are now T-0038's, not this task's. Done when 6 here is about
+  Sander's own devices only.
+  Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production, after his
+  devices have rebuilt their thumbnails).

@@ -1,5 +1,6 @@
 import { ClientResponseError } from 'pocketbase'
 import type { Photo, PhotoFile } from '../db/db'
+import { currentThumbnailWidth } from '../photos/rebuild'
 import type { ServerRecord } from './records'
 
 // T-0017: the parts of photo-file sync that don't need the engine's state (D-0003, D-0015).
@@ -97,4 +98,35 @@ export function downloadable(remote: ServerRecord): { copy: string; thumbnail: s
   const copy = typeof remote.copy === 'string' ? remote.copy : ''
   const thumbnail = typeof remote.thumbnail === 'string' ? remote.thumbnail : ''
   return copy && thumbnail ? { copy, thumbnail } : null
+}
+
+// T-0038 (D-0039): a thumbnail rebuilt at the current size (T-0037) replaces the NAS's
+// older one, once. The state is the photo's local-only `thumbnailOnNas` (src/db/db.ts).
+
+/** True when this photo's thumbnail on this device is as wide as one made now (within 1 px). */
+export function hasCurrentThumbnail(photo: Photo): boolean {
+  if (photo.thumbnailWidth === undefined || !(photo.width > 0 && photo.height > 0)) return false
+  return Math.abs(photo.thumbnailWidth - currentThumbnailWidth(photo)) <= 1
+}
+
+/**
+ * True when this device may still have to send its thumbnail over the NAS's older one: alive,
+ * a thumbnail of the current size, its own uploads done and not yet marked done. Whether it
+ * has an outbox row is the engine's check.
+ */
+export function thumbnailToReplace(photo: Photo): boolean {
+  return (
+    photo.deletedAt === null &&
+    photo.thumbnailOnNas !== 'done' &&
+    photo.uploads.copy !== 'pending' &&
+    photo.uploads.thumbnail !== 'pending' &&
+    hasCurrentThumbnail(photo)
+  )
+}
+
+/** The body of a thumbnail replacement: only the `thumbnail` file, as it is (D-0039). */
+export function thumbnailBody(photo: Photo): FormData {
+  const form = new FormData()
+  form.append('thumbnail', photo.thumbnail, fileName(photo.thumbnail, 'thumbnail'))
+  return form
 }

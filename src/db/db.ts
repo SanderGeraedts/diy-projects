@@ -86,6 +86,14 @@ export interface Photo {
    * no schema change, as it isn't indexed. Absent means not measured yet.
    */
   thumbnailWidth?: number
+  /**
+   * Whether the NAS has this photo's thumbnail at the current size (T-0038, D-0039).
+   * - absent or `check`: to check once this device holds a thumbnail of the current size; its
+   *   sync then fetches the NAS's thumbnail and uploads its own over an older one.
+   * - `done`: the NAS has one of the current size; nothing more to do.
+   * Local only, like `thumbnailWidth`: never synced, not indexed, so no schema change.
+   */
+  thumbnailOnNas?: 'check' | 'done'
   /** The original, byte for byte, until the NAS confirms all three files (D-0003, D-0015). */
   original: Blob | null
   uploads: PhotoUploads
