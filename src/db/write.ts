@@ -267,6 +267,8 @@ export interface NewPhoto {
   /** The 2560 px phone copy, made on this device (D-0003). */
   copy: Blob
   thumbnail: Blob
+  /** The thumbnail's real width in pixels, when known (T-0037, local only). */
+  thumbnailWidth?: number
   takenAt: string
   width: number
   height: number
@@ -287,6 +289,7 @@ export async function addPhotos(entryId: string, inputs: NewPhoto[], target: Diy
       takenAt: checkIsoTime(input.takenAt, 'The time taken'),
       blob: input.copy,
       thumbnail: input.thumbnail,
+      ...(input.thumbnailWidth ? { thumbnailWidth: input.thumbnailWidth } : {}),
       original: input.original,
       uploads: { original: 'pending', copy: 'pending', thumbnail: 'pending' },
       width: input.width,

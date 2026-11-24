@@ -2,7 +2,7 @@
 id: T-0037
 title: "Show photos sharp on the overview's cards and the project page's tiles"
 description: "D-0038: 1280 px thumbnails made in halving steps, srcset/sizes with the thumbnail and the copy on cards and tiles for owner and visitor, and each device rebuilding its older thumbnails from its copy; nothing changes on the NAS for existing photos (Q-007)."
-status: Open
+status: Doing
 size: small
 depends_on: []
 decisions: [D-0038, D-0003, D-0015, D-0002, D-0023, D-0007, G-0019]
@@ -165,3 +165,59 @@ nothing (no live region).
   Q-007 on replacing the older thumbnails on the NAS, which only a follow-up task waits on;
   size small.
 - 2026-11-24 ux-designer: designed (nothing shown during rebuilds, loading unchanged, `sizes` per layout; Done when 7 and 8 added).
+- 2026-11-24 developer: built D-0038. `THUMBNAIL_LONG_EDGE` 1280; `encodeScaled` downscales in
+  halving steps (`scaleSteps` in resize.ts) for the copy and the thumbnail; cards and tiles
+  (owner and `?bezoeker`) use `PhotoImage` with `sizes` (the Design's exact values, kept as
+  `CARD_SIZES` next to `ProjectCard` and `TILE_SIZES` in ProjectPage) and a `srcset` of the
+  thumbnail and the copy, rendered once both object URLs exist; the owner's overview no
+  longer loads the copy as `src`; the viewer is unchanged. The device knows a thumbnail's
+  width through a **local-only field `Photo.thumbnailWidth`** (not indexed, so no Dexie
+  version; `toServer` lists its fields and doesn't send it): set at import, and by
+  `src/photos/rebuild.ts`, which runs 1 s after the owner's app starts and after a sync run
+  that pulled records. It measures every unmeasured thumbnail in the photo worker (new job
+  `size`), one at a time in the worker's queue, and remakes it from the copy when its width
+  differs from a thumbnail made now; it writes only `thumbnail` and `thumbnailWidth` (no
+  outbox row, `uploads` and `updatedAt` unchanged, nothing to the NAS, Q-007), skips photos
+  whose upload is still pending, and logs a failure with `console.warn` without retrying it
+  until the next start. Until measured, a device thumbnail is labelled with the old 512 px
+  size (`OLD_THUMBNAIL_LONG_EDGE`); a visitor's by the photo's size at 1280. Demo photos get
+  `thumbnailWidth` 1600 (their thumbnail is the copy).
+  Stripe test (Done when 2) against today's encoder first: **failed**: copy sd 19.78 (and a
+  512 px thumbnail, sd 5.75); with halving: copy 2560×1707 sd 0, thumbnail 1280×854 sd 0.
+  Measured-ratio test (Done when 1) on `origin/main` (7ef8fa9): **failed**, 7 of 9 out of range:
+  ```
+  viewport | place | photo     | CSS px | DPR   | delivered | r
+  laptop   | card  | landscape |  320.0 | 1.5   |      2560 | 5.33
+  laptop   | tile  | portrait  |  492.0 | 1.5   |       384 | 0.52
+  laptop   | tile  | landscape |  492.0 | 1.5   |       512 | 0.69
+  fold     | card  | landscape |  258.7 | 2.625 |      2560 | 3.77
+  fold     | tile  | portrait  |  400.0 | 2.625 |       384 | 0.37
+  fold     | tile  | landscape |  400.0 | 2.625 |       512 | 0.49
+  phone    | card  | landscape |  380.0 | 2.625 |      2560 | 2.57
+  phone    | tile  | portrait  |  186.0 | 2.625 |       384 | 0.79
+  phone    | tile  | landscape |  186.0 | 2.625 |       512 | 1.05
+  ```
+  With this change (e2e/sharp-photos.spec.ts), all 9 within 0.9 to 3:
+  ```
+  viewport | place | photo     | CSS px | DPR   | delivered | r
+  laptop   | card  | landscape |  320.0 | 1.5   |      1280 | 2.67
+  laptop   | tile  | portrait  |  492.0 | 1.5   |       960 | 1.30
+  laptop   | tile  | landscape |  492.0 | 1.5   |      1280 | 1.73
+  fold     | card  | landscape |  258.7 | 2.625 |      1280 | 1.89
+  fold     | tile  | portrait  |  400.0 | 2.625 |      1920 | 1.83
+  fold     | tile  | landscape |  400.0 | 2.625 |      1280 | 1.22
+  phone    | card  | landscape |  380.0 | 2.625 |      1280 | 1.28
+  phone    | tile  | portrait  |  186.0 | 2.625 |       960 | 1.97
+  phone    | tile  | landscape |  186.0 | 2.625 |      1280 | 2.62
+  ```
+  (At 840 px the overview has three columns, as the Design's 832 px breakpoint says.)
+  Rebuild and invisibility (Done when 3, 8): e2e/thumbnails.spec.ts plus
+  src/photos/rebuild.test.ts; visitor and `sizes` (Done when 4, 7): e2e/thumbnails.spec.ts
+  and src/components/PhotoImage.test.tsx. Local runs: `pnpm run typecheck` clean;
+  `pnpm test` 33 files, 409 passed, 26 skipped; `pnpm run build` ok;
+  `E2E_PORT=4794 pnpm run test:e2e` 79 passed, 2 skipped; new specs `--repeat-each 5`: 30 of
+  30 passed; `pnpm exec harness check` all green.
+  For the architect: e2e/photos.spec.ts starts a Vite server on a fixed port (5199) in
+  `beforeAll`, so `--repeat-each` with more than one worker fails with "Port 5199 is already
+  in use" (it passes with `--workers 1`); not changed here.
+  Remaining: Done when 6 (Sander looks on his laptop and the Fold, in production).

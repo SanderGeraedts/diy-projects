@@ -77,8 +77,15 @@ export interface Photo {
   takenAt: string
   /** The 2560 px phone copy (D-0003). */
   blob: Blob
-  /** A small thumbnail, derived from the copy (D-0003, D-0015). */
+  /** The thumbnail for cards and grids, derived from the copy (D-0003, D-0015, D-0038). */
   thumbnail: Blob
+  /**
+   * The thumbnail's real width in pixels, once this device knows it (T-0037, D-0038): set at
+   * import, and by the background check (src/photos/rebuild.ts) for older and downloaded
+   * thumbnails. Local only: never synced (src/sync/records.ts lists the fields it sends), and
+   * no schema change, as it isn't indexed. Absent means not measured yet.
+   */
+  thumbnailWidth?: number
   /** The original, byte for byte, until the NAS confirms all three files (D-0003, D-0015). */
   original: Blob | null
   uploads: PhotoUploads

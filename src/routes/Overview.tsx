@@ -79,7 +79,7 @@ function OverviewView({
         {projects.map((p) => (
           <li key={p.id}>
             <Link to="/projects/$slug" params={{ slug: p.slug }} className="block text-text no-underline">
-              <ProjectCard project={p} cover={pickCover(p, photos)} coverFile={readOnly ? 'thumbnail' : 'copy'} />
+              <ProjectCard project={p} cover={pickCover(p, photos)} />
             </Link>
           </li>
         ))}

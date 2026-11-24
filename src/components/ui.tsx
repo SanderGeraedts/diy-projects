@@ -29,20 +29,20 @@ export function Tags({ tags }: { tags: string[] }) {
 }
 
 /** Project card: cover photo at 4:3 with a translucent panel, or a grey tile with the initial. */
-export function ProjectCard({
-  project,
-  cover,
-  coverFile = 'copy',
-}: {
-  project: Project
-  cover?: ShownPhoto
-  /** A visitor's card loads the thumbnail, not the 2560 px copy, over the internet (T-0026). */
-  coverFile?: 'copy' | 'thumbnail'
-}) {
+/**
+ * The cover's `sizes` (T-0037 Design): the overview's grid (Overview.tsx,
+ * `auto-fill minmax(16rem, 1fr)` with `gap-4`) inside `main`'s `max-w-5xl p-4` has one
+ * column below 560 px, two from 560, three from 832, and from 1024 px the content is capped
+ * at 992 px, so a card is 320 px. Change these with that grid or padding.
+ */
+export const CARD_SIZES =
+  'auto, (min-width: 1024px) 320px, (min-width: 832px) calc((100vw - 64px) / 3), (min-width: 560px) calc((100vw - 48px) / 2), calc(100vw - 32px)'
+
+export function ProjectCard({ project, cover }: { project: Project; cover?: ShownPhoto }) {
   return (
     <div className="relative aspect-[4/3] overflow-hidden rounded-card bg-grey-lighter">
       {cover ? (
-        <PhotoImage photo={cover} file={coverFile} alt="" className="h-full w-full object-cover" />
+        <PhotoImage photo={cover} sizes={CARD_SIZES} alt="" className="h-full w-full object-cover" />
       ) : (
         <span
           aria-hidden="true"

@@ -8,7 +8,9 @@ import { isVisitorNow } from './public/mode'
 import { router } from './router'
 import { seedIfEmpty } from './seed/demo'
 import { registerServiceWorker } from './sw/register'
-import { startSync } from './sync/app'
+import { startSync, syncEngine } from './sync/app'
+import { makeThumbnail, measureImage } from './photos'
+import { createThumbnailChecker } from './photos/rebuild'
 import { deployContext } from './sync/config'
 import './styles/app.css'
 
@@ -18,6 +20,24 @@ function startOwner() {
   void requestPersistentStorage()
   // T-0016: production only; previews and dev have no sync engine (D-0006).
   startSync()
+  startThumbnailCheck()
+}
+
+/**
+ * T-0037 (D-0038): brings this device's older thumbnails up to the current size, in the
+ * background and unseen; again after a sync run that took photos over from the NAS.
+ */
+function startThumbnailCheck() {
+  const checker = createThumbnailChecker({ db, measure: measureImage, makeThumbnail })
+  // Out of the way of the first screen.
+  setTimeout(() => void checker.check(), 1000)
+  let wasRunning = false
+  const engine = syncEngine
+  engine?.subscribe(() => {
+    const status = engine.getStatus()
+    if (wasRunning && !status.running && status.pulled > 0) void checker.check()
+    wasRunning = status.running
+  })
 }
 
 async function start() {
