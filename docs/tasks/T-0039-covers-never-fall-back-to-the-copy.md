@@ -229,6 +229,65 @@ pixel @2.625 | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
   ok 1 [pixel] › e2e\cover-after-update.spec.ts:153:1 › a project cover stays on the thumbnail after a reload, writes, a download and a rebuild (50.1s)
 ```
 
+**Tester, 2026-11-24** (branch at 5fed23b, clean `pnpm install --frozen-lockfile`, preview
+build on its own port, demo data and generated photos only; nothing reached the NAS).
+
+CI on 5fed23b (run 45434974972, attempt 1): `checks` and `pocketbase-auth` pass; unit
+`Tests 432 passed | 33 skipped (465)`; e2e unsharded inside `checks`, `82 passed (1.6m)`
+(82 = all tests in 22 files, `cover-after-update` included); no `flaky` line and no
+`retry #` in the log. The `shards`/`e2e` jobs are skipped because the run is unsharded.
+
+- **Done when 1.** `playwright test e2e/cover-after-update.spec.ts --repeat-each 4 --workers 4`:
+  `4 passed (59.4s)`; each run printed the developer's passing table (a, b: `src 0, srcset 0`;
+  c: `src 0, srcset 1`; d: `src 1, srcset 1`; thumbnail, 1280 everywhere). With
+  `origin/main`'s (54dbc21) `PhotoImage.tsx` put back and rebuilt: `x cover-after-update`,
+  table identical to the developer's failing one (c and d `copy+thumbnail` at @2, Fold and
+  Pixel; b `src 3, srcset 3`), and `x thumbnails.spec.ts:115` (the changed expectation).
+- **Done when 2.** `vitest run src/components/PhotoImage.test.tsx`: `Tests 12 passed (12)`.
+  With main's component: `Tests 6 failed | 6 passed (12)`; the 6 failing are the new ones
+  (thumbnail alone, same files as new Blobs, measured keeps address, new thumbnail file,
+  revoke on last unmount, viewer shares the tile's address). Full suite: `Tests 432 passed |
+  33 skipped (465)`; `tsc --noEmit` clean.
+- **Done when 3.** `playwright test thumbnails sharp-photos viewer visitor cover-delete photos
+  delete --repeat-each 3 --workers 4`: `81 passed (39.7s)`. `thumbnails.spec.ts:150` now
+  expects no `srcset` before the rebuild.
+- **Done when 4.** `pnpm exec harness check`: `✓ tasks: 39 tasks, index in step`,
+  `✓ decisions: 47 records, index complete, 1 overrule valid`, `✓ engineers: 2 listed`,
+  `✓ generated files: current`. CI green on the first attempt (above).
+
+Tried to break it (throwaway probe, not committed: wraps `URL.createObjectURL`/`revokeObjectURL`
+to track live addresses, checks every animation frame whether any `<img>` `src`/`srcset`
+holds a revoked address, and records image `error` events):
+
+- **Leaks over navigation:** overview → each of the 4 projects → back, 8 rounds, waiting
+  0, 300, 1800, 1950, 2000, 2050, 2200 and 2600 ms between steps (270 addresses made in all).
+  Right after the fast rounds 26 live, 18 not on screen (inside the 2 s window); from the
+  1800 ms rounds on, 8 live = 8 on screen; after settling `{"live":8,"inDom":8,
+  "liveNotInDom":0,"violations":0,"imgErrors":0,"broken":0}`. No leak.
+- **Revoked address in use:** the same rounds around the 2 s window, the viewer stepped with
+  the arrow keys alternating 150 ms and 2.3 s waits, then back/forward between project and
+  viewer at 0, 100, 1900, 2000, 2100 and 2500 ms: 0 violations, 0 image errors, 0 broken
+  images; the viewer held 3 live = 3 shown; back on the project page 12 live = 12 shown.
+- **Deletes:** deleting Tuinbank's 11 okt entry (2 photos): all of its addresses revoked
+  within 2.6 s, none of the other entries'; 8 live = 8 shown. All projects deleted in a
+  second tab while the overview stays open: 0 cards, 0 live addresses, no errors.
+- **Imports while the overview is open:** two 3000×2000 photos imported into Tuinbank in a
+  second tab: the overview made no new address at all (`created` 8 before and after),
+  8 live = 8 shown.
+- **Sign-out clearing the device:** the preview build has no account page, so on the dev
+  server (StrictMode) `clearLocalData()` was called through the app's own module while the
+  overview was open: before 8 live, after 2.6 s 0 live, 0 cards, no errors.
+- **Replacement file of the same byte size (known gap):** the key is
+  `photoId|file|size|type`. Photos are never edited (D-0002), so a photo's copy never
+  changes; its thumbnail is replaced only by the rebuild (a 512 px older one becomes 1280 px,
+  a very different size) or by the same file. Two different thumbnails of one photo with the
+  same byte count and type would need a re-encode of a measured thumbnail, which nothing
+  does (`needsCheck` skips measured photos). Judged not to happen in practice; at worst the
+  card keeps the older thumbnail until the next reload.
+
+Verdict: **passed** for Done when 1 to 4. Done when 5 is Sander's, in production after the
+deploy.
+
 # Log
 
 - 2026-11-24 architect: raised from Sander's report that jagged covers came back after an
@@ -251,3 +310,10 @@ pixel @2.625 | d rebuilt         | thumbnail   |          1280 | src 1, srcset 1
   writes leave cards untouched; no visible flash, empty frame or layout jump on cards, tiles
   or in the viewer, also through a measure, a rebuild and navigation; visitor view unchanged.
   No fixes needed; to the tester.
+- 2026-11-24 tester: passed. Done when 1 to 4 run (tables and output in *Test*); new tests
+  fail on main's component; no leaked or revoked-in-use address over navigation, the viewer,
+  deletes, imports in a second tab and clearing the device; the same-size gap judged not
+  reachable. CI green on the first attempt.
+  Remaining: Done when 5 (Sander, in production after the deploy, on his laptop and the
+  Fold: covers smooth right after the new-version reload and a minute later, and the
+  console one-liner in *Notes* reports `thumbnail` for every card).
