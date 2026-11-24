@@ -7,6 +7,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Open
 
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
+- [T-0040 Show covers and day tiles without aliasing at every screen, from a 640×480 card image](T-0040-card-images-for-cards-and-tiles.md): D-0041: a third srcset candidate on the overview's cards and the project page's tiles, a 640×480 centre crop that each owner device makes from its copy and keeps locally, and that visitors get from PocketBase's ?thumb=640x480 on the thumbnail (one migration in the backend image); fixes the 3-4x downscale of the 1280 px thumbnail at a pixel ratio of 1.
 
 ## Doing
 

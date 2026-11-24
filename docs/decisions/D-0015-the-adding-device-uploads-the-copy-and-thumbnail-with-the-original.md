@@ -2,11 +2,11 @@
 id: D-0015
 title: "The device that adds a photo uploads its 2560 px copy and thumbnail with the original; other devices download only those"
 description: "Each photo on the NAS has three files: the untouched original, the 2560 px WebP copy and a thumbnail, all uploaded by the device that added it; other devices download the copy and thumbnail, never the original, and the NAS does no image processing."
-status: Accepted
+status: Replaced
 date: 2026-11-17
 decided_by: sander
 replaces: []
-replaced_by: []
+replaced_by: [D-0041]
 resolves: [Q-004]
 tags: [photos, sync, storage]
 ---
