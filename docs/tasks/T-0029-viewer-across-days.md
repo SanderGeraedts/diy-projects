@@ -7,7 +7,7 @@ depends_on: []
 decisions: [D-0031, D-0029, D-0025, D-0020, D-0002, D-0007, G-0019, G-0021]
 raised_on: 2026-11-24
 done_on: ""
-result: []
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/68"]
 ---
 
 # Goal
