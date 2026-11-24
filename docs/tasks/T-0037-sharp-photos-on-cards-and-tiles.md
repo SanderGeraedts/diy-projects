@@ -133,17 +133,17 @@ browser makes one choice and the image doesn't load twice or switch after it fir
 A photo without a thumbnail on the device shows its copy as now. Images stay
 `loading="lazy"`; `width`/`height` stay the copy's (they only set the aspect ratio).
 
-**`sizes`** (root font size 16 px; `main` is `max-w-5xl` = 1024 px with `p-4`, so the content
-is min(100vw, 1024 px) − 32 px; 100vw overstates by a scrollbar's width, which only errs
+**`sizes`** (root font size 16 px; `main` is `max-w-5xl` = 1024 px including its `p-4`, so the
+content is min(100vw, 1024 px) − 32 px; 100vw overstates by a scrollbar's width, which only errs
 towards a sharper pick). The same values for the owner and a visitor (`?bezoeker` uses the
 same pages):
 
 - **Overview card** (`auto-fill minmax(16rem, 1fr)`, `gap-4`): one column below 560 px, two
-  from 560, three from 832; at 1056 px and wider the content is capped and a card is
-  330.67 px (four columns never fit):
-  `sizes="auto, (min-width: 1056px) 331px, (min-width: 832px) calc((100vw - 64px) / 3), (min-width: 560px) calc((100vw - 48px) / 2), calc(100vw - 32px)"`
+  from 560, three from 832; at 1024 px and wider the content is capped at 992 px and a card is
+  320 px (four columns never fit):
+  `sizes="auto, (min-width: 1024px) 320px, (min-width: 832px) calc((100vw - 64px) / 3), (min-width: 560px) calc((100vw - 48px) / 2), calc(100vw - 32px)"`
 - **Day tile** (`grid-cols-2 gap-2`):
-  `sizes="auto, (min-width: 1056px) 492px, calc((100vw - 40px) / 2)"`
+  `sizes="auto, (min-width: 1024px) 492px, calc((100vw - 40px) / 2)"`
 - **Photo viewer**: unchanged, the copy only (no `srcset`).
 
 If the overview's grid or the page's padding changes later, these values change with it;
