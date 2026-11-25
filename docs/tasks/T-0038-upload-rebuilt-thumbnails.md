@@ -2,13 +2,13 @@
 id: T-0038
 title: "Upload each rebuilt thumbnail once over the older one on the NAS"
 description: "D-0039: an owner device's sync uploads each 1280 px thumbnail it rebuilt (T-0037) over the NAS's older 512 px one, once, only while the NAS's is still narrower, without a new updatedAt, history or unsent count, so visitors see older photos sharp."
-status: Doing
+status: Done
 size: small
 depends_on: [T-0037]
 decisions: [D-0039, D-0038, D-0002, D-0015, D-0014, D-0026, D-0023, D-0013, G-0019, G-0023]
 raised_on: 2026-11-24
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/71"]
+done_on: 2026-11-25
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/71", "https://github.com/SanderGeraedts/diy-projects/pull/75"]
 ---
 
 # Goal
@@ -321,3 +321,4 @@ merge, so the task stays *Doing*.
   33 skipped (459)"; build ok; `E2E_PORT=4794 pnpm run test:e2e` "79 passed, 2 skipped";
   `harness check` all ✓. Remaining: Done when 9, Sander in production after the merge.
 - 2026-11-24 tester: passed (after the send-back: a revoked sign-in during the step now pauses for sign-in and marks nothing done; see *Test*). Remaining: Done when 9, Sander in production after the merge: in a private window a public project's older photos look as sharp as the newer ones, and the owner's app shows nothing new.
+- 2026-11-25 architect: Done when 9 confirmed: as a visitor, older photos look sharp. Sander (Engineer) confirmed in production after the deploy of T-0041 (main at b587602), by eye: "the covers are smooth now, close the tasks", and on the arrow keys and the visitor view: "Yes, both checked: I checked the arrow keys and the visitor view too; close all six." He gave no console output; this confirms by eye only. Done.

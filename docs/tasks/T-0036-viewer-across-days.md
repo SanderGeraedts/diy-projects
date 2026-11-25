@@ -2,12 +2,12 @@
 id: T-0036
 title: "Move between days in the photo viewer"
 description: "D-0037: arrow keys, the ‹ › buttons and swipes go from a day's last photo to the next day's first (and back) in the project page's order, skipping days without photos, for owner and visitors; counter and label stay per day; a delete shows what next would have."
-status: Doing
+status: Done
 depends_on: []
 decisions: [D-0037, D-0031, D-0025, D-0020, D-0002, D-0007, G-0019, G-0021]
 raised_on: 2026-11-24
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/68"]
+done_on: 2026-11-25
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/68", "https://github.com/SanderGeraedts/diy-projects/pull/75"]
 ---
 
 # Goal
@@ -296,3 +296,4 @@ the deploy, so the task stays *Doing*.
 - 2026-11-24 developer: CI run 45385217400 failed on a flaky e2e ("after crossing days, one back closes the viewer" passed only on retry, G-0031): ArrowRight was pressed before the viewer had loaded. The test now waits for each photo's dialog before the next key (also in `photo-order.spec.ts`), and the viewer's key handler reads the latest render's state through a ref, so a key right after a move never acts on the photo before. Checks: `pnpm run typecheck` exit 0; `pnpm test` 30 files passed (3 skipped), 390 tests passed (26 skipped); `pnpm run build` exit 0; the cross-day tests 3× repeated: 33 passed; `E2E_PORT=4794 pnpm run test:e2e` 74 passed, 2 skipped; `pnpm exec harness check` ✓ tasks (36), ✓ decisions (43), ✓ engineers (2), ✓ generated files.
 - 2026-11-24 ux-designer: reviewed: matches. Looked at the dev server (seeded data, desktop with mouse and keyboard) and the code at 7eadebc: counter per day incl. `1 / 1`, panel switches day and scrolls to top only on a new day, hidden panel stays hidden, ‹ › only at real neighbours, focus moves to ‹ when › goes, back closes after crossing days, neighbour alts per own day. No differences; handed to the tester.
 - 2026-11-24 tester: passed. Done when 1-4, 6 and 7 ran here (CI green on 7f94499 with no retries, e2e of the viewer, visitor, cover-delete and photo-order specs 5x repeated with 4 workers, buttons, focus, panel scroll and hidden panel checked in desktop Chromium with a mouse on the dev server); rapid keys, one-photo project, visitor, deletes at day edges and back after crossing days hold. Remaining: Sander confirms after deploy that the arrow keys cross days on his own projects (Done when 5).
+- 2026-11-25 architect: Done when 5 confirmed: the arrow keys cross days on his own projects. Sander (Engineer) confirmed in production after the deploy of T-0041 (main at b587602), by eye: "the covers are smooth now, close the tasks", and on the arrow keys and the visitor view: "Yes, both checked: I checked the arrow keys and the visitor view too; close all six." He gave no console output; this confirms by eye only. Done.

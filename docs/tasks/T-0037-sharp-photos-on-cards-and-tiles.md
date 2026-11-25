@@ -2,13 +2,13 @@
 id: T-0037
 title: "Show photos sharp on the overview's cards and the project page's tiles"
 description: "D-0038: 1280 px thumbnails made in halving steps, srcset/sizes with the thumbnail and the copy on cards and tiles for owner and visitor, and each device rebuilding its older thumbnails from its copy; nothing changes on the NAS for existing photos (Q-007)."
-status: Doing
+status: Done
 size: small
 depends_on: []
 decisions: [D-0038, D-0003, D-0015, D-0002, D-0023, D-0007, G-0019]
 raised_on: 2026-11-24
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/70"]
+done_on: 2026-11-25
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/70", "https://github.com/SanderGeraedts/diy-projects/pull/75"]
 ---
 
 # Goal
@@ -376,3 +376,4 @@ Not run: Done when 6 (Sander on his laptop and the Fold, production, after the m
   and measured no DPR 1, so it passed. That moves to T-0040 (D-0041, a 640×480 card image).
   Remaining: Done when 6, now confirmed together with T-0040's Done when 8 (Sander looks once
   T-0040 is deployed).
+- 2026-11-25 architect: Done when 6 confirmed via T-0040's Done when 8 and T-0041's Done when 6: the covers look smooth. Sander (Engineer) confirmed in production after the deploy of T-0041 (main at b587602), by eye: "the covers are smooth now, close the tasks", and on the arrow keys and the visitor view: "Yes, both checked: I checked the arrow keys and the visitor view too; close all six." He gave no console output; this confirms by eye only. Done.

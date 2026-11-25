@@ -2,13 +2,13 @@
 id: T-0040
 title: "Show covers and day tiles without aliasing at every screen, from a 640×480 card image"
 description: "D-0041: a third srcset candidate on the overview's cards and the project page's tiles, a 640×480 centre crop that each owner device makes from its copy and keeps locally, and that visitors get from PocketBase's ?thumb=640x480 on the thumbnail (one migration in the backend image); fixes the 3-4x downscale of the 1280 px thumbnail at a pixel ratio of 1."
-status: Doing
+status: Done
 size: full
 depends_on: [T-0039]
 decisions: [D-0041, D-0040, D-0038, D-0039, D-0003, D-0023, D-0006, D-0002, D-0007, G-0019, G-0012, G-0031, G-0032]
 raised_on: 2026-11-24
-done_on: ""
-result: ["https://github.com/SanderGeraedts/diy-projects/pull/73"]
+done_on: 2026-11-25
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/73", "https://github.com/SanderGeraedts/diy-projects/pull/75"]
 ---
 
 # Goal
@@ -469,3 +469,4 @@ stopped afterwards: "The throwaway backend is stopped, and its database removed.
   and the affected e2e pass.
 - 2026-11-24 tester: passed Done when 1 to 7 and 9 (band test fails on main, passes here; CI green on the first attempt; migration down works; card image never synced; demo start clean). Remaining: Done when 8, Sander in production on his laptop at 100 % and the Fold (covers and day tiles smooth, the console one-liner 2.2 or less on every card, 640 natural width as a visitor); his confirmation also closes T-0037's Done when 6.
 - 2026-11-25 architect: Done when 8 failed in production: on Sander's laptop (pixel ratio 1), the covers were still jagged, with `640w` in srcset but `currentSrc` the 1280 px thumbnail. Its one-liner can't show this, because `naturalWidth` is divided by the chosen density. Cause and fix: T-0041 (D-0042). Remaining: Done when 8, now checked by T-0041's Done when 6.
+- 2026-11-25 architect: Done when 8 confirmed (through T-0041's Done when 6): the covers look smooth. Sander (Engineer) confirmed in production after the deploy of T-0041 (main at b587602), by eye: "the covers are smooth now, close the tasks", and on the arrow keys and the visitor view: "Yes, both checked: I checked the arrow keys and the visitor view too; close all six." He gave no console output; this confirms by eye only. Done.
