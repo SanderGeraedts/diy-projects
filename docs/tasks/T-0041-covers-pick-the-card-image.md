@@ -8,7 +8,7 @@ depends_on: [T-0040]
 decisions: [D-0042, D-0041, D-0040, D-0038, D-0006, D-0023, G-0019, G-0012, G-0031, G-0032]
 raised_on: 2026-11-25
 done_on: 2026-11-25
-result: [https://github.com/SanderGeraedts/diy-projects/pull/74]
+result: ["https://github.com/SanderGeraedts/diy-projects/pull/74", "https://github.com/SanderGeraedts/diy-projects/pull/75"]
 ---
 
 # Goal
