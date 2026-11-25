@@ -153,6 +153,19 @@ test('older thumbnails are rebuilt in the background, unseen and locally only', 
   const alt = await tile.getAttribute('alt')
   const text = await page.locator('body').innerText()
 
+  // T-0041 (D-0043): every frame, not only every poll, the tile shows a decoded image.
+  await tile.evaluate((img: HTMLImageElement) => {
+    const w = window as unknown as { emptyFrames: number; watching: boolean }
+    w.emptyFrames = 0
+    w.watching = true
+    const frame = () => {
+      if (!w.watching) return
+      if (!img.isConnected || img.naturalWidth === 0) w.emptyFrames++
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
+  })
+
   // While it runs: no new text anywhere (no message, no unsent count), the tile keeps an image.
   let after = before
   for (let i = 0; i < 200; i++) {
@@ -173,6 +186,17 @@ test('older thumbnails are rebuilt in the background, unseen and locally only', 
 
   // Afterwards: the tile shows the rebuilt thumbnail, labelled 1280w, loaded, nothing new to read.
   await expect(tile).toHaveAttribute('srcset', / 1280w, /)
+  // A moment for the swap to the new sources, which waits until they are decoded.
+  await expect.poll(() => tile.evaluate((img: HTMLImageElement) => img.complete)).toBe(true)
+  await page.waitForTimeout(500)
+  expect(
+    await page.evaluate(() => {
+      const w = window as unknown as { emptyFrames: number; watching: boolean }
+      w.watching = false
+      return w.emptyFrames
+    }),
+    'frames in which the tile had no decoded image',
+  ).toBe(0)
   await expect.poll(() => tile.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
   await expect(tile).toHaveAttribute('alt', alt!)
   expect(await page.locator('body').innerText()).toBe(text)

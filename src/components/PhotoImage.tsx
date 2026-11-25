@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Photo } from '../db/db'
 import { CARD_WIDTH, cardCrop, fitLongEdge, OLD_THUMBNAIL_LONG_EDGE, THUMBNAIL_LONG_EDGE } from '../photos/resize'
 import { placeUrl, type PublicPhoto, type Place } from '../public/source'
@@ -28,6 +28,8 @@ interface CachedUrl {
 }
 
 const urls = new Map<string, CachedUrl>()
+/** The cache key of each address in `urls`, to hold an address an image still shows. */
+const keysByUrl = new Map<string, string>()
 
 /** A stored photo's files shown by address: the copy, the thumbnail and the card image (T-0040). */
 type StoredFile = 'copy' | 'thumbnail' | 'card'
@@ -51,6 +53,7 @@ function sweepLater(key: string) {
     const wait = entry.touched + REVOKE_AFTER_MS - Date.now()
     if (wait > 0) return sweepLater(key)
     urls.delete(key)
+    keysByUrl.delete(entry.url)
     URL.revokeObjectURL(entry.url)
   }, REVOKE_AFTER_MS)
 }
@@ -61,6 +64,7 @@ function peekUrl(key: string, blob: Blob): string {
   if (!entry) {
     entry = { url: URL.createObjectURL(blob), refs: 0, touched: Date.now() }
     urls.set(key, entry)
+    keysByUrl.set(entry.url, key)
     // A render that never commits leaves it unused: revoke it then.
     sweepLater(key)
   }
@@ -89,6 +93,77 @@ function useStoredUrl(photoId: string, file: StoredFile, blob: Blob | undefined,
     }
   }, [key])
   return url
+}
+
+/**
+ * Counts the object URLs an `<img>` still names as used, so none is revoked while it shows
+ * them, also after the render that made them has moved on (T-0041: the swap waits for the new
+ * image). Addresses that aren't object URLs of `urls` are left alone.
+ */
+function useHeldUrls(shown: readonly string[]) {
+  const id = shown.join(' ')
+  useLayoutEffect(() => {
+    const keys = shown.map((url) => keysByUrl.get(url)).filter((k): k is string => k !== undefined)
+    for (const key of keys) urls.get(key)!.refs++
+    return () => {
+      for (const key of keys) {
+        const entry = urls.get(key)
+        if (!entry) continue
+        entry.refs--
+        entry.touched = Date.now()
+        if (entry.refs <= 0) sweepLater(key)
+      }
+    }
+    // Keyed on `id`: the addresses, not the array object.
+  }, [id])
+}
+
+/** What a card's or tile's `<img>` names: its fallback `src` and, once measured, a `srcset`. */
+interface Sources {
+  src: string
+  srcSet?: string
+}
+
+/**
+ * The sources to render, swapped atomically (T-0041, D-0043): the first ones at once; a later
+ * change (a new candidate set, a rebuilt thumbnail) only once a hidden image with the same
+ * `srcset`, at the width the `<img>` is shown, has loaded and decoded the candidate it chooses.
+ * Until then the `<img>` keeps the sources it shows, so it never shows an image still loading,
+ * and that candidate is in the browser's cache when the `<img>` takes the new sources.
+ */
+function useSwappedSources(next: Sources | null, sizes: string, img: React.RefObject<HTMLImageElement | null>): Sources | null {
+  const [shown, setShown] = useState<Sources | null>(next)
+  /** The hidden image of the last swap, kept so the candidate it loaded stays cached. */
+  const loaded = useRef<HTMLImageElement | null>(null)
+  const nextId = next ? `${next.src} | ${next.srcSet ?? ''}` : ''
+  const shownId = shown ? `${shown.src} | ${shown.srcSet ?? ''}` : ''
+  useEffect(() => {
+    if (!next || nextId === shownId) return
+    if (!shown) {
+      setShown(next)
+      return
+    }
+    let live = true
+    const pre = new Image()
+    const width = img.current?.getBoundingClientRect().width ?? 0
+    // `auto` is the width the <img> has; a detached image has none, so it is given in pixels.
+    pre.sizes = width > 0 ? `${width}px` : sizes.replace(/^\s*auto\s*,\s*/, '')
+    if (next.srcSet) pre.srcset = next.srcSet
+    pre.src = next.src
+    const swap = () => {
+      if (!live) return
+      loaded.current = pre
+      setShown(next)
+    }
+    if (typeof pre.decode === 'function') pre.decode().then(swap, swap)
+    else swap()
+    return () => {
+      live = false
+    }
+    // Keyed on the ids: the sources' values, not their objects.
+  }, [nextId, shownId])
+  useEffect(() => () => void (loaded.current = null), [])
+  return shown ?? next
 }
 
 /** The address to show a photo's copy or thumbnail from; for a stored photo, an object URL. */
@@ -204,14 +279,20 @@ function PhotoWithSrcset({ photo, alt, className, sizes, place }: { photo: Shown
   const thumbnail = useSrcsetUrl(photo, 'thumbnail', place, set)
   const copy = useSrcsetUrl(photo, 'copy', place, set)
   const card = useCardUrl(photo, withCard)
-  // Rendered once every address it names exists (T-0037), so a new srcset swaps a loaded
-  // image for a loaded one.
-  if (measured ? !thumbnail || !copy || (withCard && !card) : !alone) return null
+  // Rendered once every address it names exists (T-0037).
+  const ready = measured ? !!thumbnail && !!copy && (!withCard || !!card) : !!alone
   const candidates = [...(withCard ? [`${card} ${CARD_WIDTH}w`] : []), `${thumbnail} ${label}w`, `${copy} ${photo.width}w`]
+  const next: Sources | null = !ready ? null : measured ? { src: thumbnail!, srcSet: candidates.join(', ') } : { src: alone! }
+  // T-0041: a new srcset is swapped in only once its image is loaded and decoded.
+  const img = useRef<HTMLImageElement>(null)
+  const shown = useSwappedSources(next, sizes, img)
+  useHeldUrls(shown ? [shown.src, ...(shown.srcSet ?? '').split(', ').map((c) => c.split(' ')[0]!)] : [])
+  if (!shown) return null
   return (
     <img
-      src={measured ? thumbnail : alone}
-      srcSet={measured ? candidates.join(', ') : undefined}
+      ref={img}
+      src={shown.src}
+      srcSet={shown.srcSet}
       sizes={sizes}
       alt={alt}
       width={photo.width}

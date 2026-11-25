@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Photo } from '../db/db'
 import type { PublicPhoto } from '../public/source'
@@ -379,5 +379,64 @@ describe('a visitor’s srcset addresses (D-0042)', () => {
     const demo: PublicPhoto = { ...visitor, copyUrl: 'blob:http://localhost/demo', thumbnailUrl: 'blob:http://localhost/demo' }
     render(<PhotoImage photo={demo} alt="Foto" sizes={CARD} place="card" />)
     expect(screen.getByAltText('Foto')).toHaveAttribute('srcset', 'blob:http://localhost/demo 960w, blob:http://localhost/demo 1920w')
+  })
+})
+
+// T-0041 (D-0043): a new srcset is swapped in atomically: the <img> keeps what it shows until a
+// hidden image with the new sources has decoded, and nothing it shows is revoked meanwhile.
+describe('swapping a card’s or tile’s sources', () => {
+  const card = new Blob(['card image'], { type: 'image/webp' })
+  // jsdom has no HTMLImageElement.decode; each test gives it one (without, the swap is at once).
+  const proto = HTMLImageElement.prototype as { decode?: () => Promise<void> }
+  afterEach(() => void delete proto.decode)
+  const stubDecode = (fn: (this: HTMLImageElement) => Promise<void>) => {
+    const spy = vi.fn(fn)
+    Object.defineProperty(proto, 'decode', { configurable: true, writable: true, value: spy })
+    return spy
+  }
+
+  it('keeps the shown src and srcset until the new image is decoded, then swaps in one step', async () => {
+    vi.useFakeTimers()
+    let decoded!: () => void
+    const decode = stubDecode(() => new Promise<void>((resolve) => (decoded = resolve)))
+    const revoked = vi.spyOn(URL, 'revokeObjectURL').mockImplementation((url) => {
+      expect(document.querySelector(`img[src="${url}"], img[srcset*="${url}"]`)).toBeNull()
+    })
+    const photo = owned({ id: 'atomic', thumbnailWidth: 1280 })
+    const { rerender } = render(<PhotoImage photo={photo} alt="Foto" sizes={CARD} place="card" />)
+    const img = screen.getByAltText('Foto')
+    const before = { src: img.getAttribute('src'), srcset: img.getAttribute('srcset') }
+    expect(decode).not.toHaveBeenCalled() // the first sources are shown at once
+
+    rerender(<PhotoImage photo={{ ...photo, card, cardWidth: 640 }} alt="Foto" sizes={CARD} place="card" />)
+    expect(decode).toHaveBeenCalledTimes(1)
+    // While the new image loads: the same sources, none of them revoked.
+    act(() => void vi.advanceTimersByTime(REVOKE_AFTER_MS * 5))
+    expect({ src: img.getAttribute('src'), srcset: img.getAttribute('srcset') }).toEqual(before)
+    expect(revoked).not.toHaveBeenCalled()
+
+    await act(async () => decoded())
+    expect(screen.getByAltText('Foto')).toBe(img)
+    expect(img.getAttribute('srcset')).toMatch(/^blob:\S+ 640w, blob:\S+ 1280w, blob:\S+ 2560w$/)
+    expect(img.getAttribute('srcset')).not.toContain(before.src!)
+    // The old sources are revoked once no image shows them.
+    act(() => void vi.advanceTimersByTime(REVOKE_AFTER_MS * 3))
+    const old = before.srcset!.split(', ').map((c) => c.split(' ')[0])
+    expect(revoked.mock.calls.map(([url]) => url).sort()).toEqual(old.sort())
+  })
+
+  it('gives the hidden image the new srcset, at the width the <img> is shown', () => {
+    const made: HTMLImageElement[] = []
+    stubDecode(function () {
+      made.push(this)
+      return new Promise<void>(() => {})
+    })
+    const photo = owned({ id: 'hidden', thumbnailWidth: 1280 })
+    const { rerender } = render(<PhotoImage photo={photo} alt="Foto" sizes={CARD} place="card" />)
+    vi.spyOn(screen.getByAltText('Foto'), 'getBoundingClientRect').mockReturnValue({ width: 320 } as DOMRect)
+    rerender(<PhotoImage photo={{ ...photo, card, cardWidth: 640 }} alt="Foto" sizes={CARD} place="card" />)
+    expect(made).toHaveLength(1)
+    expect(made[0]!.getAttribute('srcset')).toMatch(/^blob:\S+ 640w, blob:\S+ 1280w, blob:\S+ 2560w$/)
+    expect(made[0]!.getAttribute('sizes')).toBe('320px')
   })
 })
