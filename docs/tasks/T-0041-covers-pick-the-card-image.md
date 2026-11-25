@@ -354,6 +354,40 @@ each count read 2.6 s after the step, past `REVOKE_AFTER_MS`), laptop 1280×800 
 
 Not checked here: Done when 6 (Sander, in production).
 
+**Tester, re-check after the send-back, 2026-11-25, at cc46e66. Verdict: passed.** I checked
+only what was sent back.
+
+- **The spec fix** (test only, `e2e/card-choice.spec.ts`): `editPhotos` first leaves the app for
+  `/manifest.webmanifest`, so no app runs while the photos are edited. `holdBackgroundPass` is
+  now a page route on `/assets/photo\.worker-[^/]+\.js$` (the build's file is
+  `photo.worker-DLx7DIgS.js`), set while no app runs. `release` lets the held requests through
+  and removes only that handler. The assertions are unchanged. On main the hold still works:
+  "b. ..., before the pass: Bok 01 | shows 1280w", "c. ..., before the pass: shows src".
+- **CI:** run 45584214667 on cc46e66, `run_attempt` 1. `checks / checks pass`,
+  `pocketbase-auth pass`, log `84 passed (1.7m)`, no `flaky` line.
+- **Still fails on main:** a fresh worktree at `origin/main` 9a8ce86 with the new spec copied in,
+  `pnpm install --frozen-lockfile`, `rm -rf dist && pnpm run build`, nothing else listening,
+  `E2E_PORT=4394 pnpm exec playwright test e2e/card-choice.spec.ts --retries 0`:
+
+  ```
+       12 Error: b. card image added while open      (Received: 1280)
+       12 Error: c. unmeasured first                 (Received: 1280)
+        2 Error: d                                   (tile 2560w; Received: 5.203252032520325)
+        1 Error: d. after the viewer                 (Received: 2560)
+  d. tile: shows 2560w, CSS 492.0 px × pixel ratio, r 5.20
+    1 failed
+  ```
+
+- **Passes on the branch, steadily** (`pnpm install --frozen-lockfile`, `rm -rf dist && pnpm
+  run build`):
+  - `card-choice.spec.ts --retries 0 --repeat-each 16 --workers 6`: `16 passed (1.9m)`
+  - with `card-images.spec.ts`, `--retries 0 --repeat-each 4 --workers 8`: `8 passed (41.7s)`
+  - `--retries 0 --headed`: `1 passed (30.3s)`, `d. tile: shows 640w, ... r 1.30`
+
+  No failures and no flaky runs.
+
+Done when 1–5 are met. Done when 6 (Sander, in production) remains.
+
 # Log
 
 - 2026-11-25 architect: raised from Sander's production check after T-0040 (laptop, pixel ratio 1: `640w` in srcset but `currentSrc` the 1280 px thumbnail). Reproduced in Chromium 159: Chrome takes a larger candidate whose address it has already loaded, and D-0040's stable addresses keep that address. Recorded D-0042 (own addresses per place and candidate set). Size: small.
@@ -362,3 +396,4 @@ Not checked here: Done when 6 (Sander, in production).
 - 2026-11-25 ux-designer: reviewed: matches. Dev server, demo data plus generated covers, laptop 1280×800 at pixel ratio 1 and Fold, against main for comparison: the card image arrives without flashing, going empty or shifting; after the viewer and a reload every card shows 640 (main: 1280 and 2560); navigation as fast as main; visitor view unchanged. To the tester.
 - 2026-11-25 tester: sent back: CI run 45577651783 on a274da7 is red because `e2e/card-choice.spec.ts` passed only on its retry (`route.continue: Route is already handled!` in `holdBackgroundPass`, after "c. unmeasured first, before the pass"); 1 flaky run of 3 on this branch, not reproduced locally. Make the spec steady and show CI green on the first attempt. Everything else passed: it fails on a fresh build of main (27 failures, headless and headed alike) and passes on the branch, as do the affected specs, the unit and PocketBase tests, and the break attempts (no leaked or revoked object URLs in use, the viewer-tile-overview order, the Fold, visitor addresses still cacheable); see *Test*.
 - 2026-11-25 developer: send-back fixed: `card-choice.spec.ts` no longer races the app. Cause: `editPhotos` ran in a live app page (after a, and after the reload in e), whose background pass could start, ask for the photo worker and be held by the context-wide route, then cancelled by the next `page.goto` (and could even write card images before the hold). Now `editPhotos` first leaves the app for a static file of the same origin (`/manifest.webmanifest`), so no app runs while the photos are edited or when the hold is set; the hold is a page route on the worker script's exact path, set before the next app starts, and `release` lets the held request through and removes the route. On a fresh build of `origin/main` (9a8ce86, own worktree) it still fails: 27 soft failures (b 1280 ×12, c 1280 ×12, d tile 2560w r 5.20, d Bok 01 2560). With the fix: `--repeat-each 20 --workers 6 --retries 0` 20 passed; `--repeat-each 16 --workers 16` 16 passed; CPU throttled 4× (CDP, a throwaway copy with the 10 s window widened to 40 s) `--repeat-each 6 --workers 6` 6 passed.
+- 2026-11-25 tester: passed. Re-checked the send-back at cc46e66: the spec fix (no app runs while photos are edited; a page route on the worker script only), CI run 45584214667 green on its first attempt with no flaky test, the spec still failing on a fresh build of main (27 failures) and steady on the branch (16 + 8 + 1 headed runs with `--retries 0`, no failure). Remaining: Done when 6, Sander in production on his laptop at 100 % and on the Fold, also as a visitor: covers and project photos look smooth, also after opening a photo and going back, and the console table shows 640 in the fourth column for every row with `true` in the third (laptop). His confirmation also closes T-0040's Done when 8 and T-0037's Done when 6.
