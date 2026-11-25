@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test'
 import { withExif } from '../src/photos/exifFixture'
 
 // T-0041 (D-0042): Chrome takes a larger srcset candidate whose address it already loaded in
@@ -38,9 +38,14 @@ async function jpeg(page: Page, hue: number): Promise<Buffer> {
   return Buffer.from(bytes)
 }
 
-/** Edits the imported (non-demo) photos in IndexedDB, as an older device would have them. */
-function editPhotos(page: Page, how: 'no card' | 'unmeasured') {
-  return page.evaluate(async (mode) => {
+/**
+ * Edits the imported (non-demo) photos in IndexedDB, as an older device would have them. First
+ * leaves the app for a static file of the same origin, so no running app (and no background
+ * pass it started) reads or writes the photos meanwhile, or asks for the photo worker later.
+ */
+async function editPhotos(page: Page, how: 'no card' | 'unmeasured') {
+  await page.goto('/manifest.webmanifest')
+  await page.evaluate(async (mode) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const open = indexedDB.open('diy-projects')
       open.onsuccess = () => resolve(open.result)
@@ -74,20 +79,24 @@ function editPhotos(page: Page, how: 'no card' | 'unmeasured') {
 }
 
 /**
- * Holds the photo worker's script, so the background pass that measures thumbnails and makes
- * card images waits until `release` is called (it starts a second after the app).
+ * Holds the photo worker's script for this page only, so the background pass that measures
+ * thumbnails and makes card images (it starts a second after the app) waits until `release`.
+ * Set while no app runs (`editPhotos` left it), so the only request it can hold is the one the
+ * next app makes; `release` lets it through and removes the route.
  */
 async function holdBackgroundPass(page: Page) {
-  let release!: () => void
-  const gate = new Promise<void>((resolve) => (release = resolve))
-  const pattern = '**/photo.worker*'
-  await page.context().route(pattern, async (route) => {
-    await gate
-    await route.continue()
-  })
+  const held: Route[] = []
+  let released = false
+  const pattern = /\/assets\/photo\.worker-[^/]+\.js$/
+  const handler = async (route: Route) => {
+    if (released) await route.continue()
+    else held.push(route)
+  }
+  await page.route(pattern, handler)
   return async () => {
-    release()
-    await page.context().unroute(pattern)
+    released = true
+    for (const route of held.splice(0)) await route.continue()
+    await page.unroute(pattern, handler)
   }
 }
 
