@@ -2,7 +2,7 @@
 id: T-0041
 title: "Make covers and day tiles really show the card image when Chrome has already loaded a larger one"
 description: "D-0042: Chrome takes a larger srcset candidate whose address it already loaded in the page, so after T-0040 covers kept the 1280 px thumbnail (and, after the viewer, would take the copy); give each card's and tile's srcset addresses of its own per place and candidate set, and check the decoded width of currentSrc in every state the app passes through."
-status: Open
+status: Doing
 size: small
 depends_on: [T-0040]
 decisions: [D-0042, D-0041, D-0040, D-0038, D-0006, D-0023, G-0019, G-0012, G-0031, G-0032]
@@ -154,6 +154,79 @@ Nothing new to design (size small). The UX designer reviews after the build.
 
 # Test
 
+Developer, 2026-11-25, `e2e/card-choice.spec.ts` (Done when 1), Playwright's Chromium
+159.0.8154.6, 1280×800 at pixel ratio 1, 12 projects with a generated 4000×3000 cover each.
+`pnpm run build` first in both runs. Abridged to Bok 01; the other 11 cards show the same in
+every state.
+
+**Before the fix** (the source of `origin/main` at 9a8ce86, this branch before the change):
+
+```
+a. first load:
+  Bok 01 | shown  640 | srcset blob 640w, blob 1280w, blob 2560w
+b. card image added while open, before the pass:
+  Bok 01 | shows 1280w | srcset blob 1280w, blob 2560w
+b. card image added while open:
+  Bok 01 | shown 1280 | srcset blob 640w, blob 1280w, blob 2560w
+e. reload after b:
+  Bok 01 | shown  640 | srcset blob 640w, blob 1280w, blob 2560w
+c. unmeasured first, before the pass:
+  Bok 01 | shows src | srcset
+c. unmeasured first:
+  Bok 01 | shown 1280 | srcset blob 640w, blob 1280w, blob 2560w
+d. tile: shows 2560w, CSS 492.0 px × pixel ratio, r 5.20
+d. after the viewer:
+  Bok 01 | shown 2560 | srcset blob 640w, blob 1280w, blob 2560w
+  (Bok 02 to Bok 12: shown 640)
+    Error: b. card image added while open: Bok 01 shown width   Expected: 640  Received: 1280
+    ... (12 cards in b, 12 in c)
+    Error: d: the tile never shows the copy
+    Error: d: tile shown width ÷ CSS width × pixel ratio
+    Error: d. after the viewer: Bok 01 shown width             Expected: 640  Received: 2560
+  1 failed   (27 soft failures: b 12, c 12, d tile 2, d viewed card 1)
+```
+
+As the architect expected: 1280 in b and c, 2560 for the viewed photo's card and its tile in d;
+a and e pass. Headed (`--headed`): the same output, the same 27 failures.
+
+**After the fix:**
+
+```
+a. first load:          Bok 01 | shown  640 | srcset blob 640w, blob 1280w, blob 2560w
+b. ... before the pass: Bok 01 | shows 1280w | srcset blob 1280w, blob 2560w
+b. card image added while open:  Bok 01 | shown  640
+e. reload after b:               Bok 01 | shown  640
+c. ... before the pass: Bok 01 | shows src | srcset
+c. unmeasured first:             Bok 01 | shown  640
+d. tile: shows 640w, CSS 492.0 px × pixel ratio, r 1.30
+d. after the viewer:             Bok 01 | shown  640
+  ok 1 [pixel] › e2e/card-choice.spec.ts › every cover shows the 640 px card image at pixel ratio 1, in every state (26.4s)
+```
+
+Every one of the 12 cards shows 640 in every state. Headed: the same, passed (28.8s).
+`--repeat-each 3` with `e2e/card-images.spec.ts`: 6 passed.
+
+**A trap for checks** (found while writing the spec): fetching an address (as the decoded-width
+helper does) takes it out of Chrome's memory cache, which hides the preference. The first draft
+of the spec decoded every card before the pass and passed on main. So the spec reads which
+candidate an image shows by its label before the choice (`chosen`), and decodes `currentSrc`
+only after it; the viewer's copy is checked by `naturalWidth` (no srcset there) and never
+fetched; the tile in d is read by its label (the file's real width, D-0038), so that the copy's
+address is still cached when the overview is checked.
+
+Done when 2: `e2e/sharp-photos.spec.ts` unchanged and passing; `e2e/card-images.spec.ts`
+passing, with the new row (after the background pass at 1280×800, pixel ratio 1, the decoded
+width of `currentSrc` is 640). Done when 3: 12 unit tests in `src/components/PhotoImage.test.tsx`
+fail without the change and pass with it. Done when 4: `src/sync/cards.pocketbase.test.ts` on
+`pnpm exec harness backend start` (throwaway, port 8097): 4 passed, among them the marked
+thumbnail and copy (`?in=card`, `?in=tile`) at 200 with the same bytes as the plain ones and
+404 for a private photo. The demo visitor view keeps its one object URL per photo without a
+marker: its thumbnail and copy are one address of one file and it has no card image, so there
+is no larger file Chrome could prefer (unit test). `e2e/visitor.spec.ts` passes.
+Done when 5 locally: `pnpm run typecheck` clean, `pnpm test` 465 passed / 37 skipped,
+`pnpm run test:e2e` 82 passed / 2 skipped, `pnpm run build` and `pnpm exec harness check` pass.
+
 # Log
 
 - 2026-11-25 architect: raised from Sander's production check after T-0040 (laptop, pixel ratio 1: `640w` in srcset but `currentSrc` the 1280 px thumbnail). Reproduced in Chromium 159: Chrome takes a larger candidate whose address it has already loaded, and D-0040's stable addresses keep that address. Recorded D-0042 (own addresses per place and candidate set). Size: small.
+- 2026-11-25 developer: built D-0042. Owner: a card's or tile's srcset takes its thumbnail and copy object URLs per photo, file, size and type and per place, `sizes` and candidate set (`fileKey(..., set)`); the thumbnail-alone path and `usePhotoUrl` keep the shared single-file addresses; `PhotoImage` gets `place` (`card` in `ProjectCard`, `tile` on the project page). Visitor: `placeUrl` adds `?in=card` / `?in=tile` to the thumbnail and copy; `cardUrl` unchanged; the demo's object URLs are left as they are. New `e2e/card-choice.spec.ts`: on main 27 failures (b 1280, c 1280, d 2560), with the fix 1 passed, headless and headed alike; card-images row added; unit and PocketBase tests as in *Test*. Note for the architect: a check that fetches an address takes it out of Chrome's memory cache and hides this preference (see *Test*).

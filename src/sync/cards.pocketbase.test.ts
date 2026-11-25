@@ -8,6 +8,8 @@
 //   encoder), and nothing of a private one.
 // - The device's own card image is never synced: not in any upload, not on the NAS, and kept
 //   when a newer record is pulled.
+// - T-0041 (D-0042): the place-marked thumbnail and copy addresses a visitor's cards and
+//   tiles use answer as the plain ones: the same bytes, and 404 for a private photo.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import PocketBase, { ClientResponseError } from 'pocketbase'
@@ -16,7 +18,7 @@ import { createAuth } from '../auth/auth'
 import { openDb, type DiyDb } from '../db/db'
 import { addEntry, addPhotos, countUnsynced, createProject, type NewPhoto } from '../db/write'
 import { CARD_HEIGHT, CARD_THUMB, CARD_WIDTH } from '../photos/resize'
-import { createPocketBaseSource, visitorClient } from '../public/source'
+import { createPocketBaseSource, placeUrl, visitorClient } from '../public/source'
 import { createSyncEngine, type SyncEngine } from './engine'
 
 const URL_ = process.env.POCKETBASE_TEST_URL ?? ''
@@ -173,6 +175,39 @@ describe.skipIf(!URL_)('card images against a real PocketBase (T-0040)', { timeo
     const privateCard = await fetch(visitor.files.getURL(record, record.thumbnail as string, { thumb: CARD_THUMB }))
     expect(privateCard.status).toBe(404)
     expect((await fetch(visitor.files.getURL(record, record.thumbnail as string))).status).toBe(404)
+  })
+
+  it('T-0041 (D-0042): a visitor gets the same bytes at the place-marked thumbnail and copy addresses, and a private photo’s stay 404', async () => {
+    const email = await user()
+    const phone = await device(email)
+    const tag = Date.now().toString(36)
+    const shown = await entryOn(phone.db, `Rek ${tag}`)
+    const hidden = await entryOn(phone.db, `Verborgen ${tag}`, false)
+    const [open] = await addPhotos(shown.id, [photo(4)], phone.db)
+    const [closed] = await addPhotos(hidden.id, [photo(5)], phone.db)
+    expect(await phone.sync()).toMatchObject({ lastError: null, uploaded: 6 })
+
+    const visitor = visitorClient(URL_)
+    const project = (await createPocketBaseSource(visitor).project(`rek-${tag}`))!
+    const seen = project.photos.find((p) => p.id === open!.id)!
+    for (const plain of [seen.thumbnailUrl, seen.copyUrl]) {
+      const bytes = new Uint8Array(await (await fetch(plain)).arrayBuffer())
+      for (const place of ['card', 'tile'] as const) {
+        const marked = placeUrl(plain, place)
+        expect(marked).toBe(`${plain}?in=${place}`)
+        const res = await fetch(marked)
+        expect(res.status).toBe(200)
+        expect(sha256(new Uint8Array(await res.arrayBuffer()))).toBe(sha256(bytes))
+      }
+    }
+
+    const record = await su.collection('photos').getOne(closed!.id)
+    for (const file of [record.thumbnail as string, record.copy as string]) {
+      const plain = visitor.files.getURL(record, file)
+      expect((await fetch(plain)).status).toBe(404)
+      expect((await fetch(placeUrl(plain, 'card'))).status).toBe(404)
+      expect((await fetch(placeUrl(plain, 'tile'))).status).toBe(404)
+    }
   })
 
   it('the card image is never synced: no upload carries it, the NAS has no such field, a pulled newer record keeps it', async () => {

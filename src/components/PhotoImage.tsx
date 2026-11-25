@@ -1,7 +1,7 @@
 import { useLayoutEffect } from 'react'
 import type { Photo } from '../db/db'
 import { CARD_WIDTH, cardCrop, fitLongEdge, OLD_THUMBNAIL_LONG_EDGE, THUMBNAIL_LONG_EDGE } from '../photos/resize'
-import type { PublicPhoto } from '../public/source'
+import { placeUrl, type PublicPhoto, type Place } from '../public/source'
 
 /** A photo as shown: stored on the device (the owner), or by address on the NAS (a visitor, T-0026). */
 export type ShownPhoto = Photo | PublicPhoto
@@ -13,6 +13,11 @@ export type ShownPhoto = Photo | PublicPhoto
  * tells two files apart: the Blob's size and type. A rebuilt thumbnail or a file taken over
  * from the NAS differs in size, so it gets a new address; a write to other fields or other
  * photos keeps it. An address is revoked once no mounted image has used it for a moment.
+ *
+ * D-0042: Chrome takes a larger srcset candidate whose address it has already loaded in the
+ * page. So a card's or tile's srcset gets addresses of its own, kept also per place, `sizes`
+ * and candidate set (`set`): never the address of a single-file image (the viewer,
+ * `SinglePhoto`, the thumbnail alone), of another place, or of an earlier candidate set.
  */
 interface CachedUrl {
   url: string
@@ -30,9 +35,13 @@ type StoredFile = 'copy' | 'thumbnail' | 'card'
 /** How long an address no mounted image uses is kept, for a render that is about to commit. */
 export const REVOKE_AFTER_MS = 2000
 
-/** The cache key of one of a stored photo's files. */
-export function fileKey(photoId: string, file: StoredFile, blob: Blob): string {
-  return `${photoId}|${file}|${blob.size}|${blob.type}`
+/**
+ * The cache key of one of a stored photo's files; with `set`, the address a card's or tile's
+ * srcset uses for it (D-0042): its place, `sizes` and candidate set.
+ */
+export function fileKey(photoId: string, file: StoredFile, blob: Blob, set?: string): string {
+  const key = `${photoId}|${file}|${blob.size}|${blob.type}`
+  return set === undefined ? key : `${key}|${set}`
 }
 
 function sweepLater(key: string) {
@@ -64,8 +73,8 @@ function peekUrl(key: string, blob: Blob): string {
  * in a layout effect, so an address an `<img>` was just given is counted before the one it
  * replaces can be revoked.
  */
-function useStoredUrl(photoId: string, file: StoredFile, blob: Blob | undefined): string | undefined {
-  const key = blob ? fileKey(photoId, file, blob) : undefined
+function useStoredUrl(photoId: string, file: StoredFile, blob: Blob | undefined, set?: string): string | undefined {
+  const key = blob ? fileKey(photoId, file, blob, set) : undefined
   const url = key && blob ? peekUrl(key, blob) : undefined
   useLayoutEffect(() => {
     if (!key) return
@@ -88,6 +97,18 @@ export function usePhotoUrl(photo: ShownPhoto, file: 'copy' | 'thumbnail', wante
   const blob = 'copyUrl' in photo || !wanted ? undefined : file === 'thumbnail' ? photo.thumbnail : photo.blob
   const url = useStoredUrl(photo.id, file, blob)
   return remote ?? url
+}
+
+/**
+ * The address of a photo's thumbnail or copy in a card's or tile's srcset (D-0042): for a
+ * stored photo, an object URL of this place and candidate set (`set`); for a visitor, the
+ * file's address with the place marker. Never the address `usePhotoUrl` gives.
+ */
+function useSrcsetUrl(photo: ShownPhoto, file: 'copy' | 'thumbnail', place: Place, set: string | undefined): string | undefined {
+  const blob = 'copyUrl' in photo || set === undefined ? undefined : file === 'thumbnail' ? photo.thumbnail : photo.blob
+  const url = useStoredUrl(photo.id, file, blob, set)
+  if ('copyUrl' in photo) return placeUrl(file === 'thumbnail' ? photo.thumbnailUrl : photo.copyUrl, place)
+  return url
 }
 
 /**
@@ -128,7 +149,8 @@ function useCardUrl(photo: ShownPhoto, offered: boolean): string | undefined {
  * thumbnail and the copy as `srcset` candidates, each labelled with its real width, so the
  * browser takes what the place needs; without a card image, the thumbnail and the copy; a
  * stored photo whose thumbnail isn't measured yet, the thumbnail alone (D-0040). Without
- * `sizes`: the one file asked for (the 2560 px copy by default).
+ * `sizes`: the one file asked for (the 2560 px copy by default). `place` names where a card or
+ * tile is shown; each place's srcset has addresses of its own (D-0042).
  */
 export function PhotoImage({
   photo,
@@ -136,6 +158,7 @@ export function PhotoImage({
   className,
   file = 'copy',
   sizes,
+  place = 'card',
 }: {
   photo: ShownPhoto
   alt: string
@@ -143,9 +166,11 @@ export function PhotoImage({
   file?: 'copy' | 'thumbnail'
   /** The `sizes` for the place it is shown in; kept next to the layout that sets it. */
   sizes?: string
+  /** Where an image with `sizes` is shown: a project card or a day tile (D-0042). */
+  place?: Place
 }) {
   const withSrcset = sizes !== undefined && photo.width > 0 && photo.height > 0 && ('copyUrl' in photo || !!photo.thumbnail)
-  if (withSrcset) return <PhotoWithSrcset photo={photo} alt={alt} className={className} sizes={sizes} />
+  if (withSrcset) return <PhotoWithSrcset photo={photo} alt={alt} className={className} sizes={sizes} place={place} />
   return <SinglePhoto photo={photo} alt={alt} className={className} file={file} />
 }
 
@@ -165,22 +190,27 @@ function SinglePhoto({ photo, alt, className, file }: { photo: ShownPhoto; alt: 
   )
 }
 
-function PhotoWithSrcset({ photo, alt, className, sizes }: { photo: ShownPhoto; alt: string; className?: string; sizes: string }) {
+function PhotoWithSrcset({ photo, alt, className, sizes, place }: { photo: ShownPhoto; alt: string; className?: string; sizes: string; place: Place }) {
   // D-0040: a stored photo whose thumbnail this device hasn't measured is shown from its
   // thumbnail alone; the copy is never a candidate then (it made cards jagged).
   const measured = 'copyUrl' in photo || photo.thumbnailWidth !== undefined
-  const thumbnail = usePhotoUrl(photo, 'thumbnail')
-  const copy = usePhotoUrl(photo, 'copy', measured)
   // T-0040: the card image only next to a measured thumbnail (offersCard).
   const withCard = measured && offersCard(photo)
+  const label = thumbnailLabel(photo)
+  // D-0042: the place and candidate set its thumbnail and copy addresses are kept for, so a
+  // new set (the card image arrives, the thumbnail is measured) names addresses not loaded yet.
+  const set = measured ? `${place}|${sizes}|${withCard ? `card ${CARD_WIDTH}w, ` : ''}thumbnail ${label}w, copy ${photo.width}w` : undefined
+  const alone = usePhotoUrl(photo, 'thumbnail', !measured)
+  const thumbnail = useSrcsetUrl(photo, 'thumbnail', place, set)
+  const copy = useSrcsetUrl(photo, 'copy', place, set)
   const card = useCardUrl(photo, withCard)
   // Rendered once every address it names exists (T-0037), so a new srcset swaps a loaded
   // image for a loaded one.
-  if (!thumbnail || (measured && !copy) || (withCard && !card)) return null
-  const candidates = [...(withCard ? [`${card} ${CARD_WIDTH}w`] : []), `${thumbnail} ${thumbnailLabel(photo)}w`, `${copy} ${photo.width}w`]
+  if (measured ? !thumbnail || !copy || (withCard && !card) : !alone) return null
+  const candidates = [...(withCard ? [`${card} ${CARD_WIDTH}w`] : []), `${thumbnail} ${label}w`, `${copy} ${photo.width}w`]
   return (
     <img
-      src={thumbnail}
+      src={measured ? thumbnail : alone}
       srcSet={measured ? candidates.join(', ') : undefined}
       sizes={sizes}
       alt={alt}

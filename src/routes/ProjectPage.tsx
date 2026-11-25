@@ -150,6 +150,7 @@ function ProjectView({
                     <PhotoImage
                       photo={ph}
                       sizes={TILE_SIZES}
+                      place="tile"
                       alt={`${project.title}, ${formatDate(e.date)}`}
                       className="aspect-[4/3] h-auto w-full rounded-card object-cover"
                     />

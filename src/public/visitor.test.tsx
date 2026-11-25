@@ -151,9 +151,9 @@ describe('visitor mode in production (T-0026)', () => {
     // T-0022: the bin is the owner's only.
     expect(screen.queryByRole('link', { name: 'Prullenbak' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Inloggen' })).toHaveAttribute('href', '/account')
-    // The card's cover is the thumbnail, from the NAS by address.
+    // The card's cover is the thumbnail, from the NAS by address, marked as a card's (D-0042).
     const cover = main().querySelector('img')!
-    expect(cover.getAttribute('src')).toBe('https://pb.test/api/files/pbc_photos/f2/thumbnail_2.webp')
+    expect(cover.getAttribute('src')).toBe('https://pb.test/api/files/pbc_photos/f2/thumbnail_2.webp?in=card')
   })
 
   it('shows a project and its timeline without any edit, delete, import or add controls', async () => {
@@ -172,10 +172,10 @@ describe('visitor mode in production (T-0026)', () => {
     }
     expect(main().querySelector('input, textarea, select, form')).toBeNull()
     const srcs = [...main().querySelectorAll('img')].map((i) => i.getAttribute('src'))
-    // D-0031: a day's photos newest first (f2 was taken after f1).
+    // D-0031: a day's photos newest first (f2 was taken after f1); marked as tiles (D-0042).
     expect(srcs).toEqual([
-      'https://pb.test/api/files/pbc_photos/f2/thumbnail_2.webp',
-      'https://pb.test/api/files/pbc_photos/f1/thumbnail_1.webp',
+      'https://pb.test/api/files/pbc_photos/f2/thumbnail_2.webp?in=tile',
+      'https://pb.test/api/files/pbc_photos/f1/thumbnail_1.webp?in=tile',
     ])
   })
 

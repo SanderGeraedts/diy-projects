@@ -97,6 +97,21 @@ export const CACHE_MS = 60_000
 const text = (value: unknown): string => (typeof value === 'string' ? value : '')
 const number = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
 
+/** Where a card's or tile's srcset is shown (D-0042). */
+export type Place = 'card' | 'tile'
+
+/**
+ * A visitor's thumbnail or copy address in a card's or tile's srcset (D-0042): the file's
+ * address with a marker naming the place, so it is never the address the viewer (or another
+ * place) loaded, which Chrome would prefer as a larger candidate. The file hook serves it as
+ * the plain address. The demo visitor view's object URLs (no query possible) are left as they
+ * are: its thumbnail and copy are one address of one file, so there is no larger file to pick.
+ */
+export function placeUrl(url: string, place: Place): string {
+  if (url.startsWith('blob:')) return url
+  return `${url}${url.includes('?') ? '&' : '?'}in=${place}`
+}
+
 /** A visitor's PocketBase client: in-memory auth store, so it never carries a sign-in. */
 export function visitorClient(url: string): PocketBase {
   const client = new PocketBase(url, new BaseAuthStore())
