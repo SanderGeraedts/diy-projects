@@ -21,21 +21,22 @@ decided on 2026-11-25 to skip Netlify builds for docs-only changes (D-0044).
 Add a `[build] ignore` command to `netlify.toml` that runs a small Node script,
 `scripts/netlify-ignore.mjs`, which exits 0 (Netlify skips the build) only when every path
 changed in the range D-0044 defines is docs-only, and exits 1 (build) otherwise. It applies
-to deploy previews and to production; branch deploys always build.
+to deploy previews and to production; branch deploys always build. It follows the same
+approach and paths as the reading list's T-0099 (D-0078 there), so both projects behave alike.
 
 What D-0044 fixes, in short (read the record for the full rules):
 
-- **Docs-only paths:** anything under `docs/`; `*.md` at the repository root; `*.md` under
-  `deploy/` or `.claude/`. Nothing else: `src/**/*.md`, `public/**`, `e2e/**`, `backend/**`,
-  `netlify.toml`, the script itself, `package.json`, `pnpm-lock.yaml` and `LICENSE` build.
-  Take paths from `git diff --name-only --no-renames` (so both sides of a rename count, and
-  deletions too).
-- **Range, deploy preview:** `CACHED_COMMIT_REF..COMMIT_REF` when `CACHED_COMMIT_REF` is set,
-  differs from `COMMIT_REF` and is an ancestor of it (`git merge-base --is-ancestor`);
-  otherwise `merge-base(origin/main, COMMIT_REF)..COMMIT_REF`. Netlify's clone may lack
-  `origin/main` or enough history: try a quiet `git fetch --no-tags origin main` (deepen if
-  shallow) and build if the merge base still can't be found.
-- **Range, production:** `CACHED_COMMIT_REF..COMMIT_REF` under the same three conditions;
+- **Docs-only:** at least one changed path, and every changed path is under `docs/` or is a
+  `*.md` at the repository root. Nothing else: Markdown anywhere else (`deploy/`, `.claude/`,
+  `src/`, `public/`, `e2e/`, `backend/`), `public/**`, `netlify.toml`, the script itself,
+  `package.json`, `pnpm-lock.yaml`, other config files and `LICENSE` build. Take paths from
+  `git diff --name-only --no-renames` (so both names of a rename count, and deletions too).
+- **Range, deploy preview:** always `merge-base(origin/main, COMMIT_REF)..COMMIT_REF`, never
+  `CACHED_COMMIT_REF`. Netlify's clone may lack `origin/main` or enough history: run
+  `git fetch origin main` (deepen if shallow) and build if the merge base still can't be
+  found.
+- **Range, production:** `CACHED_COMMIT_REF..COMMIT_REF` only when both are set, they differ
+  and the cached commit is an ancestor of `COMMIT_REF` (`git merge-base --is-ancestor`);
   otherwise build (a "clear cache and deploy" gives equal refs and must build).
 - **Fail safe:** any error, unset `COMMIT_REF`, empty range or unknown commit exits 1. The
   script prints `CONTEXT`, both refs, the range used, the changed paths (or their count) and
@@ -56,16 +57,16 @@ build, which nothing in `src/` compares against.
 
    | Case | Exit |
    | --- | --- |
-   | preview, first build (`CACHED_COMMIT_REF` = `COMMIT_REF`), only `docs/tasks/*.md` and `docs/decisions/*.md` changed since main | 0 |
-   | preview, first build, only `README.md`, `AGENTS.md`, `CLAUDE.md`, `deploy/nas/README.md`, `docs/lessons.md` | 0 |
-   | preview, first build, `src/x.ts` changed | 1 |
-   | preview, first build, `docs/` and `src/` both changed | 1 |
-   | preview, first build, `src/notes.md`, `public/x.md`, `e2e/x.md` or `backend/x.md` | 1 each |
-   | preview, first build, `netlify.toml`, `scripts/netlify-ignore.mjs`, `package.json`, `pnpm-lock.yaml`, `LICENSE` | 1 each |
-   | preview, first build, a rename `docs/a.md` → `src/a.md`, and a deleted `src/` file | 1 each |
-   | preview, later build: a code commit (cached) then a docs-only commit | 0 |
-   | preview, later build: a docs commit (cached) then a code commit | 1 |
-   | preview, cached commit not an ancestor of `COMMIT_REF` (a force-push): falls back to the merge base | per the merge base |
+   | preview (`CACHED_COMMIT_REF` = `COMMIT_REF`, as on a first build), only `docs/tasks/*.md` and `docs/decisions/*.md` changed since main | 0 |
+   | preview, only `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/lessons.md`, `docs/deploy/netlify.md` | 0 |
+   | preview, no change since main (empty range) | 1 |
+   | preview, `src/x.ts` changed | 1 |
+   | preview, `docs/` and `src/` both changed | 1 |
+   | preview, `deploy/nas/README.md`, `.claude/agents/x.md`, `src/notes.md`, `public/x.md`, `e2e/x.md` or `backend/x.md` | 1 each |
+   | preview, `netlify.toml`, `scripts/netlify-ignore.mjs`, `vite.config.ts`, `package.json`, `pnpm-lock.yaml`, `LICENSE` | 1 each |
+   | preview, a rename `docs/a.md` → `src/a.md`, and a deleted `src/` file | 1 each |
+   | preview, a code commit then a docs-only commit, with `CACHED_COMMIT_REF` set to the code commit (it is ignored: the whole PR counts) | 1 |
+   | preview, no `origin/main` locally but fetchable from the throwaway remote | per the merge base |
    | preview, no `main` and no way to fetch it | 1 |
    | production, docs-only commit after the cached one | 0 |
    | production, code commit after the cached one | 1 |
@@ -105,9 +106,18 @@ build, which nothing in `src/` compares against.
 - Netlify's environment (from its documentation; confirm in (2)): `COMMIT_REF` is the commit
   being built; `CACHED_COMMIT_REF` is the commit of the last build Netlify has a cache for.
   On a pull request's first preview there is none, and it is commonly equal to `COMMIT_REF`;
-  that is why the naive `git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF` must not be used.
-  A skipped build's commit may become the next build's `CACHED_COMMIT_REF`; that is safe,
-  since a skipped commit only ever adds docs to what was last built.
+  that is why previews never use it. In production a skipped build's commit may become the
+  next build's `CACHED_COMMIT_REF`; that is safe, since a skipped commit only ever adds docs
+  to what was last built.
+- **Same as the reading list (T-0099, D-0078 there).** The approach and paths are the same,
+  with no difference needed here: diy-projects' other Markdown (`deploy/nas/*.md`,
+  `.claude/**`) changes rarely, and building for it keeps the rule identical in both
+  projects.
+- **Docs that promised a preview on every pull request:** `docs/deploy/netlify.md` (step 2
+  and *Checking a preview*) is updated in the architect's commit to say docs-only pull
+  requests get none. No other doc here promises one (`.claude/agents/ux-designer.md` mentions
+  a preview address, but only for changes a user sees, which always build; it is generated
+  by the harness).
 - No Markdown file is read by the app or the build today: `grep` over `src/`, `index.html`,
   `vite.config.ts`, `public/` and `scripts/` finds no `.md` import or `docs/` path.
 - Netlify prints the ignore command's output in the deploy log; a cancelled build still
@@ -116,7 +126,7 @@ build, which nothing in `src/` compares against.
   change the task.
 - The PR changes `netlify.toml` (deploy configuration) and `vite.config.ts` (test include
   only): say so in its description. No workflow, `.claude/` or `.githooks/` change.
-- Hanna's reading list gets the same change in its own repository; this task covers only
+- The reading list has its own task for the same change; this task covers only
   diy-projects. The architect proposes D-0044 to the harness as a global decision (G-0006).
 
 # Design
@@ -127,4 +137,4 @@ Nothing visible.
 
 # Log
 
-- 2026-11-25 architect: raised on Sander's request (Engineer) to skip Netlify builds for docs-only pull requests; recorded D-0044 (overrules G-0018 for docs-only changes); checked that the ruleset requires only `checks / checks` and auto-merge waits only for CI and backend, so a skipped Netlify build can't block a merge; size small (tooling, nothing visible), to the developer.
+- 2026-11-25 architect: raised on Sander's request (Engineer) to skip Netlify builds for docs-only pull requests; recorded D-0044 (overrules G-0018 for docs-only changes); checked that the ruleset requires only `checks / checks` and auto-merge waits only for CI and backend, so a skipped Netlify build can't block a merge; aligned with the reading list's approach (T-0099, D-0078 there: previews always against the merge base, docs-only is `docs/**` and root `*.md`); updated `docs/deploy/netlify.md`; size small (tooling, nothing visible), to the developer.
