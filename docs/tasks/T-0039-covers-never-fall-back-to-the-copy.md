@@ -2,12 +2,12 @@
 id: T-0039
 title: "Keep project covers on the thumbnail after an update, a sync, a rebuild or a download"
 description: "D-0040: a regression after T-0037/T-0038; an overview card whose thumbnail isn't measured yet takes the 2560 px copy (jagged) at a pixel ratio of 2 and up, and every write to photos reloads every card; offer an unmeasured thumbnail alone and keep a photo's object URLs while its files are the same."
-status: Doing
+status: Done
 size: small
 depends_on: []
 decisions: [D-0040, D-0038, D-0039, D-0003, D-0015, D-0002, D-0006, G-0019, G-0012, G-0031, G-0032]
 raised_on: 2026-11-24
-done_on: ""
+done_on: 2026-11-25
 result: ["https://github.com/SanderGeraedts/diy-projects/pull/72"]
 ---
 
@@ -317,3 +317,4 @@ deploy.
   Remaining: Done when 5 (Sander, in production after the deploy, on his laptop and the
   Fold: covers smooth right after the new-version reload and a minute later, and the
   console one-liner in *Notes* reports `thumbnail` for every card).
+- 2026-11-25 architect: Done when 5 confirmed: the covers look smooth. Sander (Engineer) confirmed in production after the deploy of T-0041 (main at b587602), by eye: "the covers are smooth now, close the tasks", and on the arrow keys and the visitor view: "Yes, both checked: I checked the arrow keys and the visitor view too; close all six." He gave no console output; this confirms by eye only. Done.
