@@ -152,6 +152,38 @@ in a 320 px card).
 
 Nothing new to design (size small). The UX designer reviews after the build.
 
+**Review** (UX designer, 2026-11-25). Looked at on the dev server with the seeded demo data plus
+generated 4000×3000 covers in the browser's own IndexedDB (never the NAS), in Playwright's
+Chromium at 1280×800 pixel ratio 1 (12 projects) and on the Fold viewport (840×900, 2.625, 8
+projects), with the same throwaway script run against `origin/main` (9a8ce86) for comparison.
+A per-frame sampler recorded, for every card and tile, an empty image, a remount, a move or
+resize and the srcset label of what it shows, plus Chrome's layout shifts; screenshots before,
+every 0.4 s during and after the background pass. Following D-0043, which candidate is shown was
+read from the label of `currentSrc` while the app ran, and the file behind `currentSrc` was decoded
+only at the very end.
+
+- **Card image arriving while open** (b: thumbnail measured; c: thumbnail alone first). Laptop:
+  every Bok card goes from the thumbnail to the 640 px card image within the pass; no image empty,
+  remounted, moved or resized, no layout shift, the screenshots before, during and after look the
+  same apart from sharpness. On main the same run ends on 1280w in b and c (the bug). Fold: the
+  cards keep the 1280 px thumbnail (r 1.88), also without empty frames, moves or shifts. Matches.
+- **After the viewer** (d). Laptop: the tile shows 640w (main: 2560w, the copy); back on the
+  overview every card shows 640w (main: Bok 01 at 2560w). Fold: tile 1280w (r 1.22), cards 1280w.
+  Matches.
+- **After a reload** (e): 640w on every laptop card; decoded at the end: 640 for every card
+  (CSS 320 px × 1). Fold: 1280 for CSS 259 px × 2.625. Matches.
+- **Navigation stays instant.** Click to loaded image: overview to project 68–86 ms, project to
+  viewer 61–66 ms, back to project 21–25 ms, back to overview 21–30 ms; main 71 / 63 / 11 / 28 ms.
+  Coming back, cards show their image from the second frame, as on main. Same.
+- **Visitor view** (`?bezoeker`, demo): cards and tiles keep `blob 1280w, blob 1600w` without a
+  marker, all loaded; the overview, Tuinbank page and viewer look as on main. Unchanged.
+- Not from this change: a small layout shift (0.02, the project page's footer for one frame
+  before the timeline) shows now and then on entering a project page, on main as well (1 in 24
+  rounds on main, 0 in 24 on this branch, once in a single run of each). Recorded here, not a
+  blocker.
+
+Verdict: matches; nothing to fix before the tester.
+
 # Test
 
 Developer, 2026-11-25, `e2e/card-choice.spec.ts` (Done when 1), Playwright's Chromium
@@ -231,3 +263,4 @@ Done when 5 locally: `pnpm run typecheck` clean, `pnpm test` 465 passed / 37 ski
 - 2026-11-25 architect: raised from Sander's production check after T-0040 (laptop, pixel ratio 1: `640w` in srcset but `currentSrc` the 1280 px thumbnail). Reproduced in Chromium 159: Chrome takes a larger candidate whose address it has already loaded, and D-0040's stable addresses keep that address. Recorded D-0042 (own addresses per place and candidate set). Size: small.
 - 2026-11-25 developer: built D-0042. Owner: a card's or tile's srcset takes its thumbnail and copy object URLs per photo, file, size and type and per place, `sizes` and candidate set (`fileKey(..., set)`); the thumbnail-alone path and `usePhotoUrl` keep the shared single-file addresses; `PhotoImage` gets `place` (`card` in `ProjectCard`, `tile` on the project page). Visitor: `placeUrl` adds `?in=card` / `?in=tile` to the thumbnail and copy; `cardUrl` unchanged; the demo's object URLs are left as they are. New `e2e/card-choice.spec.ts`: on main 27 failures (b 1280, c 1280, d 2560), with the fix 1 passed, headless and headed alike; card-images row added; unit and PocketBase tests as in *Test*. Note for the architect: a check that fetches an address takes it out of Chrome's memory cache and hides this preference (see *Test*).
 - 2026-11-25 architect: with the Engineer's go-ahead, proposed the repeated lesson as harness rule G-0033 (https://github.com/SanderGeraedts/harness/pull/23, waits for the Engineer there) and recorded it here as D-0043 (D-0042 covers only the image case); D-0043 is replaced by G-0033 when a harness release carries it.
+- 2026-11-25 ux-designer: reviewed: matches. Dev server, demo data plus generated covers, laptop 1280×800 at pixel ratio 1 and Fold, against main for comparison: the card image arrives without flashing, going empty or shifting; after the viewer and a reload every card shows 640 (main: 1280 and 2560); navigation as fast as main; visitor view unchanged. To the tester.
