@@ -2,7 +2,7 @@
 id: T-0042
 title: "Skip Netlify's preview and production builds when a change touches only documentation"
 description: "D-0044: netlify.toml's [build] ignore runs scripts/netlify-ignore.mjs, which skips the build when every changed path is docs-only and builds on anything else or any doubt; proven by a git-range test in pnpm test and one real docs-only pull request that Netlify skips and that still merges itself."
-status: Open
+status: Doing
 size: small
 depends_on: []
 decisions: [D-0044, G-0018, G-0019, G-0011, G-0029, G-0012, G-0031]
@@ -138,3 +138,4 @@ Nothing visible.
 # Log
 
 - 2026-11-25 architect: raised on Sander's request (Engineer) to skip Netlify builds for docs-only pull requests; recorded D-0044 (overrules G-0018 for docs-only changes); checked that the ruleset requires only `checks / checks` and auto-merge waits only for CI and backend, so a skipped Netlify build can't block a merge; aligned with the reading list's approach (T-0099, D-0078 there: previews always against the merge base, docs-only is `docs/**` and root `*.md`); updated `docs/deploy/netlify.md`; size small (tooling, nothing visible), to the developer.
+- 2026-11-25 developer: built `scripts/netlify-ignore.mjs` (Node built-ins and git; pure `isDocsOnlyPath`/`isDocsOnlyChange`; previews diff `merge-base(origin/main, COMMIT_REF)..COMMIT_REF`, fetching `origin/main` when missing and unshallowing when no merge base; production diffs `CACHED_COMMIT_REF..COMMIT_REF` only with both set, different and the cached one an ancestor; anything else or any error builds; logs CONTEXT, both refs, range, paths and verdict), `[build] ignore = "node scripts/netlify-ignore.mjs"` in `netlify.toml`, and `scripts/netlify-ignore.test.mjs` (every *Done when* (1) case in throwaway repositories, plus a non-ancestor production case), added to `test.include` in `vite.config.ts`. Locally on Windows: `pnpm exec vitest run scripts/netlify-ignore` → `Test Files 1 passed (1)`, `Tests 33 passed (33)`; `pnpm run typecheck` clean; `pnpm exec harness check` all ✓. Dry run in this checkout on the docs-only commit 5d897f2 (`CONTEXT=deploy-preview`, both refs equal) → `range 810e99e..5d897f2`, 5 docs paths, `skip (docs-only change)`, exit 0; with no `COMMIT_REF` → `build (COMMIT_REF is unset)`, exit 1.
