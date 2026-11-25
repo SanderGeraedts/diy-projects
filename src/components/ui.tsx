@@ -42,7 +42,7 @@ export function ProjectCard({ project, cover }: { project: Project; cover?: Show
   return (
     <div className="relative aspect-[4/3] overflow-hidden rounded-card bg-grey-lighter">
       {cover ? (
-        <PhotoImage photo={cover} sizes={CARD_SIZES} alt="" className="h-full w-full object-cover" />
+        <PhotoImage photo={cover} sizes={CARD_SIZES} place="card" alt="" className="h-full w-full object-cover" />
       ) : (
         <span
           aria-hidden="true"

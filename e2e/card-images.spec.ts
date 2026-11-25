@@ -167,7 +167,10 @@ test('card images are made at import, and in the background for photos without o
   expect(before.outbox).toBe(0)
   const old = before.photos.find((p) => p.id === bigOne.id)!
 
-  // The app starts on the overview, where the big photo is the cover; the job begins a moment later.
+  // The app starts on the overview, where the big photo is the cover; the job begins a moment
+  // later. T-0041: on a laptop at a pixel ratio of 1, so the card's choice can be checked.
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false })
   await page.goto('/')
   const card = page.getByRole('link', { name: /Kaartenbak/ }).locator('img')
   await expect(card).toHaveAttribute('srcset', /^\S+ \d+w, \S+ \d+w$/)
@@ -193,6 +196,17 @@ test('card images are made at import, and in the background for photos without o
   // Afterwards: the card offers it as its smallest candidate, loaded, nothing new to read.
   await expect(card).toHaveAttribute('srcset', /^\S+ 640w, \S+ 1280w, \S+ 2560w$/)
   await expect.poll(() => card.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
+  // T-0041 (D-0042): and shows it at a pixel ratio of 1: the decoded width of the file behind
+  // currentSrc, not only 640w in the srcset (never naturalWidth, which the density divides).
+  const shown = () =>
+    card.evaluate(async (img: HTMLImageElement) => {
+      if (!img.complete) return 0
+      const bitmap = await createImageBitmap(await (await fetch(img.currentSrc)).blob())
+      const width = bitmap.width
+      bitmap.close()
+      return width
+    })
+  await expect.poll(shown).toBe(640)
   expect(await page.locator('body').innerText()).toBe(text)
 
   // The small photo is recorded as too small, and stays so on a later start.
