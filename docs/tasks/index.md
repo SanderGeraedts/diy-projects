@@ -7,6 +7,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 ## Open
 
 - [T-0034 Manage this project's NAS app through the runner, as G-0026 and G-0027 say](T-0034-manage-the-nas-through-the-runner.md) (small): G-0026, G-0027: this project's NAS notes use harness nas --remote as the normal route, name no replaced decision, and keep the laptop's own TrueNAS key only as the fallback D-0036 allows.
+- [T-0041 Make covers and day tiles really show the card image when Chrome has already loaded a larger one](T-0041-covers-pick-the-card-image.md) (small): D-0042: Chrome takes a larger srcset candidate whose address it already loaded in the page, so after T-0040 covers kept the 1280 px thumbnail (and, after the viewer, would take the copy); give each card's and tile's srcset addresses of its own per place and candidate set, and check the decoded width of currentSrc in every state the app passes through.
 
 ## Doing
 
