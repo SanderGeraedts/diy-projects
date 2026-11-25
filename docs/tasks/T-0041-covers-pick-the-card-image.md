@@ -258,9 +258,106 @@ is no larger file Chrome could prefer (unit test). `e2e/visitor.spec.ts` passes.
 Done when 5 locally: `pnpm run typecheck` clean, `pnpm test` 465 passed / 37 skipped,
 `pnpm run test:e2e` 82 passed / 2 skipped, `pnpm run build` and `pnpm exec harness check` pass.
 
+**Tester, 2026-11-25, at a274da7. Verdict: sent back.** The fix works in every state and
+every attack below; `e2e/card-choice.spec.ts` itself is flaky in CI, so Done when 5 ("CI is
+green on the first attempt") fails.
+
+CI (`gh pr checks 74`, run 45577651783 on a274da7): `checks / checks fail`, `pocketbase-auth
+pass`. The new spec failed its first attempt and passed only on the retry:
+
+```
+##[error]  1) [pixel] › e2e/card-choice.spec.ts:202:1 › every cover shows the 640 px card image at pixel ratio 1, in every state
+   Error: route.continue: Route is already handled!
+     84 |   await page.context().route(pattern, async (route) => {
+     85 |     await gate
+   > 86 |     await route.continue()
+   Error: page.waitForTimeout: Test ended.
+   > 192 |     await page.waitForTimeout(100)
+       at cardImageArrives (e2e/card-choice.spec.ts:192:16)
+       at e2e/card-choice.spec.ts:230:3
+  1 flaky
+  83 passed (2.4m)
+##[error]A test passed only on a retry. Make it steady instead: a retry must not hide it (G-0031).
+```
+
+It broke right after "c. unmeasured first, before the pass" was printed, at `release()` in
+`holdBackgroundPass`. The two earlier CI runs on this branch (60664bf, 37e05ce; same code,
+only docs changed since) passed 84/84, so it is 1 flaky run in 3. Not reproduced locally
+(`--repeat-each 10 --workers 5`: 10 passed). Likely cause (not proven): the context-wide
+route also holds a worker request of the page from step e (the reload), which `page.goto('/')`
+in `cardImageArrives` then cancels; Playwright handles that held route itself, and the later
+`route.continue()` throws. The fix and its proof are the developer's.
+
+Done when 1, against a fresh build of `origin/main` (9a8ce86) in a separate worktree with the
+branch's spec copied in, no other preview running (`netstat`: nothing on 4173/439x),
+`rm -rf dist && pnpm run build`, `E2E_PORT=4391 pnpm exec playwright test e2e/card-choice.spec.ts`:
+
+```
+b. card image added while open, before the pass:
+  Bok 01 | shows 1280w | srcset blob 1280w, blob 2560w
+b. card image added while open:
+  Bok 01 | shown 1280 | srcset blob 640w, blob 1280w, blob 2560w
+e. reload after b:
+  Bok 01 | shown  640 | srcset blob 640w, blob 1280w, blob 2560w
+c. unmeasured first:
+  Bok 01 | shown 1280 | srcset blob 640w, blob 1280w, blob 2560w
+d. tile: shows 2560w, CSS 492.0 px × pixel ratio, r 5.20
+d. after the viewer:
+  Bok 01 | shown 2560 | srcset blob 640w, blob 1280w, blob 2560w
+     12 Error: b. card image added while open     (Received: 1280)
+     12 Error: c. unmeasured first                (Received: 1280)
+      2 Error: d   (tile never the copy: 2560w; r 5.203252032520325 > 2.2)
+      1 Error: d. after the viewer                (Received: 2560)
+  1 failed
+```
+
+Headed (`--headed`) on main: the same 27 failures, the same values. No difference.
+
+On the branch, clean (`pnpm install --frozen-lockfile`, `rm -rf dist && pnpm run build`):
+`--repeat-each 4 --workers 2`: `4 passed (56.5s)`; `--repeat-each 10 --workers 5`:
+`10 passed (1.1m)`; `--headed`: `1 passed (29.4s)`, every card `shown 640` in a, b, c, d, e;
+the tile in d `640w, r 1.30`.
+
+Done when 2 and affected specs: `card-images sharp-photos cover-after-update thumbnails visitor
+viewer --repeat-each 3 --workers 4`: `63 passed (1.5m)`.
+
+Done when 3 and unit: `pnpm run typecheck` clean; `pnpm test`: `Test Files 34 passed | 5
+skipped (39)`, `Tests 465 passed | 37 skipped (502)`; `PhotoImage.test.tsx` and `src/public`:
+`53 passed`, including all six D-0042 address tests and both visitor tests.
+
+Done when 4: `pnpm exec harness backend start` (throwaway, port 8097, CI's throwaway superuser
+names), `src/sync/cards.pocketbase.test.ts`: `Tests 4 passed (4)`, among them "T-0041
+(D-0042): a visitor gets the same bytes at the place-marked thumbnail and copy addresses, and
+a private photo's stay 404". Signed out, a public photo's thumbnail at the plain, `?in=card`
+and `?in=tile` address: each `200`, `Cache-Control: max-age=2592000,
+stale-while-revalidate=86400`, the same `Content-Length` (217988): still cacheable.
+`harness backend stop` after. CI's `pocketbase-auth` passed as well.
+
+`pnpm exec harness check`: tasks, decisions, engineers and generated files ✓.
+
+Tried to break it (a throwaway spec, deleted afterwards; 4 projects × 3 generated 4000×3000
+photos, `URL.createObjectURL`/`revokeObjectURL` wrapped to count live and revoked addresses,
+each count read 2.6 s after the step, past `REVOKE_AFTER_MS`), laptop 1280×800 @1 and Fold
+840×900 @2.625, both passed:
+
+- **Order viewer first, then tile, then overview**, 10 rounds without a reload (project page →
+  viewer straight away → next photo → close → read the tiles → back → read the cards). Laptop
+  every round: tiles `640w` r 1.30, cards `640w` r 2.00. Fold every round: tiles `1280w` r
+  1.22, cards `1280w` r 1.89. Never the copy, always within 0.7–2.2.
+- **Leaks:** live object URLs on the overview after each round: `20, 20, 20, 20, 20, 20, 20,
+  20, 20, 20` on both viewports. After deleting the cover photo twice: project page 6 then 3,
+  overview back to 20, the card moving on to the next photo at `640w` (Fold `1280w`).
+- **Revoked address in use:** 0 in every check (src, currentSrc and every srcset address of
+  every image), and no broken image.
+- The demo projects' cards show `1600w` at r 5 on the laptop: their thumbnail is the SVG copy
+  (`src/seed/demo.ts`), a vector, unchanged by this task and not a bug.
+
+Not checked here: Done when 6 (Sander, in production).
+
 # Log
 
 - 2026-11-25 architect: raised from Sander's production check after T-0040 (laptop, pixel ratio 1: `640w` in srcset but `currentSrc` the 1280 px thumbnail). Reproduced in Chromium 159: Chrome takes a larger candidate whose address it has already loaded, and D-0040's stable addresses keep that address. Recorded D-0042 (own addresses per place and candidate set). Size: small.
 - 2026-11-25 developer: built D-0042. Owner: a card's or tile's srcset takes its thumbnail and copy object URLs per photo, file, size and type and per place, `sizes` and candidate set (`fileKey(..., set)`); the thumbnail-alone path and `usePhotoUrl` keep the shared single-file addresses; `PhotoImage` gets `place` (`card` in `ProjectCard`, `tile` on the project page). Visitor: `placeUrl` adds `?in=card` / `?in=tile` to the thumbnail and copy; `cardUrl` unchanged; the demo's object URLs are left as they are. New `e2e/card-choice.spec.ts`: on main 27 failures (b 1280, c 1280, d 2560), with the fix 1 passed, headless and headed alike; card-images row added; unit and PocketBase tests as in *Test*. Note for the architect: a check that fetches an address takes it out of Chrome's memory cache and hides this preference (see *Test*).
 - 2026-11-25 architect: with the Engineer's go-ahead, proposed the repeated lesson as harness rule G-0033 (https://github.com/SanderGeraedts/harness/pull/23, waits for the Engineer there) and recorded it here as D-0043 (D-0042 covers only the image case); D-0043 is replaced by G-0033 when a harness release carries it.
 - 2026-11-25 ux-designer: reviewed: matches. Dev server, demo data plus generated covers, laptop 1280×800 at pixel ratio 1 and Fold, against main for comparison: the card image arrives without flashing, going empty or shifting; after the viewer and a reload every card shows 640 (main: 1280 and 2560); navigation as fast as main; visitor view unchanged. To the tester.
+- 2026-11-25 tester: sent back: CI run 45577651783 on a274da7 is red because `e2e/card-choice.spec.ts` passed only on its retry (`route.continue: Route is already handled!` in `holdBackgroundPass`, after "c. unmeasured first, before the pass"); 1 flaky run of 3 on this branch, not reproduced locally. Make the spec steady and show CI green on the first attempt. Everything else passed: it fails on a fresh build of main (27 failures, headless and headed alike) and passes on the branch, as do the affected specs, the unit and PocketBase tests, and the break attempts (no leaked or revoked object URLs in use, the viewer-tile-overview order, the Fold, visitor addresses still cacheable); see *Test*.
