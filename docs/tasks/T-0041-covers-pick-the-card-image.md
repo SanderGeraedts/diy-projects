@@ -388,6 +388,55 @@ only what was sent back.
 
 Done when 1–5 are met. Done when 6 (Sander, in production) remains.
 
+**Tester, third check, 2026-11-25, at e769301 (the atomic swap, cc54c09). Verdict: passed.**
+After my pass above, CI on cb13454 (run 45586221874) failed: `e2e/thumbnails.spec.ts:115`
+passed only on its retry, because a tile had `naturalWidth` 0 during a source swap. That
+pass was too early. I re-tested what changed.
+
+- **The fix, read:**
+  - `useSwappedSources` keeps the shown `src`/`srcset` until a hidden `new Image()` with the new
+    `srcset` (at the `<img>`'s width in px) has decoded, then swaps. It swaps on a rejected
+    decode too, and an effect cleanup (`live = false`) drops a stale or unmounted decode.
+  - `useHeldUrls` counts the addresses the `<img>` still shows, so they aren't revoked before the
+    swap.
+  - `thumbnails.spec.ts` now counts animation frames without a decoded image and expects 0.
+- **CI** (`run_attempt` 1, no `flaky` line in either run):
+  - run 45602848445 on cc54c09: `84 passed (2.2m)`
+  - run 45604607977 on e769301: `84 passed (2.1m)`
+- **Repeated, `--retries 0`:** after `pnpm install --frozen-lockfile` and a fresh build,
+  `thumbnails.spec.ts` and `card-choice.spec.ts` with `--repeat-each 10 --workers 6` gave
+  `40 passed (1.5m)`.
+- **CPU throttled 4×:** throwaway copies of both specs, with only a `beforeEach` added that runs
+  CDP `Emulation.setCPUThrottlingRate { rate: 4 }`, run `--repeat-each 3 --workers 4 --retries 0`:
+  `12 passed (1.1m)`. The copies are deleted.
+- **Still fails on main:** a fresh worktree at `origin/main` 9a8ce86 with the branch's spec
+  copied in, a clean install, `rm -rf dist && pnpm run build`, `--retries 0`, gave `1 failed`
+  with the same 27 failures: b 1280 ×12, c 1280 ×12, d tile `2560w` r 5.20 (2), d Bok 01 2560.
+- **Full suites:** `pnpm run typecheck` clean. `pnpm test`: `Test Files 34 passed | 5 skipped
+  (39)`, `Tests 467 passed | 37 skipped (504)`. `pnpm exec playwright test --retries 0`:
+  `82 passed (1.1m)`, `2 skipped`.
+- **Breaking the swap, units:** a throwaway vitest file, deleted afterwards. It used fake timers,
+  a controllable `decode()`, a stubbed `createObjectURL`, and a `revokeObjectURL` that fails
+  when the address is still in the `<img>`'s `src` or `srcset`. `5 passed`:
+  - A→B→C before any decode: B's late decode is ignored, the image ends on C, and nothing shown
+    is revoked.
+  - A→B→A before decode: stays on A, B is never shown.
+  - Unmount during a pending decode, then resolve: no state is set and no `console.error`; every
+    created address is revoked.
+  - A decode that rejects: the swap still happens, with no error and no leak.
+  - 50 alternating changes with decodes resolved in random order: ends on the last set, the only
+    live addresses are the shown ones, and all are revoked after unmount.
+- **Breaking the swap, in the browser:** the throwaway e2e from before, now also counting empty
+  frames of every card and tile per animation frame. 4 projects × 3 photos, laptop @1 and Fold
+  @2.625, `--retries 0`, `2 passed (2.2m)`:
+  - 10 rounds of viewer first, then tiles, then overview, without a reload: live object URLs
+    `20, 20, 20, 20, 20, 20, 20, 20, 20, 20` on both, 0 revoked addresses in use, 0 broken
+    images, 0 empty frames.
+  - Laptop tiles `640w` r 1.30, cards `640w` r 2.00. Fold tiles `1280w` r 1.22, cards `1280w`
+    r 1.89.
+  - After 2 cover deletes: project page 6 then 3 live addresses, overview back to 20, still 0
+    empty frames.
+
 # Log
 
 - 2026-11-25 architect: raised from Sander's production check after T-0040 (laptop, pixel ratio 1: `640w` in srcset but `currentSrc` the 1280 px thumbnail). Reproduced in Chromium 159: Chrome takes a larger candidate whose address it has already loaded, and D-0040's stable addresses keep that address. Recorded D-0042 (own addresses per place and candidate set). Size: small.
@@ -399,3 +448,4 @@ Done when 1–5 are met. Done when 6 (Sander, in production) remains.
 - 2026-11-25 tester: passed. Re-checked the send-back at cc46e66: the spec fix (no app runs while photos are edited; a page route on the worker script only), CI run 45584214667 green on its first attempt with no flaky test, the spec still failing on a fresh build of main (27 failures) and steady on the branch (16 + 8 + 1 headed runs with `--retries 0`, no failure). Remaining: Done when 6, Sander in production on his laptop at 100 % and on the Fold, also as a visitor: covers and project photos look smooth, also after opening a photo and going back, and the console table shows 640 in the fourth column for every row with `true` in the third (laptop). His confirmation also closes T-0040's Done when 8 and T-0037's Done when 6.
 - 2026-11-25 developer: second send-back (CI run 45586221874 on cb13454: `e2e/thumbnails.spec.ts` "older thumbnails are rebuilt…" passed only on retry; the tile's `naturalWidth` was 0 during the rebuild). Cause: a new candidate set swapped `src`/`srcset` straight to addresses not loaded yet. Fix, atomic by construction (D-0043): `PhotoWithSrcset` renders its first sources at once, but a later change only once a hidden `Image` with the new `srcset` (its `sizes` the `<img>`'s shown width in px, as `auto` gives) has loaded and decoded the candidate it picks; until then the `<img>` keeps its sources, and `useHeldUrls` keeps the object URLs it still shows from being revoked. The thumbnails spec is stricter: a `requestAnimationFrame` watcher counts frames in which the tile has no decoded image (or was replaced) and expects 0; on the previous build it caught 1 in 10 runs. Unit: 2 new tests (no swap and no revoke before the decode; the hidden image gets the new srcset at the shown width), failing without the change. Runs, `--retries 0`: `thumbnails.spec.ts` + `card-choice.spec.ts` `--repeat-each 20 --workers 8` 80 passed; CPU throttled 4× (throwaway copies; card-choice window 40 s) `--repeat-each 5 --workers 6` 20 passed; full e2e 82 passed / 2 skipped; `pnpm test` 467 passed. `card-choice` on a fresh build of `origin/main` (9a8ce86) still fails: 27 soft failures (b 1280 ×12, c 1280 ×12, d tile 2560w r 5.20, d Bok 01 2560).
 - 2026-11-25 ux-designer: reviewed again at cc54c09 (atomic swap): matches. Dev server, demo data plus generated covers, never the NAS; 1280×800 at pixel ratio 1 and the Fold (840×900, 2.625). A per-frame check of every card and tile (an image that had been shown going back to loading or empty, a remount, a move, a layout shift) found none while the card image arrived (measured thumbnail; thumbnail alone first), during the background rebuild of older 512 px thumbnails (on the overview and on a project page), after the viewer and after a reload. Each card goes straight from the thumbnail to the card image in one step, with no in-between image. At pixel ratio 1 every card ends on 640 (decoded `currentSrc`, read only at the end, D-0043; 320 CSS px), and the tile after the viewer on 640w. On the Fold, cards and tiles end on the 1280 px thumbnail (r 1.88 and 1.22), never the copy. Delay: each card is sharp 0.19–0.8 s after the background pass starts, card by card as the pass makes them; acceptable, with the old image shown until then. Navigation as before: overview to project 75–97 ms, to the viewer 57–66 ms, back 10–43 ms; 24 rounds of overview, project, viewer and back without a layout shift. To the tester.
+- 2026-11-25 tester: passed (third check, e769301): the atomic swap holds. CI green on the first attempt with no flaky test (45602848445, 45604607977); thumbnails and card-choice steady with `--retries 0` (40 runs, and 12 at 4× CPU throttling); card-choice still fails on a fresh build of main (27 failures); full unit (467 passed) and e2e (82 passed) suites; break attempts on the swap (rapid changes, unmount during decode, rejected decode, leaks over navigations and deletes) found nothing. Remaining: Done when 6, Sander in production on his laptop at 100 % and on the Fold, also as a visitor: covers and project photos look smooth, also after opening a photo and going back, and the console table shows 640 in the fourth column for every row with `true` in the third (laptop). His confirmation also closes T-0040's Done when 8 and T-0037's Done when 6.
