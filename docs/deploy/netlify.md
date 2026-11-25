@@ -8,7 +8,9 @@ dashboards.
    grant the Netlify app access to your copy of `diy-projects` → pick the repo. Leave
    the build settings empty; `netlify.toml` provides them. Production branch: `main`.
 2. **Deploy previews.** *Site configuration → Build & deploy → Deploy Previews*: on for
-   every pull request. Branch deploys: off.
+   every pull request. Branch deploys: off. A pull request that changes only documentation
+   (files under `docs/` or Markdown files at the root) gets no preview, and its merge no
+   production build: `netlify.toml`'s `ignore` command skips them (D-0044).
 3. **Domain.** *Domain management → Add a domain* → `<your-domain>`, then add the
    CNAME record Netlify shows at your DNS provider. Netlify issues the certificate. The
    PocketBase backend must allow this origin: `APP_ORIGIN=https://<your-domain>`
@@ -20,6 +22,6 @@ dashboards.
 
 ## Checking a preview
 
-A PR's preview shows the yellow "Demo data · sync is off (deploy-preview)" bar and the
+A PR that changes more than documentation gets a preview. It shows the yellow "Demo data · sync is off (deploy-preview)" bar and the
 seeded demo projects. In Chrome on the phone, *Add to home screen* → *Install* should offer
 an app install, and the app should open with the network off after the first load.

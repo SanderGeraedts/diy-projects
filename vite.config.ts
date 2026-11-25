@@ -58,6 +58,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', '.github/scripts/**/*.test.mjs'],
+    include: ['src/**/*.test.{ts,tsx}', '.github/scripts/**/*.test.mjs', 'scripts/**/*.test.mjs'],
   },
 })

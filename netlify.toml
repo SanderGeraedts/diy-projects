@@ -5,6 +5,9 @@
 [build]
   command = "pnpm run build"
   publish = "dist"
+  # D-0044 (T-0042): skip the build when a change touches only docs/ or root *.md; exit 0
+  # skips, anything else (or any doubt) builds. Node built-ins only: runs before pnpm install.
+  ignore = "node scripts/netlify-ignore.mjs"
 
 [build.environment]
   NODE_VERSION = "24"

@@ -10,7 +10,7 @@ One file per task, from [_template.md](_template.md). Pick from *Open* a task wh
 
 ## Doing
 
-None.
+- [T-0042 Skip Netlify's preview and production builds when a change touches only documentation](T-0042-skip-netlify-builds-for-docs-only-changes.md) (small): D-0044: netlify.toml's [build] ignore runs scripts/netlify-ignore.mjs, which skips the build when every changed path is docs-only and builds on anything else or any doubt; proven by a git-range test in pnpm test and one real docs-only pull request that Netlify skips and that still merges itself.
 
 ## Done
 
